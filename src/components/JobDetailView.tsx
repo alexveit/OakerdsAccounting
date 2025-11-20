@@ -58,6 +58,9 @@ export function JobDetailView() {
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
 
+  // NEW: local editable end-date input
+  const [endDateInput, setEndDateInput] = useState<string>('');
+
   // Load all jobs once
   useEffect(() => {
     async function loadJobs() {
@@ -87,6 +90,7 @@ export function JobDetailView() {
       setJob(null);
       setLines([]);
       setTotals(null);
+      setEndDateInput('');
       return;
     }
 
@@ -105,7 +109,14 @@ export function JobDetailView() {
           .single();
 
         if (jobErr) throw jobErr;
-        setJob(jobData as Job);
+        const loadedJob = jobData as Job;
+        setJob(loadedJob);
+
+        // Prepopulate editable end date:
+        //  - use existing end_date if present
+        //  - otherwise use today's date
+        const todayStr = new Date().toISOString().slice(0, 10);
+        setEndDateInput(loadedJob.end_date || todayStr);
 
         // Load transaction lines for this job
         const { data: lineData, error: lineErr } = await supabase
@@ -206,19 +217,21 @@ export function JobDetailView() {
     setClosing(true);
 
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      // Use the user-chosen end date, falling back to today if somehow blank
+      const chosenEndDate =
+        endDateInput || new Date().toISOString().slice(0, 10);
 
       const { error } = await supabase
         .from('jobs')
         .update({
           status: 'closed',
-          end_date: today,
+          end_date: chosenEndDate,
         })
         .eq('id', job.id);
 
       if (error) throw error;
 
-      setJob({ ...job, status: 'closed', end_date: today });
+      setJob({ ...job, status: 'closed', end_date: chosenEndDate });
     } catch (err: any) {
       console.error(err);
       setError(err.message ?? 'Error closing job');
@@ -226,7 +239,6 @@ export function JobDetailView() {
       setClosing(false);
     }
   }
-
 
   if (loadingJobs) {
     return <p>Loading jobs…</p>;
@@ -285,7 +297,7 @@ export function JobDetailView() {
               Status: <strong>{job.status || 'open'}</strong>
             </div>
 
-             {/* Start / End dates */}
+            {/* Start / End dates */}
             <div
               style={{
                 display: 'flex',
@@ -300,9 +312,21 @@ export function JobDetailView() {
                 <strong>Start:</strong>{' '}
                 {job.start_date ? formatLocalDate(job.start_date) : '—'}
               </span>
+
               <span>
                 <strong>End:</strong>{' '}
-                {job.end_date ? formatLocalDate(job.end_date) : '—'}
+                {job.status !== 'closed' ? (
+                  <input
+                    type="date"
+                    value={endDateInput}
+                    onChange={(e) => setEndDateInput(e.target.value)}
+                    style={{ fontSize: 12 }}
+                  />
+                ) : job.end_date ? (
+                  formatLocalDate(job.end_date)
+                ) : (
+                  '—'
+                )}
               </span>
             </div>
 

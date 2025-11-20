@@ -68,13 +68,12 @@ export function DashboardOverview() {
       const sums: Record<number, number> = {};
       for (const line of rawLines) {
         const accType = line.accounts?.account_types?.name;
-        const isAsset = accType === 'asset'; // cash / bank
-        const isLiability = accType === 'liability'; // cards / loans
+        const isAsset = accType === 'asset';
+        const isLiability = accType === 'liability';
 
-        // Rules:
-        // - Assets (cash/bank): include BOTH cleared and pending
-        // - Liabilities (cards/loans): include ONLY cleared
-        // - Everything else: stick with cleared-only
+        // - Assets: include cleared + pending
+        // - Liabilities: cleared only
+        // - Everything else: cleared only
         const shouldCount =
           (isAsset && !Number.isNaN(line.amount)) ||
           (isLiability && line.is_cleared) ||
@@ -93,9 +92,7 @@ export function DashboardOverview() {
 
       setAccounts(withBalances);
 
-      // 4) Derive pending lists:
-      // - pendingCash: asset accounts with is_cleared = false
-      // - pendingCard: liability accounts with is_cleared = false
+      // 4) Derive pending lists
       const pendingCashLines = rawLines.filter((l) => {
         const typeName = l.accounts?.account_types?.name;
         return typeName === 'asset' && !l.is_cleared;
@@ -123,21 +120,45 @@ export function DashboardOverview() {
 
   async function handleMarkCleared(line: LineRow) {
     setError(null);
-    try {
-      const today = new Date().toISOString().slice(0, 10);
 
-      // 1) Mark line as cleared
+    try {
+      // Ask for final cleared amount. Default to current (abs) amount.
+      const defaultValue = Math.abs(line.amount).toFixed(2);
+      const input = window.prompt(
+        'Final cleared amount (tip included). Leave blank to keep the current amount.',
+        defaultValue
+      );
+
+      // If user clicked Cancel, do nothing
+      if (input === null) {
+        return;
+      }
+
+      let finalAmount = line.amount;
+
+      if (input.trim() !== '') {
+        const parsed = Number(input.trim());
+        if (Number.isNaN(parsed) || parsed <= 0) {
+          alert('Invalid amount. Please use a positive number like 58.15');
+          return;
+        }
+
+        // Preserve original sign (negative for charges, positive for deposits)
+        const sign = line.amount < 0 ? -1 : 1;
+        finalAmount = parsed * sign;
+      }
+
+      // Update line: mark cleared + update amount
       const { error: lineErr } = await supabase
         .from('transaction_lines')
         .update({
           is_cleared: true,
-          cleared_date: today,
+          amount: finalAmount,
         })
         .eq('id', line.id);
 
       if (lineErr) throw lineErr;
 
-      // 2) Reload balances + pending lists
       await loadBalances();
     } catch (err: any) {
       console.error(err);
@@ -153,7 +174,6 @@ export function DashboardOverview() {
     return <p style={{ color: 'red' }}>Error: {error}</p>;
   }
 
-  // Separate into cash/bank (assets) and cards/loans (liabilities)
   const cashAccounts = accounts.filter(
     (a) => a.account_types?.name === 'asset'
   );
@@ -173,7 +193,6 @@ export function DashboardOverview() {
     <div>
       <h2>Balances Overview</h2>
 
-      {/* Top summary row */}
       <div
         style={{
           display: 'grid',
@@ -199,7 +218,6 @@ export function DashboardOverview() {
         />
       </div>
 
-      {/* Bottom: two-column layout for detailed lists */}
       <div
         style={{
           display: 'grid',
@@ -207,7 +225,6 @@ export function DashboardOverview() {
           gap: '1rem',
         }}
       >
-        {/* Left column: cash accounts + pending bank */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <AccountList
             title="Cash & Bank Accounts"
@@ -222,7 +239,6 @@ export function DashboardOverview() {
           />
         </div>
 
-        {/* Right column: cards + pending cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <AccountList
             title="Cards & Loans"

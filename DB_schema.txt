@@ -1,0 +1,94 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.account_types (
+  id integer NOT NULL DEFAULT nextval('account_types_id_seq'::regclass),
+  name character varying NOT NULL UNIQUE,
+  normal_side character varying NOT NULL,
+  CONSTRAINT account_types_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.accounts (
+  id integer NOT NULL DEFAULT nextval('accounts_id_seq'::regclass),
+  name character varying NOT NULL,
+  code character varying,
+  account_type_id integer NOT NULL,
+  is_active boolean DEFAULT true,
+  purpose_default text DEFAULT 'business'::text CHECK (purpose_default = ANY (ARRAY['business'::text, 'personal'::text, 'mixed'::text])),
+  CONSTRAINT accounts_pkey PRIMARY KEY (id),
+  CONSTRAINT accounts_account_type_id_fkey FOREIGN KEY (account_type_id) REFERENCES public.account_types(id)
+);
+CREATE TABLE public.installers (
+  id integer NOT NULL DEFAULT nextval('installers_id_seq'::regclass),
+  first_name character varying NOT NULL,
+  last_name character varying,
+  company_name character varying,
+  address text,
+  tax_id character varying,
+  phone character varying,
+  email character varying,
+  is_active boolean DEFAULT true,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT installers_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.jobs (
+  id integer NOT NULL DEFAULT nextval('jobs_id_seq'::regclass),
+  name character varying NOT NULL,
+  address character varying,
+  status character varying DEFAULT 'open'::character varying,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  lead_source_id integer,
+  start_date date DEFAULT CURRENT_DATE,
+  end_date date,
+  CONSTRAINT jobs_pkey PRIMARY KEY (id),
+  CONSTRAINT jobs_lead_source_id_fkey FOREIGN KEY (lead_source_id) REFERENCES public.lead_sources(id)
+);
+CREATE TABLE public.lead_sources (
+  id integer NOT NULL DEFAULT nextval('lead_sources_id_seq'::regclass),
+  name character varying NOT NULL UNIQUE,
+  description text,
+  is_active boolean DEFAULT true,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  nick_name character varying,
+  CONSTRAINT lead_sources_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.transaction_lines (
+  id integer NOT NULL DEFAULT nextval('transaction_lines_id_seq'::regclass),
+  transaction_id integer NOT NULL,
+  account_id integer NOT NULL,
+  amount numeric NOT NULL,
+  job_id integer,
+  installer_id integer,
+  vendor_id integer,
+  purpose character varying DEFAULT 'business'::character varying CHECK (purpose::text = ANY (ARRAY['business'::character varying, 'personal'::character varying, 'mixed'::character varying]::text[])),
+  is_cleared boolean DEFAULT false,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  lead_source_id integer,
+  CONSTRAINT transaction_lines_pkey PRIMARY KEY (id),
+  CONSTRAINT transaction_lines_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.transactions(id),
+  CONSTRAINT transaction_lines_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.accounts(id),
+  CONSTRAINT transaction_lines_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.jobs(id),
+  CONSTRAINT transaction_lines_installer_id_fkey FOREIGN KEY (installer_id) REFERENCES public.installers(id),
+  CONSTRAINT transaction_lines_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id),
+  CONSTRAINT transaction_lines_lead_source_id_fkey FOREIGN KEY (lead_source_id) REFERENCES public.lead_sources(id),
+  CONSTRAINT transaction_lines_lead_source_fk FOREIGN KEY (lead_source_id) REFERENCES public.lead_sources(id)
+);
+CREATE TABLE public.transactions (
+  id integer NOT NULL DEFAULT nextval('transactions_id_seq'::regclass),
+  date date NOT NULL,
+  description character varying,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT transactions_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.vendors (
+  id integer NOT NULL DEFAULT nextval('vendors_id_seq'::regclass),
+  name character varying NOT NULL UNIQUE,
+  contact_name character varying,
+  address text,
+  tax_id character varying,
+  phone character varying,
+  email character varying,
+  is_active boolean DEFAULT true,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  nick_name character varying,
+  CONSTRAINT vendors_pkey PRIMARY KEY (id)
+);
