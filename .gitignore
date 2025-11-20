@@ -1,0 +1,40 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# Environment files (CRITICAL)
+.env
+.env.*
+!.env.example
+
+# Local config
+*.local
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+# Supabase metadata
+.supabase/
+
+# OS / Editor junk
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Lock files (optional — ignore if switching package managers)
+package-lock.json
+pnpm-lock.yaml
+yarn.lock

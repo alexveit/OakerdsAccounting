@@ -1,0 +1,517 @@
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
+
+// --- Local date formatting helper (prevents timezone shifting) ---
+function formatLocalDate(dateStr?: string | null) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return `${Number(m)}/${Number(d)}/${y}`;
+}
+
+type Job = {
+  id: number;
+  name: string;
+  address: string | null;
+  status: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+};
+
+type Line = {
+  id: number;
+  amount: number;
+  is_cleared: boolean;
+  transaction_id: number;
+  transactions: {
+    date: string;
+    description: string | null;
+  } | null;
+  accounts: {
+    name: string;
+    account_types: { name: string } | null;
+  } | null;
+  vendors: {
+    name: string;
+  } | null;
+  installers: {
+    first_name: string;
+    last_name: string | null;
+  } | null;
+};
+
+type Totals = {
+  income: number;
+  materials: number;
+  labor: number;
+  otherExpenses: number;
+  profit: number;
+};
+
+export function JobDetailView() {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>('');
+  const [job, setJob] = useState<Job | null>(null);
+  const [lines, setLines] = useState<Line[]>([]);
+  const [totals, setTotals] = useState<Totals | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [closing, setClosing] = useState(false);
+
+  // Load all jobs once
+  useEffect(() => {
+    async function loadJobs() {
+      setLoadingJobs(true);
+      setError(null);
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('id, name, address, status, start_date, end_date')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error(error);
+        setError(error.message);
+        setJobs([]);
+      } else {
+        setJobs((data ?? []) as Job[]);
+      }
+      setLoadingJobs(false);
+    }
+
+    loadJobs();
+  }, []);
+
+  // When a job is selected, load its lines
+  useEffect(() => {
+    if (!selectedJobId) {
+      setJob(null);
+      setLines([]);
+      setTotals(null);
+      return;
+    }
+
+    async function loadJobAndLines() {
+      setLoading(true);
+      setError(null);
+
+      const jobIdNum = Number(selectedJobId);
+
+      try {
+        // Load job (with dates)
+        const { data: jobData, error: jobErr } = await supabase
+          .from('jobs')
+          .select('id, name, address, status, start_date, end_date')
+          .eq('id', jobIdNum)
+          .single();
+
+        if (jobErr) throw jobErr;
+        setJob(jobData as Job);
+
+        // Load transaction lines for this job
+        const { data: lineData, error: lineErr } = await supabase
+          .from('transaction_lines')
+          .select(`
+            id,
+            amount,
+            is_cleared,
+            transaction_id,
+            transactions (
+              date,
+              description
+            ),
+            accounts (
+              name,
+              account_types ( name )
+            ),
+            vendors (
+              name
+            ),
+            installers (
+              first_name,
+              last_name
+            )
+          `)
+          .eq('job_id', jobIdNum);
+
+        if (lineErr) throw lineErr;
+
+        const rawLines = (lineData ?? []) as any[];
+
+        // Sort by transaction date ascending
+        const sorted = rawLines.sort((a, b) => {
+          const da = a.transactions?.date
+            ? new Date(a.transactions.date).getTime()
+            : 0;
+          const db = b.transactions?.date
+            ? new Date(b.transactions.date).getTime()
+            : 0;
+          return da - db;
+        });
+
+        setLines(sorted as Line[]);
+
+        // Compute totals
+        const totals: Totals = {
+          income: 0,
+          materials: 0,
+          labor: 0,
+          otherExpenses: 0,
+          profit: 0,
+        };
+
+        for (const line of sorted) {
+          const accType = line.accounts?.account_types?.name ?? null;
+
+          if (accType === 'income') {
+            // income lines are stored as negative (e.g. -4900),
+            // so flip the sign
+            totals.income += -line.amount;
+          } else if (accType === 'expense') {
+            // Decide what kind of expense this is:
+            //  - if installer present => labor
+            //  - else if vendor present => materials
+            //  - else => other
+            if (line.installers) {
+              totals.labor += line.amount;
+            } else if (line.vendors) {
+              totals.materials += line.amount;
+            } else {
+              totals.otherExpenses += line.amount;
+            }
+          }
+        }
+
+        totals.profit =
+          totals.income -
+          (totals.materials + totals.labor + totals.otherExpenses);
+
+        setTotals(totals);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message ?? 'Error loading job detail');
+        setJob(null);
+        setLines([]);
+        setTotals(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadJobAndLines();
+  }, [selectedJobId]);
+
+  async function handleCloseJob() {
+    if (!job) return;
+    setError(null);
+    setClosing(true);
+
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+
+      const { error } = await supabase
+        .from('jobs')
+        .update({
+          status: 'closed',
+          end_date: today,
+        })
+        .eq('id', job.id);
+
+      if (error) throw error;
+
+      setJob({ ...job, status: 'closed', end_date: today });
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message ?? 'Error closing job');
+    } finally {
+      setClosing(false);
+    }
+  }
+
+
+  if (loadingJobs) {
+    return <p>Loading jobs…</p>;
+  }
+
+  return (
+    <div>
+      <h2>Job Detail</h2>
+
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      <label>
+        Job
+        <select
+          value={selectedJobId}
+          onChange={(e) => setSelectedJobId(e.target.value)}
+        >
+          <option value="">Select a job…</option>
+          {jobs.map((j) => (
+            <option key={j.id} value={j.id}>
+              {j.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {!selectedJobId && (
+        <p style={{ marginTop: '1rem' }}>Choose a job to see its details.</p>
+      )}
+
+      {selectedJobId && loading && <p>Loading job details…</p>}
+
+      {job && totals && !loading && (
+        <>
+          {/* Job card */}
+          <div
+            style={{
+              marginTop: '1rem',
+              marginBottom: '1.5rem',
+              borderRadius: 12,
+              border: '1px solid #eee',
+              padding: '1rem 1.25rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              background: '#fff',
+            }}
+          >
+            <h3 style={{ marginTop: 0, marginBottom: '0.25rem' }}>
+              {job.name}
+            </h3>
+            {job.address && (
+              <div style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
+                {job.address}
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: '#777', marginBottom: 4 }}>
+              Status: <strong>{job.status || 'open'}</strong>
+            </div>
+
+             {/* Start / End dates */}
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                fontSize: 12,
+                color: '#555',
+                marginBottom: 8,
+              }}
+            >
+              <span>
+                <strong>Start:</strong>{' '}
+                {job.start_date ? formatLocalDate(job.start_date) : '—'}
+              </span>
+              <span>
+                <strong>End:</strong>{' '}
+                {job.end_date ? formatLocalDate(job.end_date) : '—'}
+              </span>
+            </div>
+
+            {job.status !== 'closed' && (
+              <button
+                onClick={handleCloseJob}
+                disabled={closing}
+                style={{
+                  padding: '0.3rem 0.8rem',
+                  borderRadius: 999,
+                  border: '1px solid #b00020',
+                  background: '#fff5f5',
+                  color: '#b00020',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                {closing ? 'Closing…' : 'Close Job'}
+              </button>
+            )}
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: '0.75rem',
+                fontSize: 14,
+              }}
+            >
+              <Stat label="Income" value={totals.income} money />
+              <Stat label="Materials" value={totals.materials} money />
+              <Stat label="Labor" value={totals.labor} money />
+              <Stat label="Other Exp." value={totals.otherExpenses} money />
+              <Stat
+                label="Profit"
+                value={totals.profit}
+                money
+                highlight={totals.profit >= 0 ? 'positive' : 'negative'}
+              />
+              <Stat
+                label="Margin"
+                value={
+                  totals.income > 0
+                    ? (totals.profit / totals.income) * 100
+                    : 0
+                }
+                suffix="%"
+              />
+            </div>
+          </div>
+
+          {/* Transaction list */}
+          <h3>Transactions</h3>
+          {lines.length === 0 && <p>No transactions found for this job.</p>}
+
+          {lines.length > 0 && (
+            <table
+              style={{
+                borderCollapse: 'collapse',
+                width: '100%',
+                fontSize: 14,
+              }}
+            >
+              <thead>
+                <tr>
+                  <Th>Date</Th>
+                  <Th>Description</Th>
+                  <Th>Account</Th>
+                  <Th>Type</Th>
+                  <Th>Vendor / Installer</Th>
+                  <Th align="right">Amount</Th>
+                  <Th align="center">Cleared</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((line) => {
+                  const accName = line.accounts?.name ?? '';
+                  const accType = line.accounts?.account_types?.name ?? '';
+                  const tDate = formatLocalDate(line.transactions?.date);
+                  const desc = line.transactions?.description ?? '';
+
+                  let kind = '';
+                  let party = '';
+
+                  if (accType === 'income') {
+                    kind = 'Income';
+                  } else if (accType === 'expense') {
+                    if (line.installers) {
+                      kind = 'Labor';
+                      party = `${line.installers.first_name} ${
+                        line.installers.last_name ?? ''
+                      }`.trim();
+                    } else if (line.vendors) {
+                      kind = 'Material';
+                      party = line.vendors.name;
+                    } else {
+                      kind = 'Expense';
+                    }
+                  } else {
+                    kind = accType || '';
+                  }
+
+                  if (!party && line.vendors) {
+                    party = line.vendors.name;
+                  }
+
+                  const amountDisplay =
+                    accType === 'income'
+                      ? -line.amount // flip sign to show as positive income
+                      : line.amount;
+
+                  return (
+                    <tr key={line.id}>
+                      <Td>{tDate}</Td>
+                      <Td>{desc}</Td>
+                      <Td>{accName}</Td>
+                      <Td>{kind}</Td>
+                      <Td>{party}</Td>
+                      <Td align="right">
+                        {amountDisplay.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </Td>
+                      <Td align="center">{line.is_cleared ? '✓' : ''}</Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Small presentational helpers
+function Stat({
+  label,
+  value,
+  money,
+  suffix,
+  highlight,
+}: {
+  label: string;
+  value: number;
+  money?: boolean;
+  suffix?: string;
+  highlight?: 'positive' | 'negative';
+}) {
+  let color = '#111';
+  if (highlight === 'positive') color = '#0a7a3c';
+  if (highlight === 'negative') color = '#b00020';
+
+  const display = money
+    ? `$${value.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`
+    : `${value.toFixed(1)}${suffix ?? ''}`;
+
+  return (
+    <div>
+      <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#777' }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 600, color }}>{display}</div>
+    </div>
+  );
+}
+
+function Th({
+  children,
+  align = 'left',
+}: {
+  children: React.ReactNode;
+  align?: 'left' | 'right' | 'center';
+}) {
+  return (
+    <th
+      style={{
+        borderBottom: '1px solid #ccc',
+        textAlign: align,
+        padding: '4px 6px',
+      }}
+    >
+      {children}
+    </th>
+  );
+}
+
+function Td({
+  children,
+  align = 'left',
+}: {
+  children: React.ReactNode;
+  align?: 'left' | 'right' | 'center';
+}) {
+  return (
+    <td
+      style={{
+        padding: '3px 6px',
+        textAlign: align,
+        borderBottom: '1px solid #f2f2f2',
+      }}
+    >
+      {children}
+    </td>
+  );
+}

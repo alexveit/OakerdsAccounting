@@ -1,0 +1,2616 @@
+{
+  "account_types": {
+    "columns": [
+      "id",
+      "name",
+      "normal_side"
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "name": "asset",
+        "normal_side": "debit"
+      },
+      {
+        "id": 2,
+        "name": "liability",
+        "normal_side": "credit"
+      },
+      {
+        "id": 3,
+        "name": "equity",
+        "normal_side": "credit"
+      },
+      {
+        "id": 4,
+        "name": "income",
+        "normal_side": "credit"
+      },
+      {
+        "id": 5,
+        "name": "expense",
+        "normal_side": "debit"
+      }
+    ]
+  },
+  "accounts": {
+    "columns": [
+      "id",
+      "name",
+      "code",
+      "account_type_id",
+      "is_active",
+      "purpose_default"
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "name": "Business Checking - 7609",
+        "code": 1000,
+        "account_type_id": 1,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 2,
+        "name": "Personal Checking - 9171",
+        "code": 1001,
+        "account_type_id": 1,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 3,
+        "name": "Holdings Checking - 4112",
+        "code": 1002,
+        "account_type_id": 1,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 4,
+        "name": "Corp Credit - 2989",
+        "code": 2100,
+        "account_type_id": 2,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 5,
+        "name": "Corp Credit - 9271",
+        "code": 2101,
+        "account_type_id": 2,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 6,
+        "name": "Corp Credit - 6370",
+        "code": 2102,
+        "account_type_id": 2,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 7,
+        "name": "Corp Credit - 2908",
+        "code": 2103,
+        "account_type_id": 2,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 8,
+        "name": "Personal Credit - 3946",
+        "code": 2200,
+        "account_type_id": 2,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 9,
+        "name": "Personal Credit - 4441",
+        "code": 2201,
+        "account_type_id": 2,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 10,
+        "name": "Owner Equity",
+        "code": 3000,
+        "account_type_id": 3,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 11,
+        "name": "Flooring Income",
+        "code": 4000,
+        "account_type_id": 4,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 12,
+        "name": "Flip Income",
+        "code": 4010,
+        "account_type_id": 4,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 13,
+        "name": "Rental Income",
+        "code": 4020,
+        "account_type_id": 4,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 14,
+        "name": "Installer Labor Expense",
+        "code": 5000,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 15,
+        "name": "Materials Expense",
+        "code": 5010,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 16,
+        "name": "Job CC Processing Fees",
+        "code": 5015,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 17,
+        "name": "Job Customer Refunds",
+        "code": 5020,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 18,
+        "name": "Marketing Expense",
+        "code": 5100,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 19,
+        "name": "Payroll - ADP Wages",
+        "code": 5110,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 20,
+        "name": "Meals - Business",
+        "code": 5120,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 21,
+        "name": "Health Insurance - Business",
+        "code": 5130,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 22,
+        "name": "Business Services",
+        "code": 5140,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 23,
+        "name": "Supplies - Business",
+        "code": 5150,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 24,
+        "name": "SEP IRA Contribution",
+        "code": 5160,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 25,
+        "name": "Payroll Taxes - ADP",
+        "code": 5170,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 26,
+        "name": "Fuel - Business",
+        "code": 5180,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 27,
+        "name": "Retirement - ADP K",
+        "code": 5190,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 28,
+        "name": "VMTN Expense",
+        "code": 5195,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 29,
+        "name": "Insurance - Business",
+        "code": 5200,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 30,
+        "name": "Payroll Service Fees - ADP",
+        "code": 5210,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 31,
+        "name": "Software Subscriptions",
+        "code": 5220,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 32,
+        "name": "CC Processing Fees - Overhead",
+        "code": 5230,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 33,
+        "name": "Tools & Equipment",
+        "code": 5240,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 34,
+        "name": "Lancelot Mortgage Expense",
+        "code": 5250,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 35,
+        "name": "Communications - Phone/Internet",
+        "code": 5260,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 36,
+        "name": "Storage - Business",
+        "code": 5270,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 37,
+        "name": "Alex Salary / Draw",
+        "code": 5280,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 38,
+        "name": "TWHM Expense",
+        "code": 6000,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 39,
+        "name": "Donations - Personal",
+        "code": 6010,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 40,
+        "name": "Taxes - YTAX",
+        "code": 6020,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 41,
+        "name": "IUL Policy",
+        "code": 6030,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 42,
+        "name": "Groceries - Personal",
+        "code": 6040,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 43,
+        "name": "Health - Personal",
+        "code": 6050,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 44,
+        "name": "Cable / Streaming - Personal",
+        "code": 6060,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 45,
+        "name": "Vehicle Insurance - Personal",
+        "code": 6070,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 46,
+        "name": "Vacation - Personal",
+        "code": 6080,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 47,
+        "name": "Utilities - Personal",
+        "code": 6090,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 48,
+        "name": "Drift Hobby - Personal",
+        "code": 6100,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 49,
+        "name": "Personal Misc Expense",
+        "code": 6110,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 50,
+        "name": "Condo Expense - Personal",
+        "code": 6120,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 51,
+        "name": "Entertainment - Personal",
+        "code": 6130,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 52,
+        "name": "Personal Discretionary",
+        "code": 6140,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "personal"
+      },
+      {
+        "id": 53,
+        "name": "Marketing - Thumbtack",
+        "code": 5035,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 54,
+        "name": "Marketing - BBB",
+        "code": 5036,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 55,
+        "name": "Marketing - Goodzer",
+        "code": 5037,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 56,
+        "name": "Marketing - Flip",
+        "code": 5038,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 57,
+        "name": "Marketing - Google Ads",
+        "code": 5039,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 58,
+        "name": "Marketing - Social Media",
+        "code": 5040,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 59,
+        "name": "Marketing - Video",
+        "code": 5041,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      },
+      {
+        "id": 60,
+        "name": "MATK Expense",
+        "code": 5011,
+        "account_type_id": 5,
+        "is_active": true,
+        "purpose_default": "business"
+      }
+    ]
+  },
+  "installers": {
+    "columns": [
+      "id",
+      "first_name",
+      "last_name",
+      "company_name",
+      "address",
+      "tax_id",
+      "phone",
+      "email",
+      "is_active",
+      "created_at"
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "first_name": "Amauri",
+        "last_name": NULL,
+        "company_name": "Castro\u2019s Flooring LLC",
+        "address": "3439 Arete Ct, Roswell, GA 30075",
+        "tax_id": "30-1306344",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 2,
+        "first_name": "Cleivaldo",
+        "last_name": "Da Mata",
+        "company_name": NULL,
+        "address": "1625 Roswell Rd Apt 237, Atlanta, GA 30062",
+        "tax_id": "959-90-1571",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 3,
+        "first_name": "Emerson",
+        "last_name": NULL,
+        "company_name": "Rose Flooring LLC",
+        "address": "314 E. Claiborne Ct, Marietta, GA 30066",
+        "tax_id": "802-06-5265",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 4,
+        "first_name": "Gleison",
+        "last_name": NULL,
+        "company_name": "DM Flooring Installation LLC",
+        "address": "1475 Bentcreek Dr, Marietta, GA 30062",
+        "tax_id": "38-4168582",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 5,
+        "first_name": "Marcus",
+        "last_name": "Veloso",
+        "company_name": "GR7 Company LLC",
+        "address": "1355 Hickory Rd, Canton, GA 30115",
+        "tax_id": "61-2030463",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 6,
+        "first_name": "Maria",
+        "last_name": "Frausto",
+        "company_name": NULL,
+        "address": "676 Catherine St, Forest Park, GA 30297",
+        "tax_id": "969-18-7329",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 7,
+        "first_name": "Kadu",
+        "last_name": NULL,
+        "company_name": "C5 Solutions and Services SCORP",
+        "address": "2400 Barrett Creek Blvd, Apt 216, Marietta, GA 30066",
+        "tax_id": "38-4285459",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 8,
+        "first_name": "Jhonatha",
+        "last_name": "Costa",
+        "company_name": "JHC Services LLC",
+        "address": "1331 Varner Rd, Marietta, GA 30062",
+        "tax_id": "38-4235902",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 9,
+        "first_name": "Misa",
+        "last_name": "Mondragon",
+        "company_name": NULL,
+        "address": "2603 Sunny Lane SE, Marietta, GA 30067",
+        "tax_id": "940-74-1211",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 10,
+        "first_name": "Warley",
+        "last_name": NULL,
+        "company_name": "World Siding LLC",
+        "address": "1194 Ashborough Dr, Marietta, GA 30067",
+        "tax_id": "36-5007831",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 11,
+        "first_name": "Julio",
+        "last_name": NULL,
+        "company_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 12,
+        "first_name": "Mitch",
+        "last_name": "Hughes",
+        "company_name": NULL,
+        "address": "205 Wild Flower Ln, Canton, GA 30114",
+        "tax_id": "252-29-1683",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 13,
+        "first_name": "FerNULLdo",
+        "last_name": NULL,
+        "company_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 14,
+        "first_name": "Bruno",
+        "last_name": NULL,
+        "company_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 15,
+        "first_name": "Lucas",
+        "last_name": NULL,
+        "company_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 16,
+        "first_name": "Luizinho",
+        "last_name": NULL,
+        "company_name": "LC&A Floor LLC",
+        "address": "3904 McGuire Way, Kennesaw, GA 30144",
+        "tax_id": "974-92-9944",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 17,
+        "first_name": "Adriano",
+        "last_name": NULL,
+        "company_name": "ABRITOGRANITE LLC",
+        "address": "3844 Rivers Run Trace, Acworth, GA 30101",
+        "tax_id": "30-1339081",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 18,
+        "first_name": "Ricky",
+        "last_name": NULL,
+        "company_name": "L&R Framing Contractors LLC",
+        "address": "793 Pastel Dr SW, Marietta, GA 30008",
+        "tax_id": "82-0619811",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 19,
+        "first_name": "Steve",
+        "last_name": "Schneider",
+        "company_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      },
+      {
+        "id": 20,
+        "first_name": "Marcos",
+        "last_name": NULL,
+        "company_name": "Chocolat floors LLC",
+        "address": "2020 Drogheda Lane, Marietta, GA 30066",
+        "tax_id": "673-28-5228",
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 17:11:18.261053"
+      }
+    ]
+  },
+  "jobs": {
+    "columns": [
+      "id",
+      "name",
+      "address",
+      "status",
+      "created_at",
+      "lead_source_id"
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "name": "Tamara Brown",
+        "address": NULL,
+        "status": "closed",
+        "created_at": "2025-11-18 01:12:55.474888",
+        "lead_source_id": 14
+      },
+      {
+        "id": 2,
+        "name": "Tremayme Stamper",
+        "address": NULL,
+        "status": "open",
+        "created_at": "2025-11-18 13:16:53.116429",
+        "lead_source_id": 3
+      },
+      {
+        "id": 3,
+        "name": "Merideth & Brad Moss",
+        "address": NULL,
+        "status": "open",
+        "created_at": "2025-11-18 13:23:24.410575",
+        "lead_source_id": 3
+      },
+      {
+        "id": 9,
+        "name": "Jennifer Madsen",
+        "address": NULL,
+        "status": "closed",
+        "created_at": "2025-11-18 21:22:28.76184",
+        "lead_source_id": 11
+      },
+      {
+        "id": 10,
+        "name": "Debra & Scott Evers",
+        "address": NULL,
+        "status": "closed",
+        "created_at": "2025-11-18 21:38:32.048465",
+        "lead_source_id": 1
+      }
+    ]
+  },
+  "lead_sources": {
+    "columns": [
+      "id",
+      "name",
+      "description",
+      "is_active",
+      "created_at",
+      "nick_name"
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "name": "Google Ads",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "DigRef"
+      },
+      {
+        "id": 2,
+        "name": "Google Organic",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "MYGOO"
+      },
+      {
+        "id": 3,
+        "name": "Thumbtack",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "Thumbtack"
+      },
+      {
+        "id": 4,
+        "name": "Referral",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "Referral"
+      },
+      {
+        "id": 5,
+        "name": "Repeat Customer",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "Repeat Customer"
+      },
+      {
+        "id": 6,
+        "name": "Instagram",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "IM"
+      },
+      {
+        "id": 7,
+        "name": "Facebook Ads",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "FBM"
+      },
+      {
+        "id": 8,
+        "name": "MDN",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "MDN"
+      },
+      {
+        "id": 9,
+        "name": "BBB",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "BBB"
+      },
+      {
+        "id": 10,
+        "name": "Goodzer",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "Goodzer"
+      },
+      {
+        "id": 11,
+        "name": "Rachael",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "Rachael"
+      },
+      {
+        "id": 12,
+        "name": "3OPT",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:12:20.553241",
+        "nick_name": "3OPT"
+      },
+      {
+        "id": 13,
+        "name": "Organic",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 20:11:34",
+        "nick_name": "Organic"
+      },
+      {
+        "id": 14,
+        "name": "Miscellaneous",
+        "description": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 20:12:11",
+        "nick_name": "Misct"
+      }
+    ]
+  },
+  "transaction_lines": {
+    "columns": [
+      "id",
+      "transaction_id",
+      "account_id",
+      "amount",
+      "job_id",
+      "installer_id",
+      "vendor_id",
+      "purpose",
+      "is_cleared",
+      "created_at",
+      "lead_source_id"
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "transaction_id": 1,
+        "account_id": 1,
+        "amount": 2300.0,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:48:32.922303",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 2,
+        "transaction_id": 1,
+        "account_id": 11,
+        "amount": -2300.0,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:48:32.922303",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 3,
+        "transaction_id": 2,
+        "account_id": 15,
+        "amount": 1376.21,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": 6.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:50:22.826541",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 4,
+        "transaction_id": 2,
+        "account_id": 1,
+        "amount": -1376.21,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:50:22.826541",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 5,
+        "transaction_id": 3,
+        "account_id": 15,
+        "amount": 370.83,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": 2.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:51:01.108857",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 6,
+        "transaction_id": 3,
+        "account_id": 1,
+        "amount": -370.83,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:51:01.108857",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 7,
+        "transaction_id": 4,
+        "account_id": 15,
+        "amount": 130.35,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": 2.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:51:27.057357",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 8,
+        "transaction_id": 4,
+        "account_id": 1,
+        "amount": -130.35,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:51:27.057357",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 9,
+        "transaction_id": 5,
+        "account_id": 15,
+        "amount": 114.42,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": 6.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:52:10.299462",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 10,
+        "transaction_id": 5,
+        "account_id": 1,
+        "amount": -114.42,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:52:10.299462",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 11,
+        "transaction_id": 6,
+        "account_id": 1,
+        "amount": 2709.1,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:54:47.425127",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 12,
+        "transaction_id": 6,
+        "account_id": 11,
+        "amount": -2709.1,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:54:47.425127",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 13,
+        "transaction_id": 7,
+        "account_id": 14,
+        "amount": 1465.8,
+        "job_id": 1.0,
+        "installer_id": 2.0,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:56:56.109955",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 14,
+        "transaction_id": 7,
+        "account_id": 1,
+        "amount": -1465.8,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:56:56.109955",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 15,
+        "transaction_id": 8,
+        "account_id": 14,
+        "amount": 225.0,
+        "job_id": 1.0,
+        "installer_id": 6.0,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:57:41.562251",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 16,
+        "transaction_id": 8,
+        "account_id": 1,
+        "amount": -225.0,
+        "job_id": 1.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 01:57:41.562251",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 19,
+        "transaction_id": 9,
+        "account_id": 53,
+        "amount": 24221.36,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 04:05:07.104907",
+        "lead_source_id": 3.0
+      },
+      {
+        "id": 20,
+        "transaction_id": 9,
+        "account_id": 1,
+        "amount": -24221.36,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 04:05:07.104907",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 21,
+        "transaction_id": 10,
+        "account_id": 54,
+        "amount": 709.5,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 04:18:00.706253",
+        "lead_source_id": 9.0
+      },
+      {
+        "id": 22,
+        "transaction_id": 10,
+        "account_id": 1,
+        "amount": -709.5,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 04:18:00.706253",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 23,
+        "transaction_id": 11,
+        "account_id": 54,
+        "amount": 1200.0,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 04:21:39.959629",
+        "lead_source_id": 10.0
+      },
+      {
+        "id": 24,
+        "transaction_id": 11,
+        "account_id": 1,
+        "amount": -1200.0,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 04:21:39.959629",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 25,
+        "transaction_id": 12,
+        "account_id": 56,
+        "amount": 200.06,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 04:25:04.128389",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 26,
+        "transaction_id": 12,
+        "account_id": 1,
+        "amount": -200.06,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 04:25:04.128389",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 27,
+        "transaction_id": 13,
+        "account_id": 57,
+        "amount": 14243.26,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 04:53:30.467682",
+        "lead_source_id": 1.0
+      },
+      {
+        "id": 28,
+        "transaction_id": 13,
+        "account_id": 1,
+        "amount": -14243.26,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 04:53:30.467682",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 29,
+        "transaction_id": 14,
+        "account_id": 58,
+        "amount": 564.29,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 05:01:50.610737",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 30,
+        "transaction_id": 14,
+        "account_id": 1,
+        "amount": -564.29,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 05:01:50.610737",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 31,
+        "transaction_id": 15,
+        "account_id": 59,
+        "amount": 8034.46,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 05:08:53.44087",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 32,
+        "transaction_id": 15,
+        "account_id": 1,
+        "amount": -8034.46,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 05:08:53.44087",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 33,
+        "transaction_id": 16,
+        "account_id": 32,
+        "amount": 709.5,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:08:42.293938",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 34,
+        "transaction_id": 16,
+        "account_id": 1,
+        "amount": -709.5,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:08:42.293938",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 35,
+        "transaction_id": 17,
+        "account_id": 15,
+        "amount": 113.09,
+        "job_id": 2.0,
+        "installer_id": NULL,
+        "vendor_id": 3.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:18:11.936079",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 36,
+        "transaction_id": 17,
+        "account_id": 1,
+        "amount": -113.09,
+        "job_id": 2.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:18:11.936079",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 37,
+        "transaction_id": 18,
+        "account_id": 15,
+        "amount": 42.38,
+        "job_id": 2.0,
+        "installer_id": NULL,
+        "vendor_id": 3.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:18:51.3496",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 38,
+        "transaction_id": 18,
+        "account_id": 1,
+        "amount": -42.38,
+        "job_id": 2.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:18:51.3496",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 39,
+        "transaction_id": 19,
+        "account_id": 15,
+        "amount": 589.45,
+        "job_id": 2.0,
+        "installer_id": NULL,
+        "vendor_id": 1.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:20:48.296286",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 40,
+        "transaction_id": 19,
+        "account_id": 1,
+        "amount": -589.45,
+        "job_id": 2.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:20:48.296286",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 41,
+        "transaction_id": 20,
+        "account_id": 1,
+        "amount": 2000.0,
+        "job_id": 2.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:21:12.73893",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 42,
+        "transaction_id": 20,
+        "account_id": 11,
+        "amount": -2000.0,
+        "job_id": 2.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:21:12.73893",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 43,
+        "transaction_id": 21,
+        "account_id": 14,
+        "amount": 456.5,
+        "job_id": 2.0,
+        "installer_id": 16.0,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:21:55.60275",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 44,
+        "transaction_id": 21,
+        "account_id": 1,
+        "amount": -456.5,
+        "job_id": 2.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:21:55.60275",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 45,
+        "transaction_id": 22,
+        "account_id": 1,
+        "amount": 10000.0,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:24:04.4808",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 46,
+        "transaction_id": 22,
+        "account_id": 11,
+        "amount": -10000.0,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:24:04.4808",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 47,
+        "transaction_id": 23,
+        "account_id": 15,
+        "amount": 30.47,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": 4.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:24:50.055541",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 48,
+        "transaction_id": 23,
+        "account_id": 1,
+        "amount": -30.47,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:24:50.055541",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 49,
+        "transaction_id": 24,
+        "account_id": 15,
+        "amount": 256.58,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": 3.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:25:35.955918",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 50,
+        "transaction_id": 24,
+        "account_id": 1,
+        "amount": -256.58,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:25:35.955918",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 51,
+        "transaction_id": 25,
+        "account_id": 15,
+        "amount": 42.87,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": 3.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:26:00.463589",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 52,
+        "transaction_id": 25,
+        "account_id": 1,
+        "amount": -42.87,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:26:00.463589",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 53,
+        "transaction_id": 26,
+        "account_id": 15,
+        "amount": 14.05,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": 4.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:26:25.586497",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 54,
+        "transaction_id": 26,
+        "account_id": 1,
+        "amount": -14.05,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:26:25.586497",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 55,
+        "transaction_id": 27,
+        "account_id": 15,
+        "amount": 2662.0,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": 1.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:26:43.239013",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 56,
+        "transaction_id": 27,
+        "account_id": 1,
+        "amount": -2662.0,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:26:43.239013",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 57,
+        "transaction_id": 28,
+        "account_id": 15,
+        "amount": 127.59,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": 4.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:32:55.115849",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 58,
+        "transaction_id": 28,
+        "account_id": 1,
+        "amount": -127.59,
+        "job_id": 3.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 13:32:55.115849",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 77,
+        "transaction_id": 38,
+        "account_id": 15,
+        "amount": 1514.75,
+        "job_id": 9.0,
+        "installer_id": NULL,
+        "vendor_id": 20.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:22:28.76184",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 78,
+        "transaction_id": 38,
+        "account_id": 1,
+        "amount": -1514.75,
+        "job_id": 9.0,
+        "installer_id": NULL,
+        "vendor_id": 20.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:22:28.76184",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 79,
+        "transaction_id": 39,
+        "account_id": 15,
+        "amount": 169.14,
+        "job_id": 9.0,
+        "installer_id": NULL,
+        "vendor_id": 3.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:22:28.76184",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 80,
+        "transaction_id": 39,
+        "account_id": 1,
+        "amount": -169.14,
+        "job_id": 9.0,
+        "installer_id": NULL,
+        "vendor_id": 3.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:22:28.76184",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 81,
+        "transaction_id": 40,
+        "account_id": 14,
+        "amount": 500.0,
+        "job_id": 9.0,
+        "installer_id": 2.0,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:22:28.76184",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 82,
+        "transaction_id": 40,
+        "account_id": 1,
+        "amount": -500.0,
+        "job_id": 9.0,
+        "installer_id": 2.0,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:22:28.76184",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 83,
+        "transaction_id": 41,
+        "account_id": 11,
+        "amount": -5485.25,
+        "job_id": 9.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:22:28.76184",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 84,
+        "transaction_id": 41,
+        "account_id": 1,
+        "amount": 5485.25,
+        "job_id": 9.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:22:28.76184",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 85,
+        "transaction_id": 42,
+        "account_id": 15,
+        "amount": 832.12,
+        "job_id": 10.0,
+        "installer_id": NULL,
+        "vendor_id": 1.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:38:32.048465",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 86,
+        "transaction_id": 42,
+        "account_id": 1,
+        "amount": -832.12,
+        "job_id": 10.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:38:32.048465",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 87,
+        "transaction_id": 43,
+        "account_id": 15,
+        "amount": 328.24,
+        "job_id": 10.0,
+        "installer_id": NULL,
+        "vendor_id": 3.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:38:32.048465",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 88,
+        "transaction_id": 43,
+        "account_id": 1,
+        "amount": -328.24,
+        "job_id": 10.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:38:32.048465",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 89,
+        "transaction_id": 44,
+        "account_id": 15,
+        "amount": 133.41,
+        "job_id": 10.0,
+        "installer_id": NULL,
+        "vendor_id": 14.0,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:38:32.048465",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 90,
+        "transaction_id": 44,
+        "account_id": 1,
+        "amount": -133.41,
+        "job_id": 10.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:38:32.048465",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 91,
+        "transaction_id": 45,
+        "account_id": 14,
+        "amount": 2775.0,
+        "job_id": 10.0,
+        "installer_id": 1.0,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:38:32.048465",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 92,
+        "transaction_id": 45,
+        "account_id": 1,
+        "amount": -2775.0,
+        "job_id": 10.0,
+        "installer_id": 1.0,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:38:32.048465",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 93,
+        "transaction_id": 46,
+        "account_id": 11,
+        "amount": -7630.66,
+        "job_id": 10.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:38:32.048465",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 94,
+        "transaction_id": 46,
+        "account_id": 1,
+        "amount": 7630.66,
+        "job_id": 10.0,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 21:38:32.048465",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 96,
+        "transaction_id": 48,
+        "account_id": 1,
+        "amount": 43863.59,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 22:17:01.949446",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 97,
+        "transaction_id": 48,
+        "account_id": 2,
+        "amount": 38748.16,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "personal",
+        "is_cleared": true,
+        "created_at": "2025-11-18 22:17:01.949446",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 98,
+        "transaction_id": 48,
+        "account_id": 3,
+        "amount": 5893.13,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 22:17:01.949446",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 99,
+        "transaction_id": 48,
+        "account_id": 4,
+        "amount": 1548.23,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 22:17:01.949446",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 100,
+        "transaction_id": 48,
+        "account_id": 10,
+        "amount": -90053.11,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-18 22:17:01.949446",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 101,
+        "transaction_id": 49,
+        "account_id": 53,
+        "amount": 67.75,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": false,
+        "created_at": "2025-11-19 00:19:47.487406",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 102,
+        "transaction_id": 49,
+        "account_id": 1,
+        "amount": -67.75,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-19 00:19:47.487406",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 103,
+        "transaction_id": 50,
+        "account_id": 53,
+        "amount": 59.4,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": false,
+        "created_at": "2025-11-19 00:24:06.333704",
+        "lead_source_id": NULL
+      },
+      {
+        "id": 104,
+        "transaction_id": 50,
+        "account_id": 1,
+        "amount": -59.4,
+        "job_id": NULL,
+        "installer_id": NULL,
+        "vendor_id": NULL,
+        "purpose": "business",
+        "is_cleared": true,
+        "created_at": "2025-11-19 00:24:06.333704",
+        "lead_source_id": NULL
+      }
+    ]
+  },
+  "transactions": {
+    "columns": [
+      "id",
+      "date",
+      "description",
+      "created_at"
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "date": "2025-10-10",
+        "description": "Deposit",
+        "created_at": "2025-11-18 01:48:32.714431"
+      },
+      {
+        "id": 2,
+        "date": "2025-10-14",
+        "description": "Hickory French Roast",
+        "created_at": "2025-11-18 01:50:22.677283"
+      },
+      {
+        "id": 3,
+        "date": "2025-10-16",
+        "description": "Glue pine shoe",
+        "created_at": "2025-11-18 01:51:00.988913"
+      },
+      {
+        "id": 4,
+        "date": "2025-10-17",
+        "description": "extra glue",
+        "created_at": "2025-11-18 01:51:26.985839"
+      },
+      {
+        "id": 5,
+        "date": "2025-10-17",
+        "description": "Extra Hickory French Roast",
+        "created_at": "2025-11-18 01:52:10.172141"
+      },
+      {
+        "id": 6,
+        "date": "2025-10-20",
+        "description": "Balance",
+        "created_at": "2025-11-18 01:54:47.192912"
+      },
+      {
+        "id": 7,
+        "date": "2025-10-20",
+        "description": "Install Engineered Wood",
+        "created_at": "2025-11-18 01:56:55.950155"
+      },
+      {
+        "id": 8,
+        "date": "2025-10-21",
+        "description": "Paint skirts",
+        "created_at": "2025-11-18 01:57:41.472761"
+      },
+      {
+        "id": 9,
+        "date": "2025-11-17",
+        "description": "Thumbtack 2025 total until now",
+        "created_at": "2025-11-18 03:52:44.075566"
+      },
+      {
+        "id": 10,
+        "date": "2025-11-17",
+        "description": "BBB 2025 total from Biz Checking 7609 until now",
+        "created_at": "2025-11-18 04:14:11.627608"
+      },
+      {
+        "id": 11,
+        "date": "2025-11-17",
+        "description": "Goodzer 2025 total from Biz Checking 7609 until now",
+        "created_at": "2025-11-18 04:19:34.487949"
+      },
+      {
+        "id": 12,
+        "date": "2025-11-17",
+        "description": "Flip Marketing 2025 total from Biz Checking 7609 until now",
+        "created_at": "2025-11-18 04:22:40.491662"
+      },
+      {
+        "id": 13,
+        "date": "2025-11-17",
+        "description": "Google Ads 2025 total from Biz Checking 7609 until now",
+        "created_at": "2025-11-18 04:51:45.07917"
+      },
+      {
+        "id": 14,
+        "date": "2025-11-17",
+        "description": "Social Media marketing 2025 total from Biz Checking 7609 until now",
+        "created_at": "2025-11-18 04:59:09.614932"
+      },
+      {
+        "id": 15,
+        "date": "2025-11-17",
+        "description": "Video Marketing 2025 total from Biz Checking 7609 until now",
+        "created_at": "2025-11-18 05:03:17.362934"
+      },
+      {
+        "id": 16,
+        "date": "2025-11-18",
+        "description": "CC proc related Expenses 2025 total from Biz Checking 7609 until now",
+        "created_at": "2025-11-18 13:07:57.73242"
+      },
+      {
+        "id": 17,
+        "date": "2025-10-29",
+        "description": "plastic and prqr",
+        "created_at": "2025-11-18 13:18:11.784021"
+      },
+      {
+        "id": 18,
+        "date": "2025-10-30",
+        "description": "Reducer",
+        "created_at": "2025-11-18 13:18:51.241677"
+      },
+      {
+        "id": 19,
+        "date": "2025-10-30",
+        "description": "Fountain Hill LVP",
+        "created_at": "2025-11-18 13:20:48.004418"
+      },
+      {
+        "id": 20,
+        "date": "2025-10-31",
+        "description": "Full pay",
+        "created_at": "2025-11-18 13:21:12.622812"
+      },
+      {
+        "id": 21,
+        "date": "2025-10-31",
+        "description": "Install LVP",
+        "created_at": "2025-11-18 13:21:55.439086"
+      },
+      {
+        "id": 22,
+        "date": "2025-01-02",
+        "description": "Deposit",
+        "created_at": "2025-11-18 13:24:04.361631"
+      },
+      {
+        "id": 23,
+        "date": "2025-01-02",
+        "description": "Drywal",
+        "created_at": "2025-11-18 13:24:49.953297"
+      },
+      {
+        "id": 24,
+        "date": "2025-01-02",
+        "description": "pr shoe plastic sheet",
+        "created_at": "2025-11-18 13:25:35.845823"
+      },
+      {
+        "id": 25,
+        "date": "2025-01-02",
+        "description": "pr qr",
+        "created_at": "2025-11-18 13:26:00.386701"
+      },
+      {
+        "id": 26,
+        "date": "2025-01-02",
+        "description": "materials",
+        "created_at": "2025-11-18 13:26:25.487996"
+      },
+      {
+        "id": 27,
+        "date": "2025-01-02",
+        "description": "LVP Sandy Point",
+        "created_at": "2025-11-18 13:26:43.171627"
+      },
+      {
+        "id": 28,
+        "date": "2025-01-03",
+        "description": "Materials",
+        "created_at": "2025-11-18 13:32:55.005275"
+      },
+      {
+        "id": 29,
+        "date": "2025-07-29",
+        "description": "Jennifer Madsen - Full pay",
+        "created_at": "2025-11-18 20:33:20.58935"
+      },
+      {
+        "id": 30,
+        "date": "2025-07-29",
+        "description": "Jennifer Madsen - Full pay",
+        "created_at": "2025-11-18 20:44:57.385813"
+      },
+      {
+        "id": 31,
+        "date": "2025-07-29",
+        "description": "Cleidvaldo partial",
+        "created_at": "2025-11-18 20:53:53.208239"
+      },
+      {
+        "id": 32,
+        "date": "2025-07-29",
+        "description": "Jennifer Madsen - Full pay",
+        "created_at": "2025-11-18 20:53:53.208239"
+      },
+      {
+        "id": 33,
+        "date": "2025-07-29",
+        "description": "Cleidvaldo partial",
+        "created_at": "2025-11-18 21:02:24.748947"
+      },
+      {
+        "id": 34,
+        "date": "2025-07-29",
+        "description": "Jennifer Madsen - Full pay",
+        "created_at": "2025-11-18 21:02:24.748947"
+      },
+      {
+        "id": 35,
+        "date": "2025-07-31",
+        "description": "pr shoe & nosing",
+        "created_at": "2025-11-18 21:11:44.100088"
+      },
+      {
+        "id": 36,
+        "date": "2025-07-29",
+        "description": "Cleidvaldo partial",
+        "created_at": "2025-11-18 21:11:44.100088"
+      },
+      {
+        "id": 37,
+        "date": "2025-07-29",
+        "description": "Jennifer Madsen - Full pay",
+        "created_at": "2025-11-18 21:11:44.100088"
+      },
+      {
+        "id": 38,
+        "date": "2025-08-01",
+        "description": "Jefferson Cleidv install",
+        "created_at": "2025-11-18 21:22:28.76184"
+      },
+      {
+        "id": 39,
+        "date": "2025-08-01",
+        "description": "pr shoe & nosing | baby threshold",
+        "created_at": "2025-11-18 21:22:28.76184"
+      },
+      {
+        "id": 40,
+        "date": "2025-07-29",
+        "description": "Cleidvaldo partial",
+        "created_at": "2025-11-18 21:22:28.76184"
+      },
+      {
+        "id": 41,
+        "date": "2025-07-29",
+        "description": "Jennifer Madsen - Full pay",
+        "created_at": "2025-11-18 21:22:28.76184"
+      },
+      {
+        "id": 42,
+        "date": "2025-08-05",
+        "description": "Sandy Plains LVP",
+        "created_at": "2025-11-18 21:38:32.048465"
+      },
+      {
+        "id": 43,
+        "date": "2025-08-14",
+        "description": "DOMO & trim",
+        "created_at": "2025-11-18 21:38:32.048465"
+      },
+      {
+        "id": 44,
+        "date": "2025-08-12",
+        "description": "plastic & prep",
+        "created_at": "2025-11-18 21:38:32.048465"
+      },
+      {
+        "id": 45,
+        "date": "2025-08-20",
+        "description": "install & finish",
+        "created_at": "2025-11-18 21:38:32.048465"
+      },
+      {
+        "id": 46,
+        "date": "2025-08-20",
+        "description": "Full pay",
+        "created_at": "2025-11-18 21:38:32.048465"
+      },
+      {
+        "id": 48,
+        "date": "2025-01-01",
+        "description": "Opening balances",
+        "created_at": "2025-11-18 22:17:01.949446"
+      },
+      {
+        "id": 49,
+        "date": "2025-11-19",
+        "description": "Thumbtack lead",
+        "created_at": "2025-11-19 00:19:47.350067"
+      },
+      {
+        "id": 50,
+        "date": "2025-11-19",
+        "description": "Lead",
+        "created_at": "2025-11-19 00:24:06.241823"
+      }
+    ]
+  },
+  "vendors": {
+    "columns": [
+      "id",
+      "name",
+      "contact_name",
+      "address",
+      "tax_id",
+      "phone",
+      "email",
+      "is_active",
+      "created_at",
+      "nick_name"
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "name": "Your Perfect Floors",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "YPF"
+      },
+      {
+        "id": 2,
+        "name": "First Atlanta Floors",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "FAF"
+      },
+      {
+        "id": 3,
+        "name": "GAPRO",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "GAPRO"
+      },
+      {
+        "id": 4,
+        "name": "Home Depot",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "HD"
+      },
+      {
+        "id": 5,
+        "name": "  NStyle",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "NStyle"
+      },
+      {
+        "id": 6,
+        "name": "Prolex",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "Prolex"
+      },
+      {
+        "id": 7,
+        "name": "Floor & Decor",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "F&D"
+      },
+      {
+        "id": 8,
+        "name": "DDCC",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "DDCC"
+      },
+      {
+        "id": 9,
+        "name": "Dream Weaver",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "DW"
+      },
+      {
+        "id": 10,
+        "name": "BestFit Floors",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "BestFit"
+      },
+      {
+        "id": 11,
+        "name": "B2B",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "B2B"
+      },
+      {
+        "id": 12,
+        "name": "StairWorx",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "StairWorx"
+      },
+      {
+        "id": 13,
+        "name": "Sherwin Williams",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "Sherwin"
+      },
+      {
+        "id": 14,
+        "name": "Lowes",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "Lowes"
+      },
+      {
+        "id": 15,
+        "name": "Relative Floor Worx",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "Relative"
+      },
+      {
+        "id": 16,
+        "name": "Discount Flooring",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "DiscountF"
+      },
+      {
+        "id": 17,
+        "name": "  Southern Stair Case",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "Southern Stair"
+      },
+      {
+        "id": 18,
+        "name": "Lumber Liquidators",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "LLFlooring"
+      },
+      {
+        "id": 19,
+        "name": "NDM",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-17 19:37:26.520355",
+        "nick_name": "NDM"
+      },
+      {
+        "id": 20,
+        "name": "MATK",
+        "contact_name": NULL,
+        "address": NULL,
+        "tax_id": NULL,
+        "phone": NULL,
+        "email": NULL,
+        "is_active": true,
+        "created_at": "2025-11-18 21:03:42",
+        "nick_name": "MATK"
+      }
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+INSERT INTO accounts (name, code, account_type_id, is_active)
+VALUES (
+  'Marketing - Goodzer',
+  '5037',
+  (SELECT id FROM account_types WHERE name = 'expense'),
+  true
+);
+
+
+
+
+
+INSERT INTO transactions (date, description)
+VALUES ('2025-11-17', 'Goodzer 2025 total from Biz Checking 7609 until now')
+RETURNING id;
+
+
+
+
+
+INSERT INTO transaction_lines (
+  transaction_id,
+  account_id,
+  amount,
+  purpose,
+  is_cleared,
+  lead_source_id
+)
+VALUES
+  (
+    12,
+    (SELECT id FROM accounts WHERE name = 'Marketing - Flip'),
+    709.5,
+    'business',
+    true,
+    (SELECT id FROM lead_sources WHERE name = 'Goodzer')
+  ),
+  (
+    12,
+    (SELECT id FROM accounts WHERE name = 'Business Checking - 7609'),
+    -709.5,
+    'business',
+    true,
+    NULL
+  );

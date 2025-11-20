@@ -1,0 +1,21 @@
+id,first_name,last_name,company_name,address,tax_id,phone,email,is_active,created_at
+1,Amauri,,Castro’s Flooring LLC,"3439 Arete Ct, Roswell, GA 30075",30-1306344,,,true,2025-11-17 17:11:18.261053
+2,Cleivaldo,Da Mata,,"1625 Roswell Rd Apt 237, Atlanta, GA 30062",959-90-1571,,,true,2025-11-17 17:11:18.261053
+3,Emerson,,Rose Flooring LLC,"314 E. Claiborne Ct, Marietta, GA 30066",802-06-5265,,,true,2025-11-17 17:11:18.261053
+4,Gleison,,DM Flooring Installation LLC,"1475 Bentcreek Dr, Marietta, GA 30062",38-4168582,,,true,2025-11-17 17:11:18.261053
+5,Marcus,Veloso,GR7 Company LLC,"1355 Hickory Rd, Canton, GA 30115",61-2030463,,,true,2025-11-17 17:11:18.261053
+6,Maria,Frausto,,"676 Catherine St, Forest Park, GA 30297",969-18-7329,,,true,2025-11-17 17:11:18.261053
+7,Kadu,,C5 Solutions and Services SCORP,"2400 Barrett Creek Blvd, Apt 216, Marietta, GA 30066",38-4285459,,,true,2025-11-17 17:11:18.261053
+8,Jhonatha,Costa,JHC Services LLC,"1331 Varner Rd, Marietta, GA 30062",38-4235902,,,true,2025-11-17 17:11:18.261053
+9,Misa,Mondragon,,"2603 Sunny Lane SE, Marietta, GA 30067",940-74-1211,,,true,2025-11-17 17:11:18.261053
+10,Warley,,World Siding LLC,"1194 Ashborough Dr, Marietta, GA 30067",36-5007831,,,true,2025-11-17 17:11:18.261053
+11,Julio,,,,,,,true,2025-11-17 17:11:18.261053
+12,Mitch,Hughes,,"205 Wild Flower Ln, Canton, GA 30114",252-29-1683,,,true,2025-11-17 17:11:18.261053
+13,Fernando,,,,,,,true,2025-11-17 17:11:18.261053
+14,Bruno,,,,,,,true,2025-11-17 17:11:18.261053
+15,Lucas,,,,,,,true,2025-11-17 17:11:18.261053
+16,Luizinho,,LC&A Floor LLC,"3904 McGuire Way, Kennesaw, GA 30144",974-92-9944,,,true,2025-11-17 17:11:18.261053
+17,Adriano,,ABRITOGRANITE LLC,"3844 Rivers Run Trace, Acworth, GA 30101",30-1339081,,,true,2025-11-17 17:11:18.261053
+18,Ricky,,L&R Framing Contractors LLC,"793 Pastel Dr SW, Marietta, GA 30008",82-0619811,,,true,2025-11-17 17:11:18.261053
+19,Steve,Schneider,,,,,,true,2025-11-17 17:11:18.261053
+20,Marcos,,Chocolat floors LLC,"2020 Drogheda Lane, Marietta, GA 30066",673-28-5228,,,true,2025-11-17 17:11:18.261053

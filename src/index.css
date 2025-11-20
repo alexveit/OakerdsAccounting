@@ -1,0 +1,132 @@
+/* =========================================================
+   Global Theme & Base Styles
+   ========================================================= */
+
+:root {
+  --bg: #fafafa;
+  --bg-card: #ffffff;
+  --border-subtle: #eee;
+  --border-strong: #ccc;
+  --text-main: #213547;
+  --text-muted: #777;
+  --accent: #111;
+  --accent-light: #f5f5f5;
+  --accent-positive: #0a7a3c;
+  --accent-negative: #b00020;
+  --radius-lg: 12px;
+
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-main);
+}
+
+/* =========================================================
+   Layout Containers
+   ========================================================= */
+
+.app-shell {
+  padding: 1.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* =========================================================
+   Cards
+   ========================================================= */
+
+.card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  padding: 0.8rem 1rem;
+  background: var(--bg-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.card h3 {
+  margin: 0 0 0.5rem;
+}
+
+/* =========================================================
+   Pill Navigation Buttons
+   ========================================================= */
+
+.pill-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.pill-button {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #ccc;
+  background: var(--accent-light);
+  color: #000;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.pill-button--active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* =========================================================
+   Tables
+   ========================================================= */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid #f2f2f2;
+}
+
+.table th {
+  border-bottom: 1px solid var(--border-strong);
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   Utility Classes
+   ========================================================= */
+
+.text-right {
+  text-align: right;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.stat-positive {
+  color: var(--accent-positive);
+}
+
+.stat-negative {
+  color: var(--accent-negative);
+}

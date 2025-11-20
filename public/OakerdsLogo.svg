@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="383"
+   height="383"
+   viewBox="0 0 383 383"
+   sodipodi:docname="OakerdsLogo.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showguides="true"
+     inkscape:zoom="1.4142136"
+     inkscape:cx="96.520073"
+     inkscape:cy="154.50283"
+     inkscape:window-width="1920"
+     inkscape:window-height="1137"
+     inkscape:window-x="-8"
+     inkscape:window-y="5"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g1" />
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="Image"
+     id="g1">
+    <ellipse
+       style="fill:#000000;stroke-width:1.03647"
+       id="path1"
+       cx="191.5"
+       cy="191.5"
+       rx="189.49947"
+       ry="187.50552" />
+    <path
+       id="path2"
+       style="fill:#ffffff;fill-opacity:1"
+       d="m 191.4482,68.023506 c -13.29187,0.332297 -12.37987,25.563742 -8.72461,28.886716 -92.560732,16.036358 -81.76112,66.270258 -76.26757,81.328118 0.0475,1.21029 1.02516,2.16644 2.21484,2.16602 0.77382,-6.9e-4 1.49124,-0.41233 1.89258,-1.08594 0.21772,-0.21403 0.45649,-0.43433 0.71679,-0.66211 7.31053,118.29766 70.94386,120.62344 72.77149,120.125 -0.47035,14.73759 6.61218,16.08277 7.41211,16.1875 2.9e-4,0.005 0,0.008 0,0.008 0,0 0.0132,-10e-4 0.0371,-0.004 0.0239,0.003 0.0352,0.004 0.0352,0.004 0,0 0.002,-0.002 0.002,-0.008 0.79993,-0.10473 7.88051,-1.44991 7.41015,-16.1875 1.82763,0.49844 65.46096,-1.82734 72.77149,-120.125 0.2603,0.22778 0.49907,0.44808 0.71679,0.66211 0.40134,0.67361 1.11876,1.08525 1.89258,1.08594 1.18968,4.2e-4 2.16735,-0.95573 2.21485,-2.16602 5.49355,-15.05786 16.29315,-65.29176 -76.26758,-81.328118 3.65526,-3.322974 4.56726,-28.554419 -8.72461,-28.886716 -0.0174,-4.35e-4 -0.0335,-4.12e-4 -0.0508,0 -0.0173,-4.12e-4 -0.0353,-4.35e-4 -0.0527,0 z" />
+  </g>
+</svg>
