@@ -1,0 +1,49 @@
+table_name,constraint_name,constraint_type,column_name,foreign_table,foreign_column
+account_types,2200_17567_1_not_null,CHECK,null,null,null
+account_types,2200_17567_2_not_null,CHECK,null,null,null
+account_types,2200_17567_3_not_null,CHECK,null,null,null
+account_types,account_types_name_key,UNIQUE,name,account_types,name
+account_types,account_types_pkey,PRIMARY KEY,id,account_types,id
+accounts,2200_17599_1_not_null,CHECK,null,null,null
+accounts,2200_17599_2_not_null,CHECK,null,null,null
+accounts,2200_17599_4_not_null,CHECK,null,null,null
+accounts,accounts_account_type_id_fkey,FOREIGN KEY,account_type_id,account_types,id
+accounts,accounts_pkey,PRIMARY KEY,id,accounts,id
+accounts,accounts_purpose_default_check,CHECK,null,accounts,purpose_default
+installers,2200_17490_10_not_null,CHECK,null,null,null
+installers,2200_17490_1_not_null,CHECK,null,null,null
+installers,2200_17490_2_not_null,CHECK,null,null,null
+installers,installers_pkey,PRIMARY KEY,id,installers,id
+jobs,2200_17699_1_not_null,CHECK,null,null,null
+jobs,2200_17699_2_not_null,CHECK,null,null,null
+jobs,2200_17699_5_not_null,CHECK,null,null,null
+jobs,jobs_lead_source_id_fkey,FOREIGN KEY,lead_source_id,lead_sources,id
+jobs,jobs_pkey,PRIMARY KEY,id,jobs,id
+lead_sources,2200_17785_1_not_null,CHECK,null,null,null
+lead_sources,2200_17785_2_not_null,CHECK,null,null,null
+lead_sources,2200_17785_5_not_null,CHECK,null,null,null
+lead_sources,lead_sources_name_key,UNIQUE,name,lead_sources,name
+lead_sources,lead_sources_pkey,PRIMARY KEY,id,lead_sources,id
+transaction_lines,2200_17727_10_not_null,CHECK,null,null,null
+transaction_lines,2200_17727_1_not_null,CHECK,null,null,null
+transaction_lines,2200_17727_2_not_null,CHECK,null,null,null
+transaction_lines,2200_17727_3_not_null,CHECK,null,null,null
+transaction_lines,2200_17727_4_not_null,CHECK,null,null,null
+transaction_lines,purpose_chk,CHECK,null,transaction_lines,purpose
+transaction_lines,transaction_lines_account_id_fkey,FOREIGN KEY,account_id,accounts,id
+transaction_lines,transaction_lines_installer_id_fkey,FOREIGN KEY,installer_id,installers,id
+transaction_lines,transaction_lines_job_id_fkey,FOREIGN KEY,job_id,jobs,id
+transaction_lines,transaction_lines_lead_source_fk,FOREIGN KEY,lead_source_id,lead_sources,id
+transaction_lines,transaction_lines_lead_source_id_fkey,FOREIGN KEY,lead_source_id,lead_sources,id
+transaction_lines,transaction_lines_pkey,PRIMARY KEY,id,transaction_lines,id
+transaction_lines,transaction_lines_transaction_id_fkey,FOREIGN KEY,transaction_id,transactions,id
+transaction_lines,transaction_lines_vendor_id_fkey,FOREIGN KEY,vendor_id,vendors,id
+transactions,2200_17719_1_not_null,CHECK,null,null,null
+transactions,2200_17719_2_not_null,CHECK,null,null,null
+transactions,2200_17719_4_not_null,CHECK,null,null,null
+transactions,transactions_pkey,PRIMARY KEY,id,transactions,id
+vendors,2200_17708_1_not_null,CHECK,null,null,null
+vendors,2200_17708_2_not_null,CHECK,null,null,null
+vendors,2200_17708_9_not_null,CHECK,null,null,null
+vendors,vendors_name_unique,UNIQUE,name,vendors,name
+vendors,vendors_pkey,PRIMARY KEY,id,vendors,id

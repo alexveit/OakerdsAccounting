@@ -1,0 +1,64 @@
+table_name,column_name,data_type,character_maximum_length,is_nullable,column_default
+account_types,id,integer,null,NO,nextval('account_types_id_seq'::regclass)
+account_types,name,character varying,50,NO,null
+account_types,normal_side,character varying,6,NO,null
+accounts,id,integer,null,NO,nextval('accounts_id_seq'::regclass)
+accounts,name,character varying,100,NO,null
+accounts,code,character varying,20,YES,null
+accounts,account_type_id,integer,null,NO,null
+accounts,is_active,boolean,null,YES,true
+accounts,purpose_default,text,null,YES,'business'::text
+dashboard_last_30d,income_30d,numeric,null,YES,null
+dashboard_last_30d,expense_30d,numeric,null,YES,null
+dashboard_last_30d,profit_30d,numeric,null,YES,null
+installer_payments_view,installer_id,integer,null,YES,null
+installer_payments_view,ytd_cleared,numeric,null,YES,null
+installers,id,integer,null,NO,nextval('installers_id_seq'::regclass)
+installers,first_name,character varying,100,NO,null
+installers,last_name,character varying,100,YES,null
+installers,company_name,character varying,150,YES,null
+installers,address,text,null,YES,null
+installers,tax_id,character varying,50,YES,null
+installers,phone,character varying,50,YES,null
+installers,email,character varying,150,YES,null
+installers,is_active,boolean,null,YES,true
+installers,created_at,timestamp without time zone,null,NO,now()
+jobs,id,integer,null,NO,nextval('jobs_id_seq'::regclass)
+jobs,name,character varying,150,NO,null
+jobs,address,character varying,255,YES,null
+jobs,status,character varying,20,YES,'open'::character varying
+jobs,created_at,timestamp without time zone,null,NO,now()
+jobs,lead_source_id,integer,null,YES,null
+jobs,start_date,date,null,YES,CURRENT_DATE
+jobs,end_date,date,null,YES,null
+lead_sources,id,integer,null,NO,nextval('lead_sources_id_seq'::regclass)
+lead_sources,name,character varying,100,NO,null
+lead_sources,description,text,null,YES,null
+lead_sources,is_active,boolean,null,YES,true
+lead_sources,created_at,timestamp without time zone,null,NO,now()
+lead_sources,nick_name,character varying,null,YES,null
+transaction_lines,id,integer,null,NO,nextval('transaction_lines_id_seq'::regclass)
+transaction_lines,transaction_id,integer,null,NO,null
+transaction_lines,account_id,integer,null,NO,null
+transaction_lines,amount,numeric,null,NO,null
+transaction_lines,job_id,integer,null,YES,null
+transaction_lines,installer_id,integer,null,YES,null
+transaction_lines,vendor_id,integer,null,YES,null
+transaction_lines,purpose,character varying,20,YES,'business'::character varying
+transaction_lines,is_cleared,boolean,null,YES,false
+transaction_lines,created_at,timestamp without time zone,null,NO,now()
+transaction_lines,lead_source_id,integer,null,YES,null
+transactions,id,integer,null,NO,nextval('transactions_id_seq'::regclass)
+transactions,date,date,null,NO,null
+transactions,description,character varying,255,YES,null
+transactions,created_at,timestamp without time zone,null,NO,now()
+vendors,id,integer,null,NO,nextval('vendors_id_seq'::regclass)
+vendors,name,character varying,150,NO,null
+vendors,contact_name,character varying,150,YES,null
+vendors,address,text,null,YES,null
+vendors,tax_id,character varying,50,YES,null
+vendors,phone,character varying,50,YES,null
+vendors,email,character varying,150,YES,null
+vendors,is_active,boolean,null,YES,true
+vendors,created_at,timestamp without time zone,null,NO,now()
+vendors,nick_name,character varying,null,YES,null
