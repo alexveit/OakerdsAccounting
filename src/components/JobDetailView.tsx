@@ -65,7 +65,6 @@ export function JobDetailView() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [job, setJob] = useState<Job | null>(null);
-  const [lines, setLines] = useState<Line[]>([]);
   const [totals, setTotals] = useState<Totals | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingJobs, setLoadingJobs] = useState(true);
@@ -105,7 +104,6 @@ export function JobDetailView() {
   useEffect(() => {
     if (!selectedJobId) {
       setJob(null);
-      setLines([]);
       setTotals(null);
       setEndDateInput('');
       setJobLedgerRows([]);
@@ -174,7 +172,6 @@ export function JobDetailView() {
           return da - db;
         });
 
-        setLines(sorted);
 
         // Compute totals (unchanged)
         const totals: Totals = {
@@ -274,7 +271,6 @@ export function JobDetailView() {
         console.error(err);
         setError(err.message ?? 'Error loading job detail');
         setJob(null);
-        setLines([]);
         setTotals(null);
         setJobLedgerRows([]);
       } finally {
