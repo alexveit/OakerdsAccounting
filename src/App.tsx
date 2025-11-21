@@ -5,6 +5,7 @@ import { JobDetailView } from './components/JobDetailView';
 import { DashboardOverview } from './components/DashboardOverview';
 import { ExpenseByCategory } from './components/ExpenseByCategory';
 import { InstallersOverview } from './components/InstallersOverview';
+import { LedgerView } from './components/LedgerView';
 
 type View =
   | 'dashboard'
@@ -12,7 +13,8 @@ type View =
   | 'newTx'
   | 'newJob'
   | 'jobDetail'
-  | 'expenseByCategory';
+  | 'expenseByCategory'
+  | 'ledger';
 
 function App() {
   const [view, setView] = useState<View>('dashboard');
@@ -78,6 +80,12 @@ function App() {
         >
           Job Detail
         </button>
+        <button
+          onClick={() => setView('ledger')}
+          className={`pill-button ${view === 'ledger' ? 'pill-button--active' : ''}`}
+        >
+          Ledger
+        </button>
       </div>
 
       {/* Views */}
@@ -87,6 +95,7 @@ function App() {
       {view === 'newJob' && <NewJobForm />}
       {view === 'jobDetail' && <JobDetailView />}
       {view === 'expenseByCategory' && <ExpenseByCategory />}
+      {view === 'ledger' && <LedgerView />} 
     </div>
   );
 }

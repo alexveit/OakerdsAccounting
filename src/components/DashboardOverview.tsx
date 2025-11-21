@@ -82,7 +82,7 @@ export function DashboardOverview() {
         if (!shouldCount) continue;
 
         const current = sums[line.account_id] ?? 0;
-        sums[line.account_id] = current + line.amount;
+        sums[line.account_id] = current + Number(line.amount);
       }
 
       const withBalances: AccountWithBalance[] = rawAccounts.map((a) => ({
@@ -123,7 +123,7 @@ export function DashboardOverview() {
 
     try {
       // Ask for final cleared amount. Default to current (abs) amount.
-      const defaultValue = Math.abs(line.amount).toFixed(2);
+      const defaultValue = Math.abs(Number(line.amount)).toFixed(2);
       const input = window.prompt(
         'Final cleared amount (tip included). Leave blank to keep the current amount.',
         defaultValue
@@ -134,7 +134,7 @@ export function DashboardOverview() {
         return;
       }
 
-      let finalAmount = line.amount;
+      let finalAmount = Number(line.amount);
 
       if (input.trim() !== '') {
         const parsed = Number(input.trim());
@@ -144,20 +144,55 @@ export function DashboardOverview() {
         }
 
         // Preserve original sign (negative for charges, positive for deposits)
-        const sign = line.amount < 0 ? -1 : 1;
+        const sign = Number(line.amount) < 0 ? -1 : 1;
         finalAmount = parsed * sign;
       }
 
-      // Update line: mark cleared + update amount
-      const { error: lineErr } = await supabase
-        .from('transaction_lines')
-        .update({
-          is_cleared: true,
-          amount: finalAmount,
-        })
-        .eq('id', line.id);
+      const absFinal = Math.abs(finalAmount);
 
-      if (lineErr) throw lineErr;
+      // Load all lines for this transaction so we can:
+      //  - mark ALL of them cleared
+      //  - keep double-entry balanced by updating both sides
+      const { data: siblingData, error: siblingErr } = await supabase
+        .from('transaction_lines')
+        .select('id, amount')
+        .eq('transaction_id', line.transaction_id);
+
+      if (siblingErr) throw siblingErr;
+
+      const siblings: { id: number; amount: number }[] =
+        (siblingData ?? []) as any[];
+
+      // Build updates for each row
+      const updates = siblings.map((row) => {
+        if (row.id === line.id) {
+          // This is the bank/card line the user clicked
+          return {
+            id: row.id,
+            amount: finalAmount,
+          };
+        }
+
+        // Other side(s): keep original sign, but match the new absolute amount
+        const otherSign = Number(row.amount) < 0 ? -1 : 1;
+        return {
+          id: row.id,
+          amount: absFinal * otherSign,
+        };
+      });
+
+      // Apply updates one by one (safer than upsert here)
+      for (const u of updates) {
+        const { error: updateErr } = await supabase
+          .from('transaction_lines')
+          .update({
+            amount: u.amount,
+            is_cleared: true,
+          })
+          .eq('id', u.id);
+
+        if (updateErr) throw updateErr;
+      }
 
       await loadBalances();
     } catch (err: any) {
@@ -184,8 +219,14 @@ export function DashboardOverview() {
   const totalCash = cashAccounts.reduce((sum, a) => sum + a.balance, 0);
   const totalCard = cardAccounts.reduce((sum, a) => sum + a.balance, 0);
 
-  const pendingCashTotal = pendingCash.reduce((sum, l) => sum + l.amount, 0);
-  const pendingCardTotal = pendingCard.reduce((sum, l) => sum + l.amount, 0);
+  const pendingCashTotal = pendingCash.reduce(
+    (sum, l) => sum + Number(l.amount),
+    0
+  );
+  const pendingCardTotal = pendingCard.reduce(
+    (sum, l) => sum + Number(l.amount),
+    0
+  );
 
   const netPosition = totalCash - totalCard;
 
@@ -416,7 +457,7 @@ function PendingList({
           <tbody>
             {lines.map((line) => {
               const accountName = line.accounts?.name ?? 'Unknown Account';
-              const amountText = line.amount.toLocaleString('en-US', {
+              const amountText = Number(line.amount).toLocaleString('en-US', {
                 style: 'currency',
                 currency: 'USD',
                 minimumFractionDigits: 2,

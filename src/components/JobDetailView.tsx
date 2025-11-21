@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { todayLocalISO } from '../utils/date';
+
 
 // --- Local date formatting helper (prevents timezone shifting) ---
 function formatLocalDate(dateStr?: string | null) {
@@ -47,6 +49,18 @@ type Totals = {
   profit: number;
 };
 
+// One-row-per-transaction for this job, like the main Ledger
+type JobLedgerRow = {
+  transactionId: number;
+  date: string;
+  description: string;
+  vendorInstaller: string;
+  accountName: string; // cash-side accounts.name
+  typeName: string;    // category-side accounts.name
+  amount: number;
+  cleared: boolean;
+};
+
 export function JobDetailView() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>('');
@@ -57,6 +71,9 @@ export function JobDetailView() {
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
+
+  // NEW: ledger-style rows for this job
+  const [jobLedgerRows, setJobLedgerRows] = useState<JobLedgerRow[]>([]);
 
   // NEW: local editable end-date input
   const [endDateInput, setEndDateInput] = useState<string>('');
@@ -91,6 +108,7 @@ export function JobDetailView() {
       setLines([]);
       setTotals(null);
       setEndDateInput('');
+      setJobLedgerRows([]);
       return;
     }
 
@@ -113,10 +131,7 @@ export function JobDetailView() {
         setJob(loadedJob);
 
         // Prepopulate editable end date:
-        //  - use existing end_date if present
-        //  - otherwise use today's date
-        const todayStr = new Date().toISOString().slice(0, 10);
-        setEndDateInput(loadedJob.end_date || todayStr);
+        setEndDateInput(loadedJob.end_date || todayLocalISO());
 
         // Load transaction lines for this job
         const { data: lineData, error: lineErr } = await supabase
@@ -149,7 +164,7 @@ export function JobDetailView() {
         const rawLines = (lineData ?? []) as any[];
 
         // Sort by transaction date ascending
-        const sorted = rawLines.sort((a, b) => {
+        const sorted: Line[] = rawLines.sort((a, b) => {
           const da = a.transactions?.date
             ? new Date(a.transactions.date).getTime()
             : 0;
@@ -159,9 +174,9 @@ export function JobDetailView() {
           return da - db;
         });
 
-        setLines(sorted as Line[]);
+        setLines(sorted);
 
-        // Compute totals
+        // Compute totals (unchanged)
         const totals: Totals = {
           income: 0,
           materials: 0,
@@ -197,12 +212,71 @@ export function JobDetailView() {
           (totals.materials + totals.labor + totals.otherExpenses);
 
         setTotals(totals);
+
+        // NEW: build one-row-per-transaction ledger for this job
+        const map = new Map<number, JobLedgerRow>();
+
+        for (const line of sorted) {
+          const txId = line.transaction_id;
+          const accType = line.accounts?.account_types?.name ?? '';
+          const accName = line.accounts?.name ?? '';
+
+          let row = map.get(txId);
+          if (!row) {
+            row = {
+              transactionId: txId,
+              date: line.transactions?.date ?? '',
+              description: line.transactions?.description ?? '',
+              vendorInstaller: '',
+              accountName: '',
+              typeName: '',
+              amount: 0,
+              cleared: true,
+            };
+            map.set(txId, row);
+          }
+
+          // if any line isn't cleared, the whole transaction isn't cleared
+          if (!line.is_cleared) row.cleared = false;
+
+          // Vendor / Installer (from category side if available)
+          if (!row.vendorInstaller) {
+            if (line.installers) {
+              row.vendorInstaller = `${line.installers.first_name} ${
+                line.installers.last_name ?? ''
+              }`.trim();
+            } else if (line.vendors) {
+              row.vendorInstaller = line.vendors.name;
+            }
+          }
+
+          // Cash side: asset/liability → accountName and amount
+          if (accType === 'asset' || accType === 'liability') {
+            row.accountName = accName;
+            const mag = Math.abs(line.amount ?? 0);
+            if (mag > 0) row.amount = mag;
+          }
+
+          // Category side: income/expense → typeName (category account name)
+          if ((accType === 'income' || accType === 'expense') && !row.typeName) {
+            row.typeName = accName;
+          }
+        }
+
+        const ledgerRows = Array.from(map.values()).sort((a, b) => {
+          const da = a.date ? new Date(a.date).getTime() : 0;
+          const db = b.date ? new Date(b.date).getTime() : 0;
+          return da - db; // ascending for job view
+        });
+
+        setJobLedgerRows(ledgerRows);
       } catch (err: any) {
         console.error(err);
         setError(err.message ?? 'Error loading job detail');
         setJob(null);
         setLines([]);
         setTotals(null);
+        setJobLedgerRows([]);
       } finally {
         setLoading(false);
       }
@@ -217,9 +291,7 @@ export function JobDetailView() {
     setClosing(true);
 
     try {
-      // Use the user-chosen end date, falling back to today if somehow blank
-      const chosenEndDate =
-        endDateInput || new Date().toISOString().slice(0, 10);
+      const chosenEndDate = endDateInput || todayLocalISO();
 
       const { error } = await supabase
         .from('jobs')
@@ -379,11 +451,13 @@ export function JobDetailView() {
             </div>
           </div>
 
-          {/* Transaction list */}
+          {/* Transaction list - now one row per transaction for this job */}
           <h3>Transactions</h3>
-          {lines.length === 0 && <p>No transactions found for this job.</p>}
+          {jobLedgerRows.length === 0 && (
+            <p>No transactions found for this job.</p>
+          )}
 
-          {lines.length > 0 && (
+          {jobLedgerRows.length > 0 && (
             <table
               style={{
                 borderCollapse: 'collapse',
@@ -403,59 +477,22 @@ export function JobDetailView() {
                 </tr>
               </thead>
               <tbody>
-                {lines.map((line) => {
-                  const accName = line.accounts?.name ?? '';
-                  const accType = line.accounts?.account_types?.name ?? '';
-                  const tDate = formatLocalDate(line.transactions?.date);
-                  const desc = line.transactions?.description ?? '';
-
-                  let kind = '';
-                  let party = '';
-
-                  if (accType === 'income') {
-                    kind = 'Income';
-                  } else if (accType === 'expense') {
-                    if (line.installers) {
-                      kind = 'Labor';
-                      party = `${line.installers.first_name} ${
-                        line.installers.last_name ?? ''
-                      }`.trim();
-                    } else if (line.vendors) {
-                      kind = 'Material';
-                      party = line.vendors.name;
-                    } else {
-                      kind = 'Expense';
-                    }
-                  } else {
-                    kind = accType || '';
-                  }
-
-                  if (!party && line.vendors) {
-                    party = line.vendors.name;
-                  }
-
-                  const amountDisplay =
-                    accType === 'income'
-                      ? -line.amount // flip sign to show as positive income
-                      : line.amount;
-
-                  return (
-                    <tr key={line.id}>
-                      <Td>{tDate}</Td>
-                      <Td>{desc}</Td>
-                      <Td>{accName}</Td>
-                      <Td>{kind}</Td>
-                      <Td>{party}</Td>
-                      <Td align="right">
-                        {amountDisplay.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </Td>
-                      <Td align="center">{line.is_cleared ? '✓' : ''}</Td>
-                    </tr>
-                  );
-                })}
+                {jobLedgerRows.map((row) => (
+                  <tr key={row.transactionId}>
+                    <Td>{formatLocalDate(row.date)}</Td>
+                    <Td>{row.description}</Td>
+                    <Td>{row.accountName}</Td>
+                    <Td>{row.typeName}</Td>
+                    <Td>{row.vendorInstaller}</Td>
+                    <Td align="right">
+                      {row.amount.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </Td>
+                    <Td align="center">{row.cleared ? '✓' : ''}</Td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}

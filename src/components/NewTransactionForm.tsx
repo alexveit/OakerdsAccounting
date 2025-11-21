@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { FormEvent } from 'react';
+import { todayLocalISO } from '../utils/date';
 
 type Job = {
   id: number;
@@ -43,9 +44,8 @@ export function NewTransactionForm() {
   // form state
   const [linkToJob, setLinkToJob] = useState<boolean>(false);
   const [jobId, setJobId] = useState<string>('');
-  const [date, setDate] = useState<string>(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  const [date, setDate] = useState<string>(() => todayLocalISO());
+
   const [txType, setTxType] = useState<TxType>('expense');
 
   // expenseKind only meaningful when linkToJob && txType === 'expense'

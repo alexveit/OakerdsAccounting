@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { FormEvent } from 'react';
+import { todayLocalISO } from '../utils/date';
+
 
 type LeadSource = {
   id: number;
@@ -20,9 +22,7 @@ export function NewJobForm() {
   const [leadSourceId, setLeadSourceId] = useState<string>('');
 
   // Start date: defaults to today
-  const [startDate, setStartDate] = useState<string>(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  const [startDate, setStartDate] = useState<string>(() => todayLocalISO());
 
   useEffect(() => {
     async function loadLeadSources() {
@@ -77,7 +77,7 @@ export function NewJobForm() {
       setName('');
       setAddress('');
       setLeadSourceId('');
-      setStartDate(new Date().toISOString().slice(0, 10));
+      setStartDate(todayLocalISO());
     } catch (err: any) {
       console.error(err);
       setError(err.message ?? 'Error saving job');
