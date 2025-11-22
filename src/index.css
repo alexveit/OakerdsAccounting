@@ -40,7 +40,7 @@ body {
 
 .app-shell {
   padding: 1.5rem;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -129,4 +129,35 @@ body {
 
 .stat-negative {
   color: var(--accent-negative);
+}
+
+/* =========================================================
+   Browser-style Tabs (for ExpenseCategoriesView)
+   ========================================================= */
+
+.tab-strip {
+  display: inline-flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 0.2rem;
+}
+
+.tab {
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 0.35rem 0.9rem;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.tab--active {
+  background: var(--bg-card);
+  border-color: var(--border-subtle);
+  color: var(--text-main);
+  position: relative;
+  top: 1px; /* lets active tab sit “above” the border */
+  box-shadow: 0 -1px 0 var(--bg-card);
 }
