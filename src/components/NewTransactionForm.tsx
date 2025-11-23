@@ -30,7 +30,12 @@ type Account = {
 type TxType = 'income' | 'expense';
 type ExpenseKind = 'material' | 'labor' | 'other';
 
-export function NewTransactionForm() {
+// NEW: allow parent to preselect a job
+type NewTransactionFormProps = {
+  initialJobId?: number | null;
+};
+
+export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [installers, setInstallers] = useState<Installer[]>([]);
@@ -42,8 +47,10 @@ export function NewTransactionForm() {
   const [success, setSuccess] = useState<string | null>(null);
 
   // form state
-  const [linkToJob, setLinkToJob] = useState<boolean>(false);
-  const [jobId, setJobId] = useState<string>('');
+  const [linkToJob, setLinkToJob] = useState<boolean>(!!initialJobId);
+  const [jobId, setJobId] = useState<string>(
+    initialJobId != null ? String(initialJobId) : ''
+  );
   const [date, setDate] = useState<string>(() => todayLocalISO());
 
   const [txType, setTxType] = useState<TxType>('expense');
@@ -62,18 +69,30 @@ export function NewTransactionForm() {
 
   const [isCleared, setIsCleared] = useState<boolean>(false);
 
+
   useEffect(() => {
     async function loadOptions() {
       setLoading(true);
       setError(null);
       try {
-        // Jobs
+        // Jobs (only open, newest first)
         const { data: jobsData, error: jobsErr } = await supabase
           .from('jobs')
-          .select('id, name')
-          .order('created_at', { ascending: false });
+          .select('id, name, status, start_date');
+
         if (jobsErr) throw jobsErr;
-        setJobs((jobsData ?? []) as Job[]);
+
+        // Filter only open jobs
+        const openJobs = (jobsData ?? []).filter(j => j.status !== 'closed');
+
+        // Sort by newest first
+        const sortedOpenJobs = openJobs.sort((a, b) => {
+          const da = a.start_date ? new Date(a.start_date).getTime() : 0;
+          const db = b.start_date ? new Date(b.start_date).getTime() : 0;
+          return db - da; // newest first
+        });
+
+        setJobs(sortedOpenJobs);
 
         // Vendors
         const { data: vendorsData, error: vendorsErr } = await supabase
@@ -120,6 +139,13 @@ export function NewTransactionForm() {
 
     loadOptions();
   }, []);
+
+  useEffect(() => {
+    if (initialJobId != null) {
+      setLinkToJob(true);
+      setJobId(String(initialJobId));
+    }
+  }, [initialJobId]);
 
   const cashAccounts = accounts.filter(
     (a) =>

@@ -7,33 +7,55 @@ import { InstallersOverview } from './components/InstallersOverview';
 import { LedgerView } from './components/LedgerView';
 import { ProfitSummary } from './components/ProfitSummary';
 import { ExpenseCategoriesView } from './components/ExpensesView';
+import { NewEntryView } from './components/NewEntryView';
+
 
 type View =
   | 'dashboard'
   | 'installers'
   | 'expenses'        // wrapper with tabs
-  | 'entry'           // NEW: combined New Transaction + New Job
+  | 'entry'           // combined New Transaction + New Job
   | 'jobDetail'
   | 'ledger'
   | 'profitSummary';
 
-// Small wrapper component for the combined view
+type EntryTab = 'transaction' | 'job';
+
+// Tabbed New Entry view (centered like Expense by Category tabs)
 function EntryView() {
+  const [tab, setTab] = useState<EntryTab>('transaction');
+
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',   // SAME WIDTH
-        gap: '1rem',
-        alignItems: 'flex-start',
-      }}
-    >
-      <div className="card">
-        <NewTransactionForm />
+    <div>
+      {/* Browser-style tab strip, centered (uses .tab-strip / .tab / .tab--active) */}
+      <div className="tab-strip">
+        <button
+          type="button"
+          className={`tab ${tab === 'transaction' ? 'tab--active' : ''}`}
+          onClick={() => setTab('transaction')}
+        >
+          New Transaction
+        </button>
+        <button
+          type="button"
+          className={`tab ${tab === 'job' ? 'tab--active' : ''}`}
+          onClick={() => setTab('job')}
+        >
+          New Job
+        </button>
       </div>
 
-      <div className="card">
-        <NewJobForm />
+      {/* Centered content card under tabs */}
+      <div style={{ marginTop: '0.75rem' }}>
+        <div
+          className="card"
+          style={{
+            maxWidth: 560,
+            margin: '0 auto',
+          }}
+        >
+          {tab === 'transaction' ? <NewTransactionForm /> : <NewJobForm />}
+        </div>
       </div>
     </div>
   );
@@ -44,16 +66,17 @@ const NAV_ITEMS: { view: View; label: string }[] = [
   { view: 'installers', label: 'Installers' },
   { view: 'expenses', label: 'Exp by Category' }, // tabs (Summary / Details)
   { view: 'profitSummary', label: 'Profit Summary' },
-  { view: 'entry', label: 'New Entry' },               // NEW combined view
+  { view: 'entry', label: 'New Entry' },          // tabbed New Tx / New Job
   { view: 'jobDetail', label: 'Job Detail' },
   { view: 'ledger', label: 'Ledger' },
+  
 ];
 
 const VIEW_COMPONENTS: Record<View, React.ComponentType> = {
   dashboard: DashboardOverview,
   installers: InstallersOverview,
   expenses: ExpenseCategoriesView,
-  entry: EntryView,              // use our combined component
+  entry: NewEntryView,
   jobDetail: JobDetailView,
   ledger: LedgerView,
   profitSummary: ProfitSummary,

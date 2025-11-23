@@ -47,7 +47,7 @@ type JobData = {
   ledgerRows: JobLedgerRow[];
 };
 
-export function JobDetailView() {
+export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jobId: number) => void;}) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobDataById, setJobDataById] = useState<Record<number, JobData>>({});
   const [loading, setLoading] = useState(true);
@@ -408,6 +408,30 @@ export function JobDetailView() {
             )}
           </span>
         </div>
+
+        {/* QUICK ADD TRANSACTION BUTTON (only for open jobs) */}
+        {job.status !== 'closed' && onAddJobTransaction && (
+          <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation(); // don't toggle expand when clicking
+                onAddJobTransaction(job.id);
+              }}
+              style={{
+                padding: '0.3rem 0.8rem',
+                borderRadius: 999,
+                border: '1px solid #111',
+                background: '#111',
+                color: '#fff',
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+            >
+              + Add Transaction
+            </button>
+          </div>
+        )}
 
         {/* STATS */}
         <div
