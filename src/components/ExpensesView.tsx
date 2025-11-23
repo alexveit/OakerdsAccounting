@@ -29,7 +29,15 @@ export function ExpenseCategoriesView() {
 
       {/* Content */}
       <div style={{ marginTop: '0.75rem' }}>
-        {tab === 'summary' ? <CategoriesSummaryView /> : <ExpenseByCategory />}
+        {tab === 'summary' ? (
+          // Summary: use full wide shell (same as Job Detail)
+          <CategoriesSummaryView />
+        ) : (
+          // Details: constrain to a narrower centered column
+          <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+            <ExpenseByCategory />
+          </div>
+        )}
       </div>
     </div>
   );

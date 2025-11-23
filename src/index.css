@@ -38,11 +38,25 @@ body {
    Layout Containers
    ========================================================= */
 
-.app-shell {
+/* Header: logo + nav always centered at the same width */
+.app-header-shell {
   padding: 1.5rem;
-  max-width: 1400px;
+  max-width: 1100px;
   margin: 0 auto;
 }
+
+/* Main content: default width for most views */
+.app-main-shell {
+  padding: 0 1.5rem 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Wider shell ONLY for Job Detail */
+.app-main-shell--wide {
+  max-width: 1600px;  /* Adjust as you prefer */
+}
+
 
 /* =========================================================
    Cards
@@ -136,8 +150,9 @@ body {
    ========================================================= */
 
 .tab-strip {
-  display: inline-flex;
-  align-items: flex-end;
+  display: flex;                 /* full flexbox, not inline-flex */
+  justify-content: center;       /* center horizontally */
+  align-items: flex-end;         
   border-bottom: 1px solid var(--border-subtle);
   gap: 0.2rem;
 }
@@ -161,3 +176,17 @@ body {
   top: 1px; /* lets active tab sit “above” the border */
   box-shadow: 0 -1px 0 var(--bg-card);
 }
+
+/* Job detail masonry layout */
+.job-columns {
+  column-count: 2;
+  column-gap: 1rem;
+}
+
+/* On narrower screens, collapse to a single column */
+@media (max-width: 1100px) {
+  .job-columns {
+    column-count: 1;
+  }
+}
+

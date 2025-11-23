@@ -12,19 +12,39 @@ type View =
   | 'dashboard'
   | 'installers'
   | 'expenses'        // wrapper with tabs
-  | 'newTx'
-  | 'newJob'
+  | 'entry'           // NEW: combined New Transaction + New Job
   | 'jobDetail'
   | 'ledger'
   | 'profitSummary';
 
+// Small wrapper component for the combined view
+function EntryView() {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',   // SAME WIDTH
+        gap: '1rem',
+        alignItems: 'flex-start',
+      }}
+    >
+      <div className="card">
+        <NewTransactionForm />
+      </div>
+
+      <div className="card">
+        <NewJobForm />
+      </div>
+    </div>
+  );
+}
+
 const NAV_ITEMS: { view: View; label: string }[] = [
   { view: 'dashboard', label: 'Dashboard' },
   { view: 'installers', label: 'Installers' },
-  { view: 'expenses', label: 'Expenses by Category' }, // tabs (Summary / Details)
+  { view: 'expenses', label: 'Exp by Category' }, // tabs (Summary / Details)
   { view: 'profitSummary', label: 'Profit Summary' },
-  { view: 'newTx', label: 'New Transaction' },
-  { view: 'newJob', label: 'New Job' },
+  { view: 'entry', label: 'New Entry' },               // NEW combined view
   { view: 'jobDetail', label: 'Job Detail' },
   { view: 'ledger', label: 'Ledger' },
 ];
@@ -33,8 +53,7 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType> = {
   dashboard: DashboardOverview,
   installers: InstallersOverview,
   expenses: ExpenseCategoriesView,
-  newTx: NewTransactionForm,
-  newJob: NewJobForm,
+  entry: EntryView,              // use our combined component
   jobDetail: JobDetailView,
   ledger: LedgerView,
   profitSummary: ProfitSummary,
@@ -44,39 +63,51 @@ function App() {
   const [view, setView] = useState<View>('dashboard');
   const ViewComponent = VIEW_COMPONENTS[view];
 
+  const isWideView = view === 'jobDetail' || view === 'expenses';
+
   return (
-    <div className="app-shell">
+    <div>
+      {/* Header + nav: always same width */}
+      <div className="app-header-shell">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.6rem',
+            marginBottom: '1rem',
+          }}
+        >
+          <img
+            src="/OakerdsLogo.svg"
+            alt="Oakerds Logo"
+            style={{ width: '80px', height: '80px' }}
+          />
+          <h1 style={{ margin: 20 }}>Oakerds Accounting</h1>
+        </div>
+
+        <div className="pill-nav">
+          {NAV_ITEMS.map(({ view: navView, label }) => (
+            <button
+              key={navView}
+              onClick={() => setView(navView)}
+              className={`pill-button ${
+                view === navView ? 'pill-button--active' : ''
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Main content: width can vary by view */}
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.6rem',
-          marginBottom: '1rem',
-        }}
+        className={
+          isWideView ? 'app-main-shell app-main-shell--wide' : 'app-main-shell'
+        }
       >
-        <img
-          src="/OakerdsLogo.svg"
-          alt="Oakerds Logo"
-          style={{ width: '80px', height: '80px' }}
-        />
-        <h1 style={{ margin: 20 }}>Oakerds Accounting</h1>
+        <ViewComponent />
       </div>
-
-      <div className="pill-nav">
-        {NAV_ITEMS.map(({ view: navView, label }) => (
-          <button
-            key={navView}
-            onClick={() => setView(navView)}
-            className={`pill-button ${
-              view === navView ? 'pill-button--active' : ''
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <ViewComponent />
     </div>
   );
 }

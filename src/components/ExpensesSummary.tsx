@@ -47,7 +47,7 @@ function createEmptyMonthly(): number[] {
   return new Array(12).fill(0);
 }
 
-// Same day-of-year logic used in ProfitSummary :contentReference[oaicite:1]{index=1}
+// Same day-of-year logic used in ProfitSummary
 function getDayOfYearForYear(selectedYear: number): number | null {
   const today = new Date();
   const currentYear = today.getFullYear();
@@ -145,7 +145,7 @@ export function CategoriesSummaryView() {
       if (Number.isNaN(d.getTime())) continue;
       const monthIndex = d.getMonth(); // 0–11
 
-      const amt = Math.abs(Number(line.amount) || 0);
+      const amt = Number(line.amount) || 0;
 
       const purpose = line.purpose ?? 'business';
       const isBusiness = purpose === 'business' || purpose === 'mixed';
@@ -257,6 +257,9 @@ export function CategoriesSummaryView() {
       );
     }
 
+    // 🔢 Group total (sum of all category totals)
+    const groupTotal = categories.reduce((sum, c) => sum + c.total, 0);
+
     // Monthly and quarterly run-rate averages per account
     let monthlyAvg: number[] = [];
     let quarterlyAvg: number[] = [];
@@ -295,7 +298,30 @@ export function CategoriesSummaryView() {
 
     return (
       <div className="card" style={{ marginBottom: '1.25rem' }}>
-        <h3 style={{ marginTop: 0 }}>{title}</h3>
+        {/* Header with group total */}
+        <h3
+          style={{
+            marginTop: 0,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '1.2em',   
+            fontWeight: 600,       
+          }}
+        >
+          <span>{title}</span>
+          <span
+            style={{
+              color: '#555',
+              fontWeight: 600,
+              fontSize: '1.2em',
+            }}
+          >
+            {currency(groupTotal)}
+          </span>
+        </h3>
+
+
         <div style={{ overflowX: 'auto' }}>
           <table className="table">
             <thead>

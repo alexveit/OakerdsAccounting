@@ -1,5 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { formatLocalDate } from '../utils/date';
+
 
 type ViewMode = 'year' | 'month' | 'day' | 'detail';
 type CategorySort = 'total' | 'name';
@@ -16,12 +18,6 @@ type RawLine = {
   vendors: { nick_name: string } | null;
   installers: { first_name: string; last_name: string | null } | null;
   jobs: { name: string } | null;
-};
-
-const formatLocalDate = (dateStr?: string | null) => {
-  if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-');
-  return `${Number(m)}/${Number(d)}/${y}`;
 };
 
 const formatMonthLabel = (monthKey: string) => {

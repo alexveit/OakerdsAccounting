@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { todayLocalISO } from '../utils/date';
-
-
-// --- Local date formatting helper (prevents timezone shifting) ---
-function formatLocalDate(dateStr?: string | null) {
-  if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-');
-  return `${Number(m)}/${Number(d)}/${y}`;
-}
+import { formatLocalDate, todayLocalISO } from '../utils/date';
 
 type Job = {
   id: number;
@@ -21,24 +13,14 @@ type Job = {
 
 type Line = {
   id: number;
+  job_id: number | null;
   amount: number;
   is_cleared: boolean;
   transaction_id: number;
-  transactions: {
-    date: string;
-    description: string | null;
-  } | null;
-  accounts: {
-    name: string;
-    account_types: { name: string } | null;
-  } | null;
-  vendors: {
-    name: string;
-  } | null;
-  installers: {
-    first_name: string;
-    last_name: string | null;
-  } | null;
+  transactions: any;
+  accounts: any;
+  vendors: any;
+  installers: any;
 };
 
 type Totals = {
@@ -49,359 +31,368 @@ type Totals = {
   profit: number;
 };
 
-// One-row-per-transaction for this job, like the main Ledger
 type JobLedgerRow = {
   transactionId: number;
   date: string;
   description: string;
   vendorInstaller: string;
-  accountName: string; // cash-side accounts.name
-  typeName: string;    // category-side accounts.name
+  accountName: string;
+  typeName: string;
   amount: number;
   cleared: boolean;
 };
 
+type JobData = {
+  totals: Totals;
+  ledgerRows: JobLedgerRow[];
+};
+
 export function JobDetailView() {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [selectedJobId, setSelectedJobId] = useState<string>('');
-  const [job, setJob] = useState<Job | null>(null);
-  const [totals, setTotals] = useState<Totals | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [jobDataById, setJobDataById] = useState<Record<number, JobData>>({});
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [closing, setClosing] = useState(false);
 
-  // NEW: ledger-style rows for this job
-  const [jobLedgerRows, setJobLedgerRows] = useState<JobLedgerRow[]>([]);
+  const [selectedYear, setSelectedYear] = useState<string>('all');
 
-  // NEW: local editable end-date input
-  const [endDateInput, setEndDateInput] = useState<string>('');
+  const [endDateByJob, setEndDateByJob] = useState<Record<number, string>>({});
+  const [expandedJobs, setExpandedJobs] = useState<Record<number, boolean>>({});
 
-  // Load all jobs once
+  const today = todayLocalISO();
+
+  // ------------------------------------------------------------
+  // LOAD JOBS + LINES
+  // ------------------------------------------------------------
   useEffect(() => {
-    async function loadJobs() {
-      setLoadingJobs(true);
-      setError(null);
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('id, name, address, status, start_date, end_date')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error(error);
-        setError(error.message);
-        setJobs([]);
-      } else {
-        setJobs((data ?? []) as Job[]);
-      }
-      setLoadingJobs(false);
-    }
-
-    loadJobs();
-  }, []);
-
-  // When a job is selected, load its lines
-  useEffect(() => {
-    if (!selectedJobId) {
-      setJob(null);
-      setTotals(null);
-      setEndDateInput('');
-      setJobLedgerRows([]);
-      return;
-    }
-
-    async function loadJobAndLines() {
+    async function loadAll() {
       setLoading(true);
       setError(null);
 
-      const jobIdNum = Number(selectedJobId);
-
       try {
-        // Load job (with dates)
-        const { data: jobData, error: jobErr } = await supabase
+        // Load jobs
+        const { data: jobsData, error: jobsErr } = await supabase
           .from('jobs')
           .select('id, name, address, status, start_date, end_date')
-          .eq('id', jobIdNum)
-          .single();
+          .order('created_at', { ascending: false });
 
-        if (jobErr) throw jobErr;
-        const loadedJob = jobData as Job;
-        setJob(loadedJob);
+        if (jobsErr) throw jobsErr;
+        const jobs = (jobsData ?? []) as Job[];
+        setJobs(jobs);
 
-        // Prepopulate editable end date:
-        setEndDateInput(loadedJob.end_date || todayLocalISO());
+        // Initialize end dates
+        setEndDateByJob((prev) => {
+          const next = { ...prev };
+          for (const j of jobs) {
+            if (!next[j.id]) next[j.id] = j.end_date || today;
+          }
+          return next;
+        });
 
-        // Load transaction lines for this job
+                   // Load job transaction lines
         const { data: lineData, error: lineErr } = await supabase
           .from('transaction_lines')
           .select(`
             id,
+            job_id,
             amount,
             is_cleared,
             transaction_id,
-            transactions (
-              date,
-              description
-            ),
-            accounts (
-              name,
-              account_types ( name )
-            ),
-            vendors (
-              name
-            ),
-            installers (
-              first_name,
-              last_name
-            )
+            transactions ( date, description ),
+            accounts ( name, account_types ( name ) ),
+            vendors ( name ),
+            installers ( first_name, last_name )
           `)
-          .eq('job_id', jobIdNum);
+          .not('job_id', 'is', null);
 
         if (lineErr) throw lineErr;
 
-        const rawLines = (lineData ?? []) as any[];
+        const allLines = (lineData ?? []) as Line[];
 
-        // Sort by transaction date ascending
-        const sorted: Line[] = rawLines.sort((a, b) => {
-          const da = a.transactions?.date
-            ? new Date(a.transactions.date).getTime()
-            : 0;
-          const db = b.transactions?.date
-            ? new Date(b.transactions.date).getTime()
-            : 0;
-          return da - db;
-        });
-
-
-        // Compute totals (unchanged)
-        const totals: Totals = {
-          income: 0,
-          materials: 0,
-          labor: 0,
-          otherExpenses: 0,
-          profit: 0,
-        };
-
-        for (const line of sorted) {
-          const accType = line.accounts?.account_types?.name ?? null;
-
-          if (accType === 'income') {
-            // income lines are stored as negative (e.g. -4900),
-            // so flip the sign
-            totals.income += -line.amount;
-          } else if (accType === 'expense') {
-            // Decide what kind of expense this is:
-            //  - if installer present => labor
-            //  - else if vendor present => materials
-            //  - else => other
-            if (line.installers) {
-              totals.labor += line.amount;
-            } else if (line.vendors) {
-              totals.materials += line.amount;
-            } else {
-              totals.otherExpenses += line.amount;
-            }
-          }
+        // Group lines by job
+        const linesByJob = new Map<number, Line[]>();
+        for (const line of allLines) {
+          if (!line.job_id) continue;
+          const arr = linesByJob.get(line.job_id) ?? [];
+          arr.push(line);
+          linesByJob.set(line.job_id, arr);
         }
 
-        totals.profit =
-          totals.income -
-          (totals.materials + totals.labor + totals.otherExpenses);
+        // Build totals + ledger per job
+        const jobData: Record<number, JobData> = {};
 
-        setTotals(totals);
+        for (const [jobId, lines] of linesByJob.entries()) {
+          const sorted = [...lines].sort((a, b) => {
+            const da = a.transactions?.date ? new Date(a.transactions.date).getTime() : 0;
+            const db = b.transactions?.date ? new Date(b.transactions.date).getTime() : 0;
+            return da - db;
+          });
 
-        // NEW: build one-row-per-transaction ledger for this job
-        const map = new Map<number, JobLedgerRow>();
+          const totals: Totals = {
+            income: 0,
+            materials: 0,
+            labor: 0,
+            otherExpenses: 0,
+            profit: 0,
+          };
 
-        for (const line of sorted) {
-          const txId = line.transaction_id;
-          const accType = line.accounts?.account_types?.name ?? '';
-          const accName = line.accounts?.name ?? '';
+          for (const line of sorted) {
+            const type = line.accounts?.account_types?.name ?? null;
 
-          let row = map.get(txId);
-          if (!row) {
-            row = {
-              transactionId: txId,
-              date: line.transactions?.date ?? '',
-              description: line.transactions?.description ?? '',
-              vendorInstaller: '',
-              accountName: '',
-              typeName: '',
-              amount: 0,
-              cleared: true,
-            };
-            map.set(txId, row);
-          }
-
-          // if any line isn't cleared, the whole transaction isn't cleared
-          if (!line.is_cleared) row.cleared = false;
-
-          // Vendor / Installer (from category side if available)
-          if (!row.vendorInstaller) {
-            if (line.installers) {
-              row.vendorInstaller = `${line.installers.first_name} ${
-                line.installers.last_name ?? ''
-              }`.trim();
-            } else if (line.vendors) {
-              row.vendorInstaller = line.vendors.name;
+            if (type === 'income') {
+              totals.income += -line.amount;
+            } else if (type === 'expense') {
+              if (line.installers) totals.labor += line.amount;
+              else if (line.vendors) totals.materials += line.amount;
+              else totals.otherExpenses += line.amount;
             }
           }
 
-          // Cash side: asset/liability → accountName and amount
-          if (accType === 'asset' || accType === 'liability') {
-            row.accountName = accName;
-            const mag = Math.abs(line.amount ?? 0);
-            if (mag > 0) row.amount = mag;
+          totals.profit = totals.income - (totals.materials + totals.labor + totals.otherExpenses);
+
+          const txMap = new Map<number, JobLedgerRow>();
+
+          for (const line of sorted) {
+            const txId = line.transaction_id;
+            const type = line.accounts?.account_types?.name ?? '';
+
+            let row = txMap.get(txId);
+            if (!row) {
+              row = {
+                transactionId: txId,
+                date: line.transactions?.date ?? '',
+                description: line.transactions?.description ?? '',
+                vendorInstaller: '',
+                accountName: '',
+                typeName: '',
+                amount: 0,
+                cleared: true,
+              };
+              txMap.set(txId, row);
+            }
+
+            if (!line.is_cleared) row.cleared = false;
+
+            if (!row.vendorInstaller) {
+              if (line.installers) {
+                row.vendorInstaller = `${line.installers.first_name} ${line.installers.last_name ?? ''}`.trim();
+              } else if (line.vendors) {
+                row.vendorInstaller = line.vendors.name;
+              }
+            }
+
+            if (type === 'asset' || type === 'liability') {
+              row.accountName = line.accounts?.name ?? '';
+              const mag = Math.abs(line.amount);
+              if (mag > 0) row.amount = mag;
+            }
+
+            if ((type === 'income' || type === 'expense') && !row.typeName) {
+              row.typeName = line.accounts?.name ?? '';
+            }
           }
 
-          // Category side: income/expense → typeName (category account name)
-          if ((accType === 'income' || accType === 'expense') && !row.typeName) {
-            row.typeName = accName;
-          }
+          const ledgerRows = Array.from(txMap.values()).sort((a, b) => {
+            const da = a.date ? new Date(a.date).getTime() : 0;
+            const db = b.date ? new Date(b.date).getTime() : 0;
+            return da - db;
+          });
+
+          jobData[jobId] = { totals, ledgerRows };
         }
 
-        const ledgerRows = Array.from(map.values()).sort((a, b) => {
-          const da = a.date ? new Date(a.date).getTime() : 0;
-          const db = b.date ? new Date(b.date).getTime() : 0;
-          return da - db; // ascending for job view
-        });
-
-        setJobLedgerRows(ledgerRows);
+        setJobDataById(jobData);
       } catch (err: any) {
         console.error(err);
-        setError(err.message ?? 'Error loading job detail');
-        setJob(null);
-        setTotals(null);
-        setJobLedgerRows([]);
+        setError(err.message ?? 'Error loading jobs');
       } finally {
         setLoading(false);
       }
     }
 
-    loadJobAndLines();
-  }, [selectedJobId]);
+    loadAll();
+  }, []);
 
-  async function handleCloseJob() {
-    if (!job) return;
-    setError(null);
-    setClosing(true);
+  // ------------------------------------------------------------
+  // CLOSE JOB
+  // ------------------------------------------------------------
+  async function handleCloseJob(job: Job) {
+    if (!window.confirm(`Close job "${job.name}"?`)) return;
 
     try {
-      const chosenEndDate = endDateInput || todayLocalISO();
+      const chosenEnd = endDateByJob[job.id] || today;
 
-      const { error } = await supabase
+      const { error: updErr } = await supabase
         .from('jobs')
-        .update({
-          status: 'closed',
-          end_date: chosenEndDate,
-        })
+        .update({ status: 'closed', end_date: chosenEnd })
         .eq('id', job.id);
 
-      if (error) throw error;
+      if (updErr) throw updErr;
 
-      setJob({ ...job, status: 'closed', end_date: chosenEndDate });
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.id === job.id ? { ...j, status: 'closed', end_date: chosenEnd } : j
+        )
+      );
     } catch (err: any) {
       console.error(err);
       setError(err.message ?? 'Error closing job');
-    } finally {
-      setClosing(false);
     }
   }
 
-  if (loadingJobs) {
-    return <p>Loading jobs…</p>;
+  function handleToggleJob(id: number) {
+    setExpandedJobs((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
   }
 
-  return (
-    <div>
-      <h2>Job Detail</h2>
+  if (loading) return <p>Loading jobs…</p>;
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+  // ------------------------------------------------------------
+  // YEAR FILTERING
+  // ------------------------------------------------------------
+  const years = Array.from(
+    new Set(
+      jobs.map((j) => j.start_date?.slice(0, 4)).filter((y): y is string => !!y)
+    )
+  )
+    .sort()
+    .reverse();
 
-      <label>
-        Job
-        <select
-          value={selectedJobId}
-          onChange={(e) => setSelectedJobId(e.target.value)}
+  const filteredJobs = jobs.filter((j) => {
+    if (selectedYear === 'all') return true;
+    return j.start_date?.slice(0, 4) === selectedYear;
+  });
+
+  // ------------------------------------------------------------
+  // OPEN-FIRST SORT
+  // ------------------------------------------------------------
+  const openJobs = filteredJobs
+    .filter((j) => j.status !== 'closed')
+    .sort((a, b) => {
+      const da = a.start_date ? new Date(a.start_date).getTime() : 0;
+      const db = b.start_date ? new Date(b.start_date).getTime() : 0;
+      return da - db;
+    });
+
+  const closedJobs = filteredJobs
+    .filter((j) => j.status === 'closed')
+    .sort((a, b) => {
+      const da = a.start_date ? new Date(a.start_date).getTime() : 0;
+      const db = b.start_date ? new Date(b.start_date).getTime() : 0;
+      return da - db;
+    });
+
+  // ------------------------------------------------------------
+  // COLUMN BUILDER (bottom-up tetris per group)
+  // ------------------------------------------------------------
+  function buildColumns(list: Job[]) {
+    const left: Job[] = [];
+    const right: Job[] = [];
+    for (let i = 0; i < list.length; i += 2) {
+      left.push(list[i]);
+      if (i + 1 < list.length) right.push(list[i + 1]);
+    }
+    left.reverse();
+    right.reverse();
+    return { left, right };
+  }
+
+  const openCols = buildColumns(openJobs);
+  const closedCols = buildColumns(closedJobs);
+
+  const leftCol = [...openCols.left, ...closedCols.left];
+  const rightCol = [...openCols.right, ...closedCols.right];
+
+  // ------------------------------------------------------------
+  // RENDER CARD
+  // ------------------------------------------------------------
+  const renderJobCard = (job: Job) => {
+    const data = jobDataById[job.id];
+    if (!data) return null;
+
+    const { totals, ledgerRows } = data;
+    const marginPct = totals.income > 0 ? (totals.profit / totals.income) * 100 : 0;
+
+    const isExpanded = expandedJobs[job.id] ?? false;
+    const endInputValue = endDateByJob[job.id] || job.end_date || today;
+
+    return (
+      <div
+        key={job.id}
+        onClick={() => handleToggleJob(job.id)}
+        style={{
+          marginBottom: '1rem',
+          borderRadius: 12,
+          border: '1px solid #eee',
+          padding: '1rem 1.25rem',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          background: '#fff',
+          cursor: 'pointer',
+        }}
+      >
+        {/* NAME */}
+        <h3 style={{ marginTop: 0, marginBottom: '0.25rem' }}>{job.name}</h3>
+
+        {job.address && (
+          <div style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
+            {job.address}
+          </div>
+        )}
+
+        {/* STATUS */}
+        <div style={{ fontSize: 12, color: '#777', marginBottom: 4 }}>
+          Status:{' '}
+          <strong style={{ color: job.status === 'closed' ? '#b00020' : '#0a7a3c' }}>
+            {job.status || 'open'}
+          </strong>
+        </div>
+
+        {/* --- Start / End / Close job on same row --- */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            fontSize: 12,
+            color: '#555',
+            marginBottom: 8,
+            flexWrap: 'wrap',
+          }}
         >
-          <option value="">Select a job…</option>
-          {jobs.map((j) => (
-            <option key={j.id} value={j.id}>
-              {j.name}
-            </option>
-          ))}
-        </select>
-      </label>
+          {/* START DATE */}
+          <span>
+            <strong>Start:</strong>{' '}
+            {job.start_date ? formatLocalDate(job.start_date) : '—'}
+          </span>
 
-      {!selectedJobId && (
-        <p style={{ marginTop: '1rem' }}>Choose a job to see its details.</p>
-      )}
-
-      {selectedJobId && loading && <p>Loading job details…</p>}
-
-      {job && totals && !loading && (
-        <>
-          {/* Job card */}
-          <div
-            style={{
-              marginTop: '1rem',
-              marginBottom: '1.5rem',
-              borderRadius: 12,
-              border: '1px solid #eee',
-              padding: '1rem 1.25rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-              background: '#fff',
-            }}
-          >
-            <h3 style={{ marginTop: 0, marginBottom: '0.25rem' }}>
-              {job.name}
-            </h3>
-            {job.address && (
-              <div style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
-                {job.address}
-              </div>
+          {/* END DATE + CLOSE BUTTON */}
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <strong>End:</strong>{' '}
+            {job.status === 'closed' ? (
+              job.end_date ? formatLocalDate(job.end_date) : '—'
+            ) : (
+              <input
+                type="date"
+                value={endInputValue}
+                onChange={(e) =>
+                  setEndDateByJob((prev) => ({
+                    ...prev,
+                    [job.id]: e.target.value,
+                  }))
+                }
+                onClick={(e) => e.stopPropagation()}
+                style={{ fontSize: 12 }}
+              />
             )}
-            <div style={{ fontSize: 12, color: '#777', marginBottom: 4 }}>
-              Status: <strong>{job.status || 'open'}</strong>
-            </div>
-
-            {/* Start / End dates */}
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '0.75rem',
-                fontSize: 12,
-                color: '#555',
-                marginBottom: 8,
-              }}
-            >
-              <span>
-                <strong>Start:</strong>{' '}
-                {job.start_date ? formatLocalDate(job.start_date) : '—'}
-              </span>
-
-              <span>
-                <strong>End:</strong>{' '}
-                {job.status !== 'closed' ? (
-                  <input
-                    type="date"
-                    value={endDateInput}
-                    onChange={(e) => setEndDateInput(e.target.value)}
-                    style={{ fontSize: 12 }}
-                  />
-                ) : job.end_date ? (
-                  formatLocalDate(job.end_date)
-                ) : (
-                  '—'
-                )}
-              </span>
-            </div>
 
             {job.status !== 'closed' && (
               <button
-                onClick={handleCloseJob}
-                disabled={closing}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCloseJob(job);
+                }}
                 style={{
                   padding: '0.3rem 0.8rem',
                   borderRadius: 999,
@@ -410,95 +401,157 @@ export function JobDetailView() {
                   color: '#b00020',
                   fontSize: 12,
                   cursor: 'pointer',
-                  marginBottom: '0.5rem',
                 }}
               >
-                {closing ? 'Closing…' : 'Close Job'}
+                Close Job
               </button>
             )}
+          </span>
+        </div>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                gap: '0.75rem',
-                fontSize: 14,
-              }}
-            >
-              <Stat label="Income" value={totals.income} money />
-              <Stat label="Materials" value={totals.materials} money />
-              <Stat label="Labor" value={totals.labor} money />
-              <Stat label="Other Exp." value={totals.otherExpenses} money />
-              <Stat
-                label="Profit"
-                value={totals.profit}
-                money
-                highlight={totals.profit >= 0 ? 'positive' : 'negative'}
-              />
-              <Stat
-                label="Margin"
-                value={
-                  totals.income > 0
-                    ? (totals.profit / totals.income) * 100
-                    : 0
-                }
-                suffix="%"
-              />
-            </div>
+        {/* STATS */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+            gap: '0.75rem',
+            fontSize: 14,
+            marginBottom: '0.75rem',
+          }}
+        >
+          <Stat label="Income" value={totals.income} money />
+          <Stat label="Materials" value={totals.materials} money />
+          <Stat label="Labor" value={totals.labor} money />
+          <Stat label="Other Exp." value={totals.otherExpenses} money />
+          <Stat
+            label="Profit"
+            value={totals.profit}
+            money
+            highlight={totals.profit >= 0 ? 'positive' : 'negative'}
+          />
+          <Stat label="Margin" value={marginPct} suffix="%" />
+        </div>
+
+        {/* TRANSACTIONS */}
+        <h3
+          style={{
+            marginTop: '1.25rem',
+            borderTop: '1px solid #eee',
+            paddingTop: '0.75rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            fontSize: 15,
+          }}
+        >
+          <span>{isExpanded ? '▾' : '▸'}</span>
+          <span>Transactions</span>
+        </h3>
+
+        {isExpanded && (
+          <>
+            {ledgerRows.length === 0 && (
+              <p style={{ fontSize: 13 }}>No transactions found for this job.</p>
+            )}
+
+            {ledgerRows.length > 0 && (
+              <table
+                style={{
+                  borderCollapse: 'collapse',
+                  width: '100%',
+                  fontSize: 13,
+                }}
+              >
+                <thead>
+                  <tr>
+                    <Th>Date</Th>
+                    <Th>Description</Th>
+                    <Th>Account</Th>
+                    <Th>Type</Th>
+                    <Th>Vendor / Installer</Th>
+                    <Th align="right">Amount</Th>
+                    <Th align="center">Cleared</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledgerRows.map((row) => (
+                    <tr key={row.transactionId}>
+                      <Td>{formatLocalDate(row.date)}</Td>
+                      <Td>{row.description}</Td>
+                      <Td>{row.accountName}</Td>
+                      <Td>{row.typeName}</Td>
+                      <Td>{row.vendorInstaller}</Td>
+                      <Td align="right">
+                        {row.amount.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </Td>
+                      <Td align="center">{row.cleared ? '✓' : ''}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // ------------------------------------------------------------
+  // RENDER MAIN
+  // ------------------------------------------------------------
+  return (
+    <div>
+      <h2>Job Detail</h2>
+
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      <label>
+        Year{' '}
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(e.target.value)}
+        >
+          <option value="all">All years</option>
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {filteredJobs.length === 0 && (
+        <p style={{ marginTop: '1rem' }}>No jobs found for this year.</p>
+      )}
+
+      {filteredJobs.length > 0 && (
+        <div
+          style={{
+            marginTop: '1rem',
+            display: 'flex',
+            gap: '1rem',
+            alignItems: 'flex-start',
+          }}
+        >
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {leftCol.map((job) => renderJobCard(job))}
           </div>
 
-          {/* Transaction list - now one row per transaction for this job */}
-          <h3>Transactions</h3>
-          {jobLedgerRows.length === 0 && (
-            <p>No transactions found for this job.</p>
-          )}
-
-          {jobLedgerRows.length > 0 && (
-            <table
-              style={{
-                borderCollapse: 'collapse',
-                width: '100%',
-                fontSize: 14,
-              }}
-            >
-              <thead>
-                <tr>
-                  <Th>Date</Th>
-                  <Th>Description</Th>
-                  <Th>Account</Th>
-                  <Th>Type</Th>
-                  <Th>Vendor / Installer</Th>
-                  <Th align="right">Amount</Th>
-                  <Th align="center">Cleared</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobLedgerRows.map((row) => (
-                  <tr key={row.transactionId}>
-                    <Td>{formatLocalDate(row.date)}</Td>
-                    <Td>{row.description}</Td>
-                    <Td>{row.accountName}</Td>
-                    <Td>{row.typeName}</Td>
-                    <Td>{row.vendorInstaller}</Td>
-                    <Td align="right">
-                      {row.amount.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </Td>
-                    <Td align="center">{row.cleared ? '✓' : ''}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {rightCol.map((job) => renderJobCard(job))}
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
-// Small presentational helpers
+// ------------------------------------------------------------
+// SMALL PRESENTATIONAL HELPERS
+// ------------------------------------------------------------
 function Stat({
   label,
   value,

@@ -13,13 +13,39 @@ type RawLine = {
 };
 
 type MonthlyBucket = {
-  label: string; gross: number; jobExp: number; prof: number;
-  bussExp: number; taxNet: number; otherExp: number; pureNet: number;
+  label: string;
+  gross: number;
+  jobExp: number;
+  prof: number;
+  bussExp: number;
+  taxNet: number;
+  otherExp: number;
+  pureNet: number;
 };
 
 const createEmptyMonthBuckets = (): MonthlyBucket[] =>
-  ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((label) => ({
-    label, gross: 0, jobExp: 0, prof: 0, bussExp: 0, taxNet: 0, otherExp: 0, pureNet: 0
+  [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ].map((label) => ({
+    label,
+    gross: 0,
+    jobExp: 0,
+    prof: 0,
+    bussExp: 0,
+    taxNet: 0,
+    otherExp: 0,
+    pureNet: 0,
   }));
 
 // Get day-of-year for the selected year:
@@ -31,14 +57,20 @@ function getDayOfYearForYear(selectedYear: number): number | null {
   const currentYear = today.getFullYear();
 
   if (selectedYear < currentYear) {
-    const isLeap = (selectedYear % 4 === 0 && selectedYear % 100 !== 0) || selectedYear % 400 === 0;
+    const isLeap =
+      (selectedYear % 4 === 0 && selectedYear % 100 !== 0) ||
+      selectedYear % 400 === 0;
     return isLeap ? 366 : 365;
   }
 
   if (selectedYear > currentYear) return null;
 
   const startOfYear = new Date(selectedYear, 0, 1);
-  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayMidnight = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
   const diffMs = todayMidnight.getTime() - startOfYear.getTime();
   const dayOfYear = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
   return dayOfYear > 0 ? dayOfYear : null;
@@ -61,7 +93,11 @@ export function ProfitSummary() {
 
         const { data, error: lineErr } = await supabase
           .from('transaction_lines')
-          .select(`id, account_id, amount, is_cleared, purpose, job_id, accounts (name, account_types (name)), transactions!inner (date)`)
+          .select(
+            `id, account_id, amount, is_cleared, purpose, job_id,
+             accounts (name, account_types (name)),
+             transactions!inner (date)`
+          )
           .eq('is_cleared', true)
           .gte('transactions.date', startDate)
           .lte('transactions.date', endDate);
@@ -100,7 +136,10 @@ export function ProfitSummary() {
       const amt = Math.abs(Number(line.amount) || 0);
       const purpose = line.purpose ?? 'business';
 
-      if (accType === 'income' && (purpose === 'business' || purpose === 'mixed')) {
+      if (
+        accType === 'income' &&
+        (purpose === 'business' || purpose === 'mixed')
+      ) {
         bucket.gross += amt;
       } else if (accType === 'expense') {
         const isBusiness = purpose === 'business' || purpose === 'mixed';
@@ -136,15 +175,12 @@ export function ProfitSummary() {
       const q = quarters[qIndex];
       q.gross += m.gross;
       q.jobExp += m.jobExp;
+      q.prof += m.prof;
       q.bussExp += m.bussExp;
+      q.taxNet += m.taxNet;
       q.otherExp += m.otherExp;
+      q.pureNet += m.pureNet;
     });
-
-    for (const q of quarters) {
-      q.prof = q.gross - q.jobExp;
-      q.taxNet = q.prof - q.bussExp;
-      q.pureNet = q.taxNet - q.otherExp;
-    }
 
     return quarters;
   }, [monthlyBuckets]);
@@ -159,7 +195,10 @@ export function ProfitSummary() {
     const daysPerMonth = 30.42;
 
     // YTD totals for base flows
-    let totalGross = 0, totalJobExp = 0, totalBussExp = 0, totalOtherExp = 0;
+    let totalGross = 0,
+      totalJobExp = 0,
+      totalBussExp = 0,
+      totalOtherExp = 0;
     for (const b of monthlyBuckets) {
       totalGross += b.gross;
       totalJobExp += b.jobExp;
@@ -195,14 +234,28 @@ export function ProfitSummary() {
   // Calculate quarterly average using run-rate method (*3 months) and total
   const quarterAverageAndTotal = useMemo(() => {
     if (quarterlyBuckets.length === 0) {
-      return { avg: null as MonthlyBucket | null, total: null as MonthlyBucket | null };
+      return {
+        avg: null as MonthlyBucket | null,
+        total: null as MonthlyBucket | null,
+      };
     }
 
     // Total (actual YTD by quarter sum)
-    const total: MonthlyBucket = { label: 'Total', gross: 0, jobExp: 0, prof: 0, bussExp: 0, taxNet: 0, otherExp: 0, pureNet: 0 };
+    const total: MonthlyBucket = {
+      label: 'Total',
+      gross: 0,
+      jobExp: 0,
+      prof: 0,
+      bussExp: 0,
+      taxNet: 0,
+      otherExp: 0,
+      pureNet: 0,
+    };
+
     for (const q of quarterlyBuckets) {
       total.gross += q.gross;
       total.jobExp += q.jobExp;
+      total.prof += q.prof; // ✅ FIX: aggregate profit
       total.bussExp += q.bussExp;
       total.taxNet += q.taxNet;
       total.otherExp += q.otherExp;
@@ -215,7 +268,10 @@ export function ProfitSummary() {
     const daysPerMonth = 30.42;
 
     // Use same YTD base flows from months to compute quarter run-rate
-    let totalGross = 0, totalJobExp = 0, totalBussExp = 0, totalOtherExp = 0;
+    let totalGross = 0,
+      totalJobExp = 0,
+      totalBussExp = 0,
+      totalOtherExp = 0;
     for (const m of monthlyBuckets) {
       totalGross += m.gross;
       totalJobExp += m.jobExp;
@@ -246,22 +302,76 @@ export function ProfitSummary() {
     return { avg, total };
   }, [quarterlyBuckets, monthlyBuckets, year]);
 
-  const currency = (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+  const currency = (value: number) =>
+    value.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    });
 
-  const thStyle: React.CSSProperties = { textAlign: 'right', padding: '4px 6px', borderBottom: '1px solid #ccc', background: '#f5f5f5' };
-  const tdStyle: React.CSSProperties = { textAlign: 'right', padding: '4px 6px', borderBottom: '1px solid #eee' };
-  const rowHeaderStyle: React.CSSProperties = { textAlign: 'left', padding: '4px 6px', borderBottom: '1px solid #eee', fontWeight: 500, background: '#f9f9f9' };
+  const thStyle: React.CSSProperties = {
+    textAlign: 'right',
+    padding: '4px 6px',
+    borderBottom: '1px solid #ccc',
+    background: '#f5f5f5',
+  };
+  const tdStyle: React.CSSProperties = {
+    textAlign: 'right',
+    padding: '4px 6px',
+    borderBottom: '1px solid #eee',
+  };
+  const rowHeaderStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '4px 6px',
+    borderBottom: '1px solid #eee',
+    fontWeight: 500,
+    background: '#f9f9f9',
+  };
 
   const renderRow = (bucket: MonthlyBucket, isHeader = false) => (
     <tr key={bucket.label}>
-      <td style={{ ...rowHeaderStyle, fontWeight: isHeader ? 600 : 500 }}>{bucket.label}</td>
+      <td
+        style={{
+          ...rowHeaderStyle,
+          fontWeight: isHeader ? 600 : 500,
+        }}
+      >
+        {bucket.label}
+      </td>
       <td style={{ ...tdStyle, color: '#0a7a3c' }}>{currency(bucket.gross)}</td>
-      <td style={{ ...tdStyle, color: '#b00020' }}>{currency(bucket.jobExp)}</td>
-      <td style={{ ...tdStyle, color: bucket.prof >= 0 ? '#0a7a3c' : '#b00020' }}>{currency(bucket.prof)}</td>
-      <td style={{ ...tdStyle, color: '#b00020' }}>{currency(bucket.bussExp)}</td>
-      <td style={{ ...tdStyle, color: bucket.taxNet >= 0 ? '#0a7a3c' : '#b00020' }}>{currency(bucket.taxNet)}</td>
-      <td style={{ ...tdStyle, color: '#b00020' }}>{currency(bucket.otherExp)}</td>
-      <td style={{ ...tdStyle, color: bucket.pureNet >= 0 ? '#0a7a3c' : '#b00020' }}>{currency(bucket.pureNet)}</td>
+      <td style={{ ...tdStyle, color: '#b00020' }}>
+        {currency(bucket.jobExp)}
+      </td>
+      <td
+        style={{
+          ...tdStyle,
+          color: bucket.prof >= 0 ? '#0a7a3c' : '#b00020',
+        }}
+      >
+        {currency(bucket.prof)}
+      </td>
+      <td style={{ ...tdStyle, color: '#b00020' }}>
+        {currency(bucket.bussExp)}
+      </td>
+      <td
+        style={{
+          ...tdStyle,
+          color: bucket.taxNet >= 0 ? '#0a7a3c' : '#b00020',
+        }}
+      >
+        {currency(bucket.taxNet)}
+      </td>
+      <td style={{ ...tdStyle, color: '#b00020' }}>
+        {currency(bucket.otherExp)}
+      </td>
+      <td
+        style={{
+          ...tdStyle,
+          color: bucket.pureNet >= 0 ? '#0a7a3c' : '#b00020',
+        }}
+      >
+        {currency(bucket.pureNet)}
+      </td>
     </tr>
   );
 
@@ -270,10 +380,24 @@ export function ProfitSummary() {
 
   return (
     <div>
-      <div style={{ marginBottom: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+      <div
+        style={{
+          marginBottom: '0.75rem',
+          display: 'flex',
+          gap: '0.5rem',
+          alignItems: 'center',
+        }}
+      >
         <h2 style={{ margin: 0 }}>Yearly Profit Summary</h2>
         <span style={{ fontSize: 14, color: '#555' }}>Year:</span>
-        <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || new Date().getFullYear())} style={{ width: 80, padding: '2px 4px' }} />
+        <input
+          type="number"
+          value={year}
+          onChange={(e) =>
+            setYear(Number(e.target.value) || new Date().getFullYear())
+          }
+          style={{ width: 80, padding: '2px 4px' }}
+        />
       </div>
 
       {/* Monthly table */}
@@ -317,8 +441,10 @@ export function ProfitSummary() {
           </thead>
           <tbody>
             {quarterlyBuckets.map((q) => renderRow(q))}
-            {quarterAverageAndTotal.avg && renderRow(quarterAverageAndTotal.avg, true)}
-            {quarterAverageAndTotal.total && renderRow(quarterAverageAndTotal.total, true)}
+            {quarterAverageAndTotal.avg &&
+              renderRow(quarterAverageAndTotal.avg, true)}
+            {quarterAverageAndTotal.total &&
+              renderRow(quarterAverageAndTotal.total, true)}
           </tbody>
         </table>
       </div>
