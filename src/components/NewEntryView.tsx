@@ -86,13 +86,23 @@ export function NewEntryView() {
           sums[line.account_id] = (sums[line.account_id] ?? 0) + amt;
         }
 
-        // 4) Build cash accounts with balances
+        // 4) Build cash accounts with balances and custom sort
         const cashOnly: CashAccount[] = accounts
           .filter((a) => a.account_types?.name === 'asset')
           .map((a) => ({
             ...a,
             balance: sums[a.id] ?? 0,
-          }));
+          }))
+          .sort((a, b) => {
+            // Always put account_id = 1 first
+            if (a.id === 1) return -1;
+            if (b.id === 1) return 1;
+            
+            // Then sort by code/name
+            const codeA = a.code || a.name;
+            const codeB = b.code || b.name;
+            return codeA.localeCompare(codeB);
+          });
 
         setCashAccounts(cashOnly);
         setLoadingCash(false);

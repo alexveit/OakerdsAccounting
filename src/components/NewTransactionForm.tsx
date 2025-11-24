@@ -30,7 +30,6 @@ type Account = {
 type TxType = 'income' | 'expense';
 type ExpenseKind = 'material' | 'labor' | 'other';
 
-// NEW: allow parent to preselect a job
 type NewTransactionFormProps = {
   initialJobId?: number | null;
 };
@@ -54,21 +53,18 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
   const [date, setDate] = useState<string>(() => todayLocalISO());
 
   const [txType, setTxType] = useState<TxType>('expense');
-
-  // expenseKind only meaningful when linkToJob && txType === 'expense'
   const [expenseKind, setExpenseKind] = useState<ExpenseKind>('material');
 
   const [vendorId, setVendorId] = useState<string>('');
   const [installerId, setInstallerId] = useState<string>('');
 
-  const [cashAccountId, setCashAccountId] = useState<string>(''); // bank / card
-  const [categoryAccountId, setCategoryAccountId] = useState<string>(''); // income or expense
+  const [cashAccountId, setCashAccountId] = useState<string>('');
+  const [categoryAccountId, setCategoryAccountId] = useState<string>('');
 
   const [description, setDescription] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
 
   const [isCleared, setIsCleared] = useState<boolean>(false);
-
 
   useEffect(() => {
     async function loadOptions() {
@@ -82,14 +78,12 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
 
         if (jobsErr) throw jobsErr;
 
-        // Filter only open jobs
         const openJobs = (jobsData ?? []).filter(j => j.status !== 'closed');
 
-        // Sort by newest first
         const sortedOpenJobs = openJobs.sort((a, b) => {
           const da = a.start_date ? new Date(a.start_date).getTime() : 0;
           const db = b.start_date ? new Date(b.start_date).getTime() : 0;
-          return db - da; // newest first
+          return db - da;
         });
 
         setJobs(sortedOpenJobs);
@@ -110,11 +104,11 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
         if (installersErr) throw installersErr;
         setInstallers((installersData ?? []) as Installer[]);
 
-        // Accounts with their types and default purpose
+        // Accounts
         const { data: accountsData, error: accountsErr } = await supabase
           .from('accounts')
-          .select('id, name, code, purpose_default, account_types(name)')
-          .order('code', { ascending: true });
+          .select('id, name, code, purpose_default, account_types(name)');
+
         if (accountsErr) throw accountsErr;
 
         const normalizedAccounts: Account[] = (accountsData ?? []).map(
@@ -123,12 +117,20 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
             name: a.name,
             code: a.code ?? null,
             account_types: a.account_types ?? null,
-            purpose_default: (a.purpose_default ??
-              null) as Account['purpose_default'],
+            purpose_default: (a.purpose_default ?? null) as Account['purpose_default'],
           })
         );
 
-        setAccounts(normalizedAccounts);
+        // Custom sort: account_id = 1 first, then by code
+        const sortedAccounts = normalizedAccounts.sort((a, b) => {
+          if (a.id === 1) return -1;
+          if (b.id === 1) return 1;
+          const codeA = a.code || a.name;
+          const codeB = b.code || b.name;
+          return codeA.localeCompare(codeB);
+        });
+
+        setAccounts(sortedAccounts);
       } catch (err: any) {
         console.error(err);
         setError(err.message ?? 'Error loading options');
@@ -167,19 +169,30 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
     return `${i.first_name} ${i.last_name ?? ''}`.trim();
   }
 
-  function purposeForAccount(
-    accountId: number
-  ): 'business' | 'personal' {
+  function purposeForAccount(accountId: number): 'business' | 'personal' | 'mixed' {
     const acc = accounts.find((a) => a.id === accountId);
     const def = acc?.purpose_default;
+    
     if (def === 'personal') return 'personal';
-    // treat mixed or null as business by default
+    if (def === 'mixed') return 'mixed';
+    
     return 'business';
   }
 
-  // Effective expense kind: only meaningful when this is a job expense
   const effectiveExpenseKind: ExpenseKind =
     linkToJob && txType === 'expense' ? expenseKind : 'other';
+
+  // Check if date is more than 7 days in future
+  const isDateFuture = (() => {
+    if (!date) return false;
+    const selectedDate = new Date(date + 'T00:00:00');
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    return selectedDate > sevenDaysFromNow;
+  })();
+
+  // Check if amount is large
+  const isAmountLarge = Number(amount) > 10000;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -188,7 +201,7 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
 
     const amt = Number(amount);
 
-    // Validation
+    // === BASIC VALIDATION (blocking) ===
     if (linkToJob && !jobId) {
       setError('Job is required when linking this transaction to a job.');
       return;
@@ -206,10 +219,7 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
       return;
     }
 
-    // Only enforce vendor/installer when:
-    // - it's an expense
-    // - it relates to a job
-    // - AND the effectiveExpenseKind really needs it
+    // Only enforce vendor/installer when needed
     if (txType === 'expense' && linkToJob) {
       if (effectiveExpenseKind === 'material' && !vendorId) {
         setError('Vendor is required for material job expense.');
@@ -221,10 +231,90 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
       }
     }
 
+    // === ENHANCED VALIDATION (warnings) ===
+    
+    // Warning 1: Large amount (possible typo)
+    if (amt > 10000) {
+      const confirm = window.confirm(
+        `⚠️ Large Amount Warning\n\n` +
+        `You entered: ${amt.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}\n\n` +
+        `This is unusually large. Did you mean to enter this amount?\n\n` +
+        `Common mistake: $100,000 instead of $1,000.00\n\n` +
+        `Click OK to proceed, or Cancel to fix it.`
+      );
+      if (!confirm) return;
+    }
+
+    // Warning 2: Future date (more than 7 days ahead)
+    const selectedDate = new Date(date + 'T00:00:00');
+    const today = new Date();
+    const sevenDaysFromNow = new Date(today);
+    sevenDaysFromNow.setDate(today.getDate() + 7);
+    
+    if (selectedDate > sevenDaysFromNow) {
+      const confirm = window.confirm(
+        `⚠️ Future Date Warning\n\n` +
+        `The date you selected is more than a week in the future.\n\n` +
+        `Selected: ${selectedDate.toLocaleDateString()}\n` +
+        `Today: ${today.toLocaleDateString()}\n\n` +
+        `Is this correct?\n\n` +
+        `Click OK to proceed, or Cancel to fix it.`
+      );
+      if (!confirm) return;
+    }
+
+    // Warning 3: Check for potential duplicate transactions
+    if (txType === 'expense' && vendorId && description) {
+      try {
+        const threeDaysAgo = new Date(selectedDate);
+        threeDaysAgo.setDate(selectedDate.getDate() - 3);
+        const threeDaysForward = new Date(selectedDate);
+        threeDaysForward.setDate(selectedDate.getDate() + 3);
+
+        const { data: recentLines, error: dupErr } = await supabase
+          .from('transaction_lines')
+          .select('id, amount, transactions(date, description)')
+          .eq('vendor_id', Number(vendorId))
+          .gte('transactions.date', threeDaysAgo.toISOString().split('T')[0])
+          .lte('transactions.date', threeDaysForward.toISOString().split('T')[0])
+          .limit(10);
+
+        if (!dupErr && recentLines && recentLines.length > 0) {
+          // Check for similar amount and description
+          const possibleDuplicate = recentLines.find((line: any) => {
+            const lineAmt = Math.abs(Number(line.amount));
+            const amtMatch = Math.abs(lineAmt - amt) < 1; // Within $1
+            const descMatch = line.transactions?.description?.toLowerCase().includes(description.toLowerCase());
+            return amtMatch || descMatch;
+          });
+
+          if (possibleDuplicate) {
+            const dupDate = (possibleDuplicate as any).transactions?.date;
+            const dupAmt = Math.abs(Number((possibleDuplicate as any).amount));
+            const dupDesc = (possibleDuplicate as any).transactions?.description;
+            
+            const confirm = window.confirm(
+              `⚠️ Possible Duplicate Transaction\n\n` +
+              `Found a similar transaction:\n` +
+              `Date: ${dupDate}\n` +
+              `Amount: ${dupAmt.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}\n` +
+              `Description: ${dupDesc}\n\n` +
+              `Are you sure you want to create another transaction?\n\n` +
+              `Click OK to proceed, or Cancel to review.`
+            );
+            if (!confirm) return;
+          }
+        }
+      } catch (err) {
+        console.warn('Duplicate check failed:', err);
+        // Don't block the transaction if duplicate check fails
+      }
+    }
+
+    // === PROCEED WITH SAVE ===
     setSaving(true);
     try {
-      const job_id =
-        linkToJob && jobId ? Number(jobId) : null;
+      const job_id = linkToJob && jobId ? Number(jobId) : null;
       const cash_id = Number(cashAccountId);
       const category_id = Number(categoryAccountId);
 
@@ -238,89 +328,66 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
           ? (installerId ? Number(installerId) : null)
           : null;
 
-      // 1) Create transaction header
-      const { data: txData, error: txErr } = await supabase
-        .from('transactions')
-        .insert({
-          date,
-          description: description || null,
-        })
-        .select('id')
-        .single();
-
-      if (txErr) throw txErr;
-      const transactionId = txData.id;
-
-      // Default purposes derived from accounts
       const cashPurpose = purposeForAccount(cash_id);
       const categoryPurpose = purposeForAccount(category_id);
 
-      // 2) Build lines (double-entry)
-      const lines: any[] = [];
+      let line1: any;
+      let line2: any;
 
       if (txType === 'income') {
-        // Income:
-        //  - debit cash/bank (asset)   +amount
-        //  - credit income             -amount
-        lines.push(
-          {
-            transaction_id: transactionId,
-            account_id: cash_id,
-            amount: amt,
-            job_id,
-            purpose: cashPurpose,
-            is_cleared: isCleared,
-          },
-          {
-            transaction_id: transactionId,
-            account_id: category_id,
-            amount: -amt,
-            job_id,
-            purpose: categoryPurpose,
-            is_cleared: isCleared,
-          }
-        );
+        line1 = {
+          account_id: cash_id,
+          amount: amt,
+          job_id,
+          vendor_id: null,
+          installer_id: null,
+          purpose: cashPurpose,
+          is_cleared: isCleared,
+        };
+
+        line2 = {
+          account_id: category_id,
+          amount: -amt,
+          job_id,
+          vendor_id: null,
+          installer_id: null,
+          purpose: categoryPurpose,
+          is_cleared: isCleared,
+        };
       } else {
-        // Expense:
-        //  - debit expense             +amount
-        //  - credit cash/bank/card     -amount
-        const baseExpenseLine: any = {
-          transaction_id: transactionId,
+        line1 = {
           account_id: category_id,
           amount: amt,
           job_id,
+          vendor_id,
+          installer_id,
           purpose: categoryPurpose,
           is_cleared: isCleared,
         };
 
-        if (effectiveExpenseKind === 'material' && vendor_id) {
-          baseExpenseLine.vendor_id = vendor_id;
-        }
-        if (effectiveExpenseKind === 'labor' && installer_id) {
-          baseExpenseLine.installer_id = installer_id;
-        }
-
-        lines.push(
-          baseExpenseLine,
-          {
-            transaction_id: transactionId,
-            account_id: cash_id,
-            amount: -amt,
-            job_id,
-            purpose: cashPurpose,
-            is_cleared: isCleared,
-          }
-        );
+        line2 = {
+          account_id: cash_id,
+          amount: -amt,
+          job_id,
+          vendor_id: null,
+          installer_id: null,
+          purpose: cashPurpose,
+          is_cleared: isCleared,
+        };
       }
 
-      const { error: linesErr } = await supabase
-        .from('transaction_lines')
-        .insert(lines);
+      const { data, error: rpcErr } = await supabase.rpc('create_transaction', {
+        p_date: date,
+        p_description: description || null,
+        p_line1: line1,
+        p_line2: line2,
+      });
 
-      if (linesErr) throw linesErr;
+      if (rpcErr) throw rpcErr;
+
+      console.log('Transaction created:', data);
 
       setSuccess('Transaction saved.');
-      // reset some fields but keep date & job link choice
       setAmount('');
       setDescription('');
       setVendorId('');
@@ -387,7 +454,18 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            max={new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]}
+            min="2000-01-01"
+            style={{
+              borderColor: isDateFuture ? '#ff9800' : undefined,
+              borderWidth: isDateFuture ? '2px' : undefined,
+            }}
           />
+          {isDateFuture && (
+            <span style={{ fontSize: 12, color: '#ff9800', marginTop: '4px', display: 'block' }}>
+              ⚠️ This date is in the future. Is this correct?
+            </span>
+          )}
         </label>
 
         <label>
@@ -401,7 +479,6 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
           </select>
         </label>
 
-        {/* Expense kind ONLY when this is a job expense */}
         {txType === 'expense' && linkToJob && (
           <label>
             Expense kind
@@ -418,7 +495,6 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
           </label>
         )}
 
-        {/* Vendor only for job + material expense */}
         {txType === 'expense' &&
           linkToJob &&
           effectiveExpenseKind === 'material' && (
@@ -438,7 +514,6 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
             </label>
           )}
 
-        {/* Installer only for job + labor expense */}
         {txType === 'expense' &&
           linkToJob &&
           effectiveExpenseKind === 'labor' && (
@@ -510,9 +585,26 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
           <input
             type="number"
             step="0.01"
+            min="0"
+            max="9999999"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              const val = Number(e.target.value);
+              if (val > 0 && error?.includes('Amount')) {
+                setError(null);
+              }
+            }}
+            style={{
+              borderColor: isAmountLarge ? '#ff9800' : undefined,
+              borderWidth: isAmountLarge ? '2px' : undefined,
+            }}
           />
+          {isAmountLarge && (
+            <span style={{ fontSize: 12, color: '#ff9800', marginTop: '4px', display: 'block' }}>
+              ⚠️ This is a large amount. Double-check before saving.
+            </span>
+          )}
         </label>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
