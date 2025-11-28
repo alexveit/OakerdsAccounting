@@ -2,117 +2,72 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { NewTransactionForm } from './NewTransactionForm';
 import { NewJobForm } from './NewJobForm';
+import { NewRealEstateDealForm } from './NewRealEstateDealForm';
+import { Transfers } from './Transfers';
 
-type EntryTab = 'transaction' | 'job';
+type EntryTab = 'transaction' | 'job' | 'deal' | 'transfer';
 
-type AccountRow = {
-  id: number;
-  name: string;
-  code: string | null;
-  account_types: { name: string } | null;
-};
-
-type LineRow = {
+type CashAccount = {
   account_id: number;
-  amount: number;
-  accounts?: {
-    account_types?: { name: string } | null;
-  } | null;
+  account_name: string;
+  account_code: string | null;
+  account_type: string;
+  balance: number;
 };
 
-type CashAccount = AccountRow & { balance: number };
-
-export function NewEntryView() {
+export function NewEntryView({ initialJobId }: { initialJobId?: number | null }) {
   const [tab, setTab] = useState<EntryTab>('transaction');
 
   const [cashAccounts, setCashAccounts] = useState<CashAccount[]>([]);
   const [loadingCash, setLoadingCash] = useState(true);
   const [cashError, setCashError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadCashAccounts() {
-      setLoadingCash(true);
-      setCashError(null);
+  // Shared loader so we can refresh after each transaction save
+  async function loadCashAccounts() {
+    setLoadingCash(true);
+    setCashError(null);
 
-      try {
-        // 1) Load accounts with their type
-        const { data: accData, error: accErr } = await supabase
-          .from('accounts')
-          .select('id, name, code, account_types(name)');
-        if (accErr) throw accErr;
+    try {
+      // Load account balances from the same materialized view used on the dashboard
+      const { data, error } = await supabase
+        .from('account_balances_v')
+        .select('*');
 
-        const rawAccounts = (accData ?? []) as any[];
+      if (error) throw error;
 
-        const accounts: AccountRow[] = rawAccounts.map((a: any) => ({
-          id: Number(a.id),
-          name: String(a.name),
-          code: a.code ?? null,
-          account_types: a.account_types
-            ? ({ name: String(a.account_types.name) } as { name: string })
-            : null,
-        }));
+      const rawBalances = (data ?? []) as any[];
 
-        // 2) Load transaction lines with account type info
-        const { data: lineData, error: lineErr } = await supabase
-          .from('transaction_lines')
-          .select('account_id, amount, accounts(account_types(name))');
-        if (lineErr) throw lineErr;
+      // Keep only asset-type accounts and normalize types
+      const cashOnly: CashAccount[] = rawBalances
+        .map((row: any) => ({
+          account_id: Number(row.account_id),
+          account_name: String(row.account_name),
+          account_code: row.account_code ?? null,
+          account_type: String(row.account_type),
+          balance: Number(row.balance) || 0,
+        }))
+        .filter((a) => a.account_type === 'asset')
+        .sort((a, b) => {
+          // Always put account_id = 1 first
+          if (a.account_id === 1) return -1;
+          if (b.account_id === 1) return 1;
 
-        const rawLines = (lineData ?? []) as any[];
+          // Then sort by code/name
+          const codeA = a.account_code || a.account_name;
+          const codeB = b.account_code || b.account_name;
+          return codeA.localeCompare(codeB);
+        });
 
-        const lines: LineRow[] = rawLines.map((l: any) => ({
-          account_id: Number(l.account_id),
-          amount: Number(l.amount),
-          accounts: l.accounts
-            ? {
-                account_types: l.accounts.account_types
-                  ? ({
-                      name: String(l.accounts.account_types.name),
-                    } as { name: string })
-                  : null,
-              }
-            : null,
-        }));
-
-        // 3) Sum only asset-account lines (includes pending)
-        const sums: Record<number, number> = {};
-        for (const line of lines) {
-          const accType = line.accounts?.account_types?.name;
-          if (accType !== 'asset') continue;
-
-          const amt = Number(line.amount) || 0;
-          if (Number.isNaN(amt)) continue;
-
-          sums[line.account_id] = (sums[line.account_id] ?? 0) + amt;
-        }
-
-        // 4) Build cash accounts with balances and custom sort
-        const cashOnly: CashAccount[] = accounts
-          .filter((a) => a.account_types?.name === 'asset')
-          .map((a) => ({
-            ...a,
-            balance: sums[a.id] ?? 0,
-          }))
-          .sort((a, b) => {
-            // Always put account_id = 1 first
-            if (a.id === 1) return -1;
-            if (b.id === 1) return 1;
-            
-            // Then sort by code/name
-            const codeA = a.code || a.name;
-            const codeB = b.code || b.name;
-            return codeA.localeCompare(codeB);
-          });
-
-        setCashAccounts(cashOnly);
-        setLoadingCash(false);
-      } catch (err: any) {
-        console.error(err);
-        setCashError(err.message ?? 'Failed to load cash accounts');
-        setLoadingCash(false);
-      }
+      setCashAccounts(cashOnly);
+      setLoadingCash(false);
+    } catch (err: any) {
+      console.error(err);
+      setCashError(err.message ?? 'Failed to load cash accounts');
+      setLoadingCash(false);
     }
+  }
 
+  useEffect(() => {
     void loadCashAccounts();
   }, []);
 
@@ -144,21 +99,39 @@ export function NewEntryView() {
         >
           New Job
         </button>
+        <button
+          className={`tab ${tab === 'deal' ? 'tab--active' : ''}`}
+          onClick={() => setTab('deal')}
+        >
+          New RE Deal
+        </button>
+        <button
+          className={`tab ${tab === 'transfer' ? 'tab--active' : ''}`}
+          onClick={() => setTab('transfer')}
+        >
+          Transfer
+        </button>
       </div>
 
-      <div style={{ marginTop: '0.75rem' }}>
-        {tab === 'transaction' ? (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(520px, 1fr) minmax(260px, 1fr)',
-              gap,
-              alignItems: 'flex-start',
-            }}
-          >
-            {/* LEFT: New Transaction form */}
-            <div className="card" style={{ padding: '1rem' }}>
-              <NewTransactionForm />
+      {/* Content */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: tab === 'transaction' ? 'row' : 'column',
+          alignItems: 'flex-start',
+          gap,
+        }}
+      >
+        {tab === 'transaction' && (
+          <>
+            {/* LEFT: New Transaction Form */}
+            <div style={{ flex: '0 0 auto' }}>
+              <div className="card" style={{ padding: '1rem' }}>
+                <NewTransactionForm
+                  initialJobId={initialJobId ?? null}
+                  onTransactionSaved={loadCashAccounts}
+                />
+              </div>
             </div>
 
             {/* RIGHT: Cash & Bank Accounts */}
@@ -167,9 +140,7 @@ export function NewEntryView() {
                 Cash &amp; Bank Accounts
               </h3>
 
-              {loadingCash && (
-                <p style={{ fontSize: 13 }}>Loading…</p>
-              )}
+              {loadingCash && <p style={{ fontSize: 13 }}>Loading…</p>}
 
               {cashError && (
                 <p style={{ color: 'red', fontSize: 13 }}>
@@ -178,29 +149,31 @@ export function NewEntryView() {
               )}
 
               {!loadingCash && !cashError && cashAccounts.length === 0 && (
-                <p style={{ fontSize: 13, color: '#777' }}>
-                  No asset accounts found.
-                </p>
+                <p style={{ fontSize: 13 }}>No cash/bank accounts found.</p>
               )}
 
               {!loadingCash && !cashError && cashAccounts.length > 0 && (
-                <table className="table">
+                <table
+                  style={{
+                    borderCollapse: 'collapse',
+                    width: '100%',
+                    fontSize: 13,
+                  }}
+                >
                   <thead>
                     <tr>
                       <th style={thStyle}>Account</th>
-                      <th style={{ ...thStyle, textAlign: 'right' }}>
-                        Balance
-                      </th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Balance</th>
                     </tr>
                   </thead>
                   <tbody>
                     {cashAccounts.map((acc) => {
-                      const label = acc.code
-                        ? `${acc.name} - ${acc.code}`
-                        : acc.name;
+                      const label = acc.account_code
+                        ? `${acc.account_name} - ${acc.account_code}`
+                        : acc.account_name;
 
                       return (
-                        <tr key={acc.id}>
+                        <tr key={acc.account_id}>
                           <td style={tdStyle}>{label}</td>
                           <td style={{ ...tdStyle, textAlign: 'right' }}>
                             {acc.balance.toLocaleString('en-US', {
@@ -216,8 +189,23 @@ export function NewEntryView() {
                 </table>
               )}
             </div>
+          </>
+        )}
+        
+        {tab === 'transfer' && (
+          <div
+            className="card"
+            style={{
+              maxWidth: 900,
+              margin: '0 auto',
+              padding: '1rem',
+            }}
+          >
+            <Transfers onTransferSaved={loadCashAccounts} />
           </div>
-        ) : (
+        )}
+
+        {tab === 'job' && (
           <div
             className="card"
             style={{
@@ -227,6 +215,19 @@ export function NewEntryView() {
             }}
           >
             <NewJobForm />
+          </div>
+        )}
+
+        {tab === 'deal' && (
+          <div
+            className="card"
+            style={{
+              maxWidth: 900,
+              margin: '0 auto',
+              padding: '1rem',
+            }}
+          >
+            <NewRealEstateDealForm />
           </div>
         )}
       </div>

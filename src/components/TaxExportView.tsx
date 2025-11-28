@@ -54,12 +54,13 @@ export function TaxExportView() {
           purpose,
           job_id,
           installer_id,
-          accounts (name, account_types (name)),
+          accounts (name, code, account_types (name)),
           transactions!inner (date)
         `)
         .eq('is_cleared', true)
         .gte('transactions.date', startDate)
         .lte('transactions.date', endDate);
+
 
       if (linesErr) throw linesErr;
 
@@ -78,33 +79,65 @@ export function TaxExportView() {
         const accountName = line.accounts?.name ?? 'Unknown';
         const amount = Math.abs(Number(line.amount) || 0);
 
+        const codeStr: string = line.accounts?.code ?? '';
+        const codeNum = Number(codeStr) || 0;
+
+        // -----------------------------
+        // INCOME
+        // -----------------------------
         if (accType === 'income') {
           if (purpose === 'business' || purpose === 'mixed') {
-            if (accountName.includes('Job')) {
-              let row = schedCIncomeMap.get(accountId);
-              if (!row) {
-                row = { category: 'Business Income', accountName, total: 0 };
-                schedCIncomeMap.set(accountId, row);
-              }
-              row.total += amount;
-            } else if (accountName.includes('Rental')) {
+            
+            // Rental Income = 42000–42999
+            if (codeNum >= 42000 && codeNum <= 42999) {
               let row = schedEIncomeMap.get(accountId);
               if (!row) {
                 row = { category: 'Rental Income', accountName, total: 0 };
                 schedEIncomeMap.set(accountId, row);
               }
               row.total += amount;
+
+            } else {
+              // Everything else is Schedule C (Job/business income)
+              let row = schedCIncomeMap.get(accountId);
+              if (!row) {
+                row = { category: 'Business Income', accountName, total: 0 };
+                schedCIncomeMap.set(accountId, row);
+              }
+              row.total += amount;
             }
           }
-        } else if (accType === 'expense') {
+        }
+
+        // -----------------------------
+        // EXPENSES
+        // -----------------------------
+        else if (accType === 'expense') {
+
           if (purpose === 'business' || purpose === 'mixed') {
-            let row = schedCExpenseMap.get(accountId);
-            if (!row) {
-              row = { category: 'Business Expense', accountName, total: 0 };
-              schedCExpenseMap.set(accountId, row);
+
+            // Rental Expenses = 62000–62999
+            if (codeNum >= 62000 && codeNum <= 62999) {
+              let row = schedEExpenseMap.get(accountId);
+              if (!row) {
+                row = { category: 'Rental Expense', accountName, total: 0 };
+                schedEExpenseMap.set(accountId, row);
+              }
+              row.total += amount;
+
+            } else {
+              // Everything else is Schedule C
+              let row = schedCExpenseMap.get(accountId);
+              if (!row) {
+                row = { category: 'Business Expense', accountName, total: 0 };
+                schedCExpenseMap.set(accountId, row);
+              }
+              row.total += amount;
             }
-            row.total += amount;
-          } else if (purpose === 'personal') {
+          }
+
+          // Personal section unchanged
+          else if (purpose === 'personal') {
             let row = personalExpenseMap.get(accountId);
             if (!row) {
               row = { category: 'Personal Expense', accountName, total: 0 };
@@ -114,6 +147,7 @@ export function TaxExportView() {
           }
         }
       }
+
 
       const sortByTotal = (a: ScheduleCRow, b: ScheduleCRow) =>
         b.total - a.total;

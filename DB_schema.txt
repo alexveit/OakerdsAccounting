@@ -51,11 +51,48 @@ CREATE TABLE public.lead_sources (
   nick_name character varying,
   CONSTRAINT lead_sources_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.real_estate_deals (
+  id integer GENERATED ALWAYS AS IDENTITY NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['rental'::text, 'flip'::text, 'wholesale'::text])),
+  nickname text NOT NULL,
+  address text NOT NULL,
+  status text NOT NULL DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'in_contract'::text, 'rehab'::text, 'stabilized'::text, 'sold'::text, 'failed'::text])),
+  purchase_price numeric,
+  arv numeric,
+  rehab_budget numeric,
+  rehab_spent numeric,
+  closing_costs_estimate numeric,
+  sale_price numeric,
+  expected_assignment_fee numeric,
+  actual_assignment_fee numeric,
+  rental_monthly_rent numeric,
+  rental_monthly_mortgage numeric,
+  rental_monthly_taxes numeric,
+  rental_monthly_insurance numeric,
+  rental_monthly_hoa numeric,
+  offer_strategy_json jsonb,
+  notes text,
+  start_date date,
+  close_date date,
+  sell_date date,
+  job_id integer,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  asset_account_id integer,
+  loan_account_id integer,
+  interest_rate numeric,
+  loan_term_months integer,
+  original_loan_amount numeric,
+  CONSTRAINT real_estate_deals_pkey PRIMARY KEY (id),
+  CONSTRAINT real_estate_deals_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.jobs(id),
+  CONSTRAINT real_estate_deals_asset_account_id_fkey FOREIGN KEY (asset_account_id) REFERENCES public.accounts(id),
+  CONSTRAINT real_estate_deals_loan_account_id_fkey FOREIGN KEY (loan_account_id) REFERENCES public.accounts(id)
+);
 CREATE TABLE public.transaction_lines (
   id integer NOT NULL DEFAULT nextval('transaction_lines_id_seq'::regclass),
   transaction_id integer NOT NULL,
   account_id integer NOT NULL,
-  amount numeric NOT NULL,
+  amount numeric NOT NULL CHECK (abs(amount) < 10000000::numeric),
   job_id integer,
   installer_id integer,
   vendor_id integer,
@@ -63,6 +100,7 @@ CREATE TABLE public.transaction_lines (
   is_cleared boolean DEFAULT false,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   lead_source_id integer,
+  real_estate_deal_id integer,
   CONSTRAINT transaction_lines_pkey PRIMARY KEY (id),
   CONSTRAINT transaction_lines_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.transactions(id),
   CONSTRAINT transaction_lines_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.accounts(id),
@@ -70,13 +108,15 @@ CREATE TABLE public.transaction_lines (
   CONSTRAINT transaction_lines_installer_id_fkey FOREIGN KEY (installer_id) REFERENCES public.installers(id),
   CONSTRAINT transaction_lines_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id),
   CONSTRAINT transaction_lines_lead_source_id_fkey FOREIGN KEY (lead_source_id) REFERENCES public.lead_sources(id),
-  CONSTRAINT transaction_lines_lead_source_fk FOREIGN KEY (lead_source_id) REFERENCES public.lead_sources(id)
+  CONSTRAINT transaction_lines_lead_source_fk FOREIGN KEY (lead_source_id) REFERENCES public.lead_sources(id),
+  CONSTRAINT transaction_lines_real_estate_deal_id_fkey FOREIGN KEY (real_estate_deal_id) REFERENCES public.real_estate_deals(id)
 );
 CREATE TABLE public.transactions (
   id integer NOT NULL DEFAULT nextval('transactions_id_seq'::regclass),
-  date date NOT NULL,
+  date date NOT NULL CHECK (date >= '2000-01-01'::date AND date <= (CURRENT_DATE + '1 year'::interval)),
   description character varying,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now(),
   CONSTRAINT transactions_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.vendors (

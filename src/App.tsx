@@ -7,31 +7,29 @@ import { ProfitSummary } from './components/ProfitSummary';
 import { ExpenseCategoriesView } from './components/ExpensesView';
 import { NewEntryView } from './components/NewEntryView';
 import { TaxExportView } from './components/TaxExportView';
-import { RentalOperationsView } from './components/RentalOperationsView';
-
+import { REIView } from './components/REIView';
 
 type View =
   | 'dashboard'
   | 'installers'
-  | 'expenses'        // wrapper with tabs
-  | 'entry'           // combined New Transaction + New Job
+  | 'expenses'
+  | 'entry'
   | 'jobDetail'
   | 'ledger'
   | 'profitSummary'
   | 'taxExport'
-  | 'rentalOps';
+  | 'rei';
 
 const NAV_ITEMS: { view: View; label: string }[] = [
   { view: 'dashboard', label: 'Dashboard' },
   { view: 'installers', label: 'Installers' },
-  { view: 'expenses', label: 'Exp by Category' }, // tabs (Summary / Details)
+  { view: 'expenses', label: 'Exp by Category' },
   { view: 'profitSummary', label: 'Profit Summary' },
-  { view: 'rentalOps', label: 'Rental Ops' },
+  { view: 'rei', label: 'REI' },                // <── ADDED
   { view: 'taxExport', label: 'Tax Exports' },
-  { view: 'entry', label: 'New Entry' },          // tabbed New Tx / New Job
+  { view: 'entry', label: 'New Entry' },
   { view: 'jobDetail', label: 'Job Detail' },
   { view: 'ledger', label: 'Ledger' },
-  
 ];
 
 const VIEW_COMPONENTS: Record<View, React.ComponentType> = {
@@ -43,18 +41,38 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType> = {
   ledger: LedgerView,
   profitSummary: ProfitSummary,
   taxExport: TaxExportView,
-  rentalOps: RentalOperationsView,
+  rei: REIView,                                 // <── ADDED
 };
 
 function App() {
   const [view, setView] = useState<View>('dashboard');
-  const ViewComponent = VIEW_COMPONENTS[view];
+  const [initialJobIdForEntry, setInitialJobIdForEntry] = useState<number | null>(null);
 
   const isWideView = view === 'jobDetail' || view === 'expenses';
 
+  const renderView = () => {
+    if (view === 'jobDetail') {
+      return (
+        <JobDetailView
+          onAddJobTransaction={(jobId) => {
+            setInitialJobIdForEntry(jobId);
+            setView('entry');
+          }}
+        />
+      );
+    }
+
+    if (view === 'entry') {
+      return <NewEntryView initialJobId={initialJobIdForEntry} />;
+    }
+
+    const ViewComponent = VIEW_COMPONENTS[view];
+    return <ViewComponent />;
+  };
+
   return (
     <div>
-      {/* Header + nav: always same width */}
+      {/* Header */}
       <div className="app-header-shell">
         <div
           style={{
@@ -69,9 +87,13 @@ function App() {
             alt="Oakerds Logo"
             style={{ width: '80px', height: '80px' }}
           />
-          <h1 style={{ margin: 20 }}>Oakerds Accounting</h1>
+          <div>
+            <h1 className="app-title">Oakerds Accounting</h1>
+            <div className="app-subtitle">Internal Financial Console</div>
+          </div>
         </div>
 
+        {/* Nav */}
         <div className="pill-nav">
           {NAV_ITEMS.map(({ view: navView, label }) => (
             <button
@@ -87,13 +109,13 @@ function App() {
         </div>
       </div>
 
-      {/* Main content: width can vary by view */}
+      {/* Main Content */}
       <div
         className={
           isWideView ? 'app-main-shell app-main-shell--wide' : 'app-main-shell'
         }
       >
-        <ViewComponent />
+        {renderView()}
       </div>
     </div>
   );

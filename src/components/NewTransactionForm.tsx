@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { FormEvent } from 'react';
 import { todayLocalISO } from '../utils/date';
@@ -32,9 +32,13 @@ type ExpenseKind = 'material' | 'labor' | 'other';
 
 type NewTransactionFormProps = {
   initialJobId?: number | null;
+  onTransactionSaved?: () => void;
 };
 
-export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
+export function NewTransactionForm({
+  initialJobId,
+  onTransactionSaved,
+}: NewTransactionFormProps) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [installers, setInstallers] = useState<Installer[]>([]);
@@ -78,7 +82,7 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
 
         if (jobsErr) throw jobsErr;
 
-        const openJobs = (jobsData ?? []).filter(j => j.status !== 'closed');
+        const openJobs = (jobsData ?? []).filter((j) => j.status !== 'closed');
 
         const sortedOpenJobs = openJobs.sort((a, b) => {
           const da = a.start_date ? new Date(a.start_date).getTime() : 0;
@@ -92,7 +96,7 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
         const { data: vendorsData, error: vendorsErr } = await supabase
           .from('vendors')
           .select('id, nick_name')
-          .order('name', { ascending: true });
+          .order('nick_name', { ascending: true });
         if (vendorsErr) throw vendorsErr;
         setVendors((vendorsData ?? []) as Vendor[]);
 
@@ -121,13 +125,28 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
           })
         );
 
-        // Custom sort: account_id = 1 first, then by code
+        // Custom sort: account_id = 1 first, 4 second, then by ID number
         const sortedAccounts = normalizedAccounts.sort((a, b) => {
-          if (a.id === 1) return -1;
-          if (b.id === 1) return 1;
-          const codeA = a.code || a.name;
-          const codeB = b.code || b.name;
-          return codeA.localeCompare(codeB);
+          // Priority rules
+          const priorityA =
+            a.id === 1
+              ? 0
+              : a.id === 4
+              ? 1
+              : 2;
+
+          const priorityB =
+            b.id === 1
+              ? 0
+              : b.id === 4
+              ? 1
+              : 2;
+
+          if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+          }
+
+          return a.id - b.id;
         });
 
         setAccounts(sortedAccounts);
@@ -139,7 +158,7 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
       }
     }
 
-    loadOptions();
+    void loadOptions();
   }, []);
 
   useEffect(() => {
@@ -165,6 +184,75 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
   const categoryAccounts =
     txType === 'income' ? incomeAccounts : expenseAccounts;
 
+  const [categoryTypeahead, setCategoryTypeahead] = useState('');
+  const [lastCategoryTypeTime, setLastCategoryTypeTime] = useState<number>(0);
+
+  const sortedCategoryAccounts = [...categoryAccounts].sort((a, b) => {
+    const purposeRank = (p: Account['purpose_default'] | null | undefined) => {
+      if (p === 'business') return 0;
+      if (p === 'personal') return 1;
+      return 2; // mixed/unknown/undefined
+    };
+
+    const rankA = purposeRank(a.purpose_default);
+    const rankB = purposeRank(b.purpose_default);
+
+    if (rankA !== rankB) return rankA - rankB;
+
+    const nameA = a.name.toLowerCase();
+    const nameB = b.name.toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  function handleCategoryKeyDown(e: KeyboardEvent<HTMLSelectElement>) {
+    const key = e.key;
+
+    // Ignore navigation / modifier keys
+    if (
+      key.length !== 1 ||
+      e.altKey ||
+      e.metaKey ||
+      e.ctrlKey
+    ) {
+      return;
+    }
+
+    e.preventDefault();
+
+    const now = Date.now();
+    const resetWindowMs = 800;
+
+    let buffer =
+      now - lastCategoryTypeTime > resetWindowMs
+        ? key
+        : categoryTypeahead + key;
+
+    buffer = buffer.toLowerCase();
+
+    setCategoryTypeahead(buffer);
+    setLastCategoryTypeTime(now);
+
+    const currentIndex = sortedCategoryAccounts.findIndex(
+      (a) => String(a.id) === categoryAccountId
+    );
+
+    const startIndex = currentIndex >= 0 ? currentIndex + 1 : 0;
+
+    const ordered = [
+      ...sortedCategoryAccounts.slice(startIndex),
+      ...sortedCategoryAccounts.slice(0, startIndex),
+    ];
+
+    const match = ordered.find((a) => {
+      const label = `${a.code ? `${a.code} – ` : ''}${a.name}`.toLowerCase();
+      return label.includes(buffer);
+    });
+
+    if (match) {
+      setCategoryAccountId(String(match.id));
+    }
+  }
+
   function formatInstaller(i: Installer) {
     return `${i.first_name} ${i.last_name ?? ''}`.trim();
   }
@@ -172,10 +260,10 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
   function purposeForAccount(accountId: number): 'business' | 'personal' | 'mixed' {
     const acc = accounts.find((a) => a.id === accountId);
     const def = acc?.purpose_default;
-    
+
     if (def === 'personal') return 'personal';
     if (def === 'mixed') return 'mixed';
-    
+
     return 'business';
   }
 
@@ -232,15 +320,18 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
     }
 
     // === ENHANCED VALIDATION (warnings) ===
-    
+
     // Warning 1: Large amount (possible typo)
     if (amt > 10000) {
       const confirm = window.confirm(
         `⚠️ Large Amount Warning\n\n` +
-        `You entered: ${amt.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}\n\n` +
-        `This is unusually large. Did you mean to enter this amount?\n\n` +
-        `Common mistake: $100,000 instead of $1,000.00\n\n` +
-        `Click OK to proceed, or Cancel to fix it.`
+          `You entered: ${amt.toLocaleString('en-US', {
+            style: 'currency',
+            currency: 'USD',
+          })}\n\n` +
+          `This is unusually large. Did you mean to enter this amount?\n\n` +
+          `Common mistake: $100,000 instead of $1,000.00\n\n` +
+          `Click OK to proceed, or Cancel to fix it.`
       );
       if (!confirm) return;
     }
@@ -250,15 +341,15 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
     const today = new Date();
     const sevenDaysFromNow = new Date(today);
     sevenDaysFromNow.setDate(today.getDate() + 7);
-    
+
     if (selectedDate > sevenDaysFromNow) {
       const confirm = window.confirm(
         `⚠️ Future Date Warning\n\n` +
-        `The date you selected is more than a week in the future.\n\n` +
-        `Selected: ${selectedDate.toLocaleDateString()}\n` +
-        `Today: ${today.toLocaleDateString()}\n\n` +
-        `Is this correct?\n\n` +
-        `Click OK to proceed, or Cancel to fix it.`
+          `The date you selected is more than a week in the future.\n\n` +
+          `Selected: ${selectedDate.toLocaleDateString()}\n` +
+          `Today: ${today.toLocaleDateString()}\n\n` +
+          `Is this correct?\n\n` +
+          `Click OK to proceed, or Cancel to fix it.`
       );
       if (!confirm) return;
     }
@@ -280,34 +371,39 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
           .limit(10);
 
         if (!dupErr && recentLines && recentLines.length > 0) {
-          // Check for similar amount and description
           const possibleDuplicate = recentLines.find((line: any) => {
             const lineAmt = Math.abs(Number(line.amount));
             const amtMatch = Math.abs(lineAmt - amt) < 1; // Within $1
-            const descMatch = line.transactions?.description?.toLowerCase().includes(description.toLowerCase());
+            const descMatch =
+              line.transactions?.description
+                ?.toLowerCase()
+                .includes(description.toLowerCase());
             return amtMatch || descMatch;
           });
 
           if (possibleDuplicate) {
             const dupDate = (possibleDuplicate as any).transactions?.date;
             const dupAmt = Math.abs(Number((possibleDuplicate as any).amount));
-            const dupDesc = (possibleDuplicate as any).transactions?.description;
-            
+            const dupDesc = (possibleDuplicate as any).transactions
+              ?.description;
+
             const confirm = window.confirm(
               `⚠️ Possible Duplicate Transaction\n\n` +
-              `Found a similar transaction:\n` +
-              `Date: ${dupDate}\n` +
-              `Amount: ${dupAmt.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}\n` +
-              `Description: ${dupDesc}\n\n` +
-              `Are you sure you want to create another transaction?\n\n` +
-              `Click OK to proceed, or Cancel to review.`
+                `Found a similar transaction:\n` +
+                `Date: ${dupDate}\n` +
+                `Amount: ${dupAmt.toLocaleString('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                })}\n` +
+                `Description: ${dupDesc}\n\n` +
+                `Are you sure you want to create another transaction?\n\n` +
+                `Click OK to proceed, or Cancel to review.`
             );
             if (!confirm) return;
           }
         }
       } catch (err) {
         console.warn('Duplicate check failed:', err);
-        // Don't block the transaction if duplicate check fails
       }
     }
 
@@ -319,17 +415,36 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
       const category_id = Number(categoryAccountId);
 
       const vendor_id =
-        txType === 'expense' && linkToJob && effectiveExpenseKind === 'material'
-          ? (vendorId ? Number(vendorId) : null)
+        txType === 'expense' &&
+        linkToJob &&
+        effectiveExpenseKind === 'material'
+          ? vendorId
+            ? Number(vendorId)
+            : null
           : null;
 
       const installer_id =
-        txType === 'expense' && linkToJob && effectiveExpenseKind === 'labor'
-          ? (installerId ? Number(installerId) : null)
+        txType === 'expense' &&
+        linkToJob &&
+        effectiveExpenseKind === 'labor'
+          ? installerId
+            ? Number(installerId)
+            : null
           : null;
 
-      const cashPurpose = purposeForAccount(cash_id);
-      const categoryPurpose = purposeForAccount(category_id);
+      // --- derive a single transaction-level purpose ---
+      const cashPurposeDefault = purposeForAccount(cash_id);
+      const categoryPurposeDefault = purposeForAccount(category_id);
+
+      let txPurpose: 'business' | 'personal' =
+        cashPurposeDefault === 'personal' ||
+        categoryPurposeDefault === 'personal'
+          ? 'personal'
+          : 'business';
+
+      const cashPurpose = txPurpose;
+      const categoryPurpose = txPurpose;
+      // ---------------------------------------------------
 
       let line1: any;
       let line2: any;
@@ -355,6 +470,7 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
           is_cleared: isCleared,
         };
       } else {
+        // expense
         line1 = {
           account_id: category_id,
           amount: amt,
@@ -376,12 +492,16 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
         };
       }
 
-      const { data, error: rpcErr } = await supabase.rpc('create_transaction', {
-        p_date: date,
-        p_description: description || null,
-        p_line1: line1,
-        p_line2: line2,
-      });
+      const { data, error: rpcErr } = await supabase.rpc(
+        'create_transaction',
+        {
+          p_date: date,
+          p_description: description || null,
+          p_line1: line1,
+          p_line2: line2,
+          p_purpose: txPurpose,
+        }
+      );
 
       if (rpcErr) throw rpcErr;
 
@@ -393,6 +513,9 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
       setVendorId('');
       setInstallerId('');
       setIsCleared(false);
+      if (onTransactionSaved) {
+        onTransactionSaved();
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message ?? 'Error saving transaction');
@@ -413,16 +536,16 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
         <p style={{ color: 'red', marginTop: '0.5rem' }}>{error}</p>
       )}
       {success && (
-        <p style={{ color: 'green', marginTop: '0.5rem' }}>
-          {success}
-        </p>
+        <p style={{ color: 'green', marginTop: '0.5rem' }}>{success}</p>
       )}
 
       <form
         onSubmit={handleSubmit}
         style={{ maxWidth: 520, display: 'grid', gap: '0.75rem' }}
       >
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <label
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+        >
           <input
             type="checkbox"
             checked={linkToJob}
@@ -454,7 +577,11 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            max={new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]}
+            max={new Date(
+              new Date().setFullYear(new Date().getFullYear() + 1)
+            )
+              .toISOString()
+              .split('T')[0]}
             min="2000-01-01"
             style={{
               borderColor: isDateFuture ? '#ff9800' : undefined,
@@ -462,7 +589,14 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
             }}
           />
           {isDateFuture && (
-            <span style={{ fontSize: 12, color: '#ff9800', marginTop: '4px', display: 'block' }}>
+            <span
+              style={{
+                fontSize: 12,
+                color: '#ff9800',
+                marginTop: '4px',
+                display: 'block',
+              }}
+            >
               ⚠️ This date is in the future. Is this correct?
             </span>
           )}
@@ -559,9 +693,10 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
           <select
             value={categoryAccountId}
             onChange={(e) => setCategoryAccountId(e.target.value)}
+            onKeyDown={handleCategoryKeyDown}
           >
             <option value="">Select category…</option>
-            {categoryAccounts.map((a) => (
+            {sortedCategoryAccounts.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.code ? `${a.code} – ` : ''}
                 {a.name}
@@ -601,13 +736,22 @@ export function NewTransactionForm({ initialJobId }: NewTransactionFormProps) {
             }}
           />
           {isAmountLarge && (
-            <span style={{ fontSize: 12, color: '#ff9800', marginTop: '4px', display: 'block' }}>
+            <span
+              style={{
+                fontSize: 12,
+                color: '#ff9800',
+                marginTop: '4px',
+                display: 'block',
+              }}
+            >
               ⚠️ This is a large amount. Double-check before saving.
             </span>
           )}
         </label>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <label
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+        >
           <input
             type="checkbox"
             checked={isCleared}

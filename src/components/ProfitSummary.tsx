@@ -6,10 +6,9 @@ type RawLine = {
   account_id: number;
   amount: number;
   is_cleared: boolean;
-  purpose: string | null;
   job_id: number | null;
   accounts: { name: string; account_types: { name: string } | null } | null;
-  transactions: { date: string } | null;
+  transactions: { date: string; purpose: 'business' | 'personal' | null } | null;
 };
 
 type MonthlyBucket = {
@@ -94,9 +93,9 @@ export function ProfitSummary() {
         const { data, error: lineErr } = await supabase
           .from('transaction_lines')
           .select(
-            `id, account_id, amount, is_cleared, purpose, job_id,
+            `id, account_id, amount, is_cleared, job_id,
              accounts (name, account_types (name)),
-             transactions!inner (date)`
+             transactions!inner (date, purpose)`
           )
           .eq('is_cleared', true)
           .gte('transactions.date', startDate)
@@ -113,7 +112,7 @@ export function ProfitSummary() {
         setLoading(false);
       }
     }
-    load();
+    void load();
   }, [year]);
 
   // Calculate monthly income/expense buckets from cleared transactions
@@ -134,15 +133,15 @@ export function ProfitSummary() {
       if (!bucket) continue;
 
       const amt = Math.abs(Number(line.amount) || 0);
-      const purpose = line.purpose ?? 'business';
+      const purpose = line.transactions?.purpose ?? 'business'; // ← use parent purpose
 
-      if (
-        accType === 'income' &&
-        (purpose === 'business' || purpose === 'mixed')
-      ) {
+      // Business gross income
+      if (accType === 'income' && purpose === 'business') {
         bucket.gross += amt;
-      } else if (accType === 'expense') {
-        const isBusiness = purpose === 'business' || purpose === 'mixed';
+      }
+      // Expenses
+      else if (accType === 'expense') {
+        const isBusiness = purpose === 'business';
         const isPersonal = purpose === 'personal';
 
         if (isBusiness && line.job_id !== null) bucket.jobExp += amt;
@@ -164,10 +163,46 @@ export function ProfitSummary() {
   // Aggregate monthly buckets into quarterly totals
   const quarterlyBuckets = useMemo<MonthlyBucket[]>(() => {
     const quarters: MonthlyBucket[] = [
-      { label: 'Q1', gross: 0, jobExp: 0, prof: 0, bussExp: 0, taxNet: 0, otherExp: 0, pureNet: 0 },
-      { label: 'Q2', gross: 0, jobExp: 0, prof: 0, bussExp: 0, taxNet: 0, otherExp: 0, pureNet: 0 },
-      { label: 'Q3', gross: 0, jobExp: 0, prof: 0, bussExp: 0, taxNet: 0, otherExp: 0, pureNet: 0 },
-      { label: 'Q4', gross: 0, jobExp: 0, prof: 0, bussExp: 0, taxNet: 0, otherExp: 0, pureNet: 0 },
+      {
+        label: 'Q1',
+        gross: 0,
+        jobExp: 0,
+        prof: 0,
+        bussExp: 0,
+        taxNet: 0,
+        otherExp: 0,
+        pureNet: 0,
+      },
+      {
+        label: 'Q2',
+        gross: 0,
+        jobExp: 0,
+        prof: 0,
+        bussExp: 0,
+        taxNet: 0,
+        otherExp: 0,
+        pureNet: 0,
+      },
+      {
+        label: 'Q3',
+        gross: 0,
+        jobExp: 0,
+        prof: 0,
+        bussExp: 0,
+        taxNet: 0,
+        otherExp: 0,
+        pureNet: 0,
+      },
+      {
+        label: 'Q4',
+        gross: 0,
+        jobExp: 0,
+        prof: 0,
+        bussExp: 0,
+        taxNet: 0,
+        otherExp: 0,
+        pureNet: 0,
+      },
     ];
 
     monthlyBuckets.forEach((m, i) => {
@@ -255,7 +290,7 @@ export function ProfitSummary() {
     for (const q of quarterlyBuckets) {
       total.gross += q.gross;
       total.jobExp += q.jobExp;
-      total.prof += q.prof; // ✅ FIX: aggregate profit
+      total.prof += q.prof;
       total.bussExp += q.bussExp;
       total.taxNet += q.taxNet;
       total.otherExp += q.otherExp;
