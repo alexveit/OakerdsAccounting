@@ -832,8 +832,7 @@ export function NewTransactionForm({
       setError(null);
       setSuccess(null);
 
-      const real_estate_deal_id =
-        linkToDeal && dealId ? Number(dealId) : null;
+      const real_estate_deal_id = linkToDeal && dealId ? Number(dealId) : null;
 
       if (!real_estate_deal_id) {
         setError('Real estate deal is required for mortgage payments.');
@@ -881,11 +880,8 @@ export function NewTransactionForm({
         return;
       }
 
-      // Mortgage payments are for real estate deals (business use).
-      // Purpose = what is this payment "for" → business.
+      // Mortgage payments are always business purpose
       const txPurpose: 'business' | 'personal' = 'business';
-      // Cash side can still reflect whether the paying account is personal/business,
-      // but that does NOT change the transaction's purpose.
       const cashPurposeDefault = purposeForAccount(cash_id);
       const cashPurpose: 'business' | 'personal' =
         cashPurposeDefault === 'personal' ? 'personal' : 'business';
@@ -905,81 +901,33 @@ export function NewTransactionForm({
         return;
       }
 
-      // 1) Interest transaction: DR interest expense, CR cash
-      if (interestPortion > 0) {
-        const line1 = {
-          account_id: interestAccount.id,
-          amount: interestPortion,
-          job_id: null,
-          vendor_id: null,
-          installer_id: null,
-          real_estate_deal_id,
-          purpose: txPurpose,
-          is_cleared: isCleared,
-        };
+      // Build all lines for a single atomic transaction
+      const lines: Array<{
+        account_id: number;
+        amount: number;
+        job_id: null;
+        vendor_id: null;
+        installer_id: null;
+        real_estate_deal_id: number;
+        purpose: string;
+        is_cleared: boolean;
+      }> = [];
 
-        const line2 = {
-          account_id: cash_id,
-          amount: -interestPortion,
-          job_id: null,
-          vendor_id: null,
-          installer_id: null,
-          real_estate_deal_id,
-          purpose: cashPurpose,
-          is_cleared: isCleared,
-        };
+      // Line 1: Cash out (credit bank) - negative = money leaving
+      lines.push({
+        account_id: cash_id,
+        amount: -mortgagePreview.total,
+        job_id: null,
+        vendor_id: null,
+        installer_id: null,
+        real_estate_deal_id,
+        purpose: cashPurpose,
+        is_cleared: isCleared,
+      });
 
-        const { error: rpcErr1 } = await supabase.rpc('create_transaction', {
-          p_date: date,
-          p_description:
-            description || `Mortgage interest – ${selectedDeal.nickname}`,
-          p_line1: line1,
-          p_line2: line2,
-          p_purpose: txPurpose,
-        });
-
-        if (rpcErr1) throw rpcErr1;
-      }
-
-      // 2) Escrow transaction: DR escrow asset, CR cash
-      if (escrowPortion > 0) {
-        const line1 = {
-          account_id: escrowAccount.id,
-          amount: escrowPortion,
-          job_id: null,
-          vendor_id: null,
-          installer_id: null,
-          real_estate_deal_id,
-          purpose: txPurpose,
-          is_cleared: isCleared,
-        };
-
-        const line2 = {
-          account_id: cash_id,
-          amount: -escrowPortion,
-          job_id: null,
-          vendor_id: null,
-          installer_id: null,
-          real_estate_deal_id,
-          purpose: cashPurpose,
-          is_cleared: isCleared,
-        };
-
-        const { error: rpcErr2 } = await supabase.rpc('create_transaction', {
-          p_date: date,
-          p_description:
-            description || `Mortgage escrow – ${selectedDeal.nickname}`,
-          p_line1: line1,
-          p_line2: line2,
-          p_purpose: txPurpose,
-        });
-
-        if (rpcErr2) throw rpcErr2;
-      }
-
-      // 3) Principal transaction: DR loan liability (reduces it), CR cash
+      // Line 2: Principal (debit loan liability - reduces it)
       if (principal > 0) {
-        const line1 = {
+        lines.push({
           account_id: selectedDeal.loan_account_id,
           amount: principal,
           job_id: null,
@@ -988,32 +936,50 @@ export function NewTransactionForm({
           real_estate_deal_id,
           purpose: txPurpose,
           is_cleared: isCleared,
-        };
+        });
+      }
 
-        const line2 = {
-          account_id: cash_id,
-          amount: -principal,
+      // Line 3: Interest expense (debit)
+      if (interestPortion > 0) {
+        lines.push({
+          account_id: interestAccount.id,
+          amount: interestPortion,
           job_id: null,
           vendor_id: null,
           installer_id: null,
           real_estate_deal_id,
-          purpose: cashPurpose,
+          purpose: txPurpose,
           is_cleared: isCleared,
-        };
-
-        const { error: rpcErr3 } = await supabase.rpc('create_transaction', {
-          p_date: date,
-          p_description:
-            description || `Mortgage principal – ${selectedDeal.nickname}`,
-          p_line1: line1,
-          p_line2: line2,
-          p_purpose: txPurpose,
         });
-
-        if (rpcErr3) throw rpcErr3;
       }
 
-      setSuccess('Mortgage payment split saved.');
+      // Line 4: Escrow (debit - either expense or asset depending on your setup)
+      if (escrowPortion > 0) {
+        lines.push({
+          account_id: escrowAccount.id,
+          amount: escrowPortion,
+          job_id: null,
+          vendor_id: null,
+          installer_id: null,
+          real_estate_deal_id,
+          purpose: txPurpose,
+          is_cleared: isCleared,
+        });
+      }
+
+      // Single atomic transaction with all lines
+      const { data, error: rpcErr } = await supabase.rpc('create_transaction_multi', {
+        p_date: date,
+        p_description: description || `Mortgage payment – ${selectedDeal.nickname}`,
+        p_purpose: txPurpose,
+        p_lines: lines,
+      });
+
+      if (rpcErr) throw rpcErr;
+
+      console.log('Mortgage transaction created:', data);
+
+      setSuccess('Mortgage payment saved.');
       setAmount('');
       setDescription('');
       setMortgageInterest('');
@@ -1021,7 +987,6 @@ export function NewTransactionForm({
       setEditablePrincipal('');
       setEditableInterest('');
       setEditableEscrow('');
-      // keep job/deal linkage & isMortgagePayment so you can enter multiple similar payments quickly
 
       if (onTransactionSaved) {
         onTransactionSaved();
