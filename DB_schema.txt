@@ -117,6 +117,7 @@ CREATE TABLE public.transactions (
   description character varying,
   created_at timestamp without time zone NOT NULL DEFAULT now(),
   updated_at timestamp without time zone NOT NULL DEFAULT now(),
+  purpose text NOT NULL DEFAULT 'business'::text CHECK (purpose = ANY (ARRAY['business'::text, 'personal'::text])),
   CONSTRAINT transactions_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.vendors (
