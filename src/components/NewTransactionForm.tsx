@@ -1648,8 +1648,8 @@ function handleCancelMortgageSplit() {
             )}
 
           <p style={{ fontSize: '0.85rem', marginBottom: '0.75rem', color: '#555' }}>
-            This will create three separate double-entry transactions:
-            principal (reduces loan), interest (expense), and escrow (asset),
+            This will create a single transaction with separate lines for
+            principal (reduces loan), interest (expense), and escrow (taxes & insurance),
             all paid from your selected bank/card account.
           </p>
 
