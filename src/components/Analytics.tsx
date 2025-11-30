@@ -4,13 +4,14 @@ import { isBankCode } from '../utils/accounts';
 import { formatCurrency } from '../utils/format';
 import {
   ComposedChart,
-  Bar,
+  Line,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
+  Bar,
 } from 'recharts';
 
 type AccountBalance = {
@@ -487,46 +488,52 @@ export function Analytics() {
               <YAxis
                 tickFormatter={(value) => formatCurrency(value, 0)}
                 tick={{ fontSize: 12 }}
-                domain={['dataMin - 1000', 'dataMax + 1000']}
               />
               <Tooltip content={<CustomTooltip />} />
+
+              {/* Render candlesticks using Bar with custom shape */}
               <Bar
                 dataKey="high"
                 fill="transparent"
+                isAnimationActive={false}
                 shape={(props: any) => {
-                  const { x, width, index } = props;
-                  if (!chartData[index]) return null;
+                  const { x, y, width, height, payload, value } = props;
+                  if (!payload || height <= 0) return null;
 
-                  const data = chartData[index];
-                  const isPositive = data.close >= data.open;
+                  const { open, close, high, low } = payload;
+                  if (high === undefined || low === undefined) return null;
+
+                  const isPositive = close >= open;
                   const color = isPositive ? '#0a7a3c' : '#b00020';
 
-                  // Calculate Y positions using the YAxis domain
-                  const yAxis = props.yAxis;
-                  if (!yAxis) return null;
+                  // Calculate scale: height represents pixels from 'high' to chart baseline
+                  // We need to find pixels per unit of data value
+                  const pixelsPerUnit = height / high;
 
-                  const highY = yAxis.scale(data.high);
-                  const lowY = yAxis.scale(data.low);
-                  const openY = yAxis.scale(data.open);
-                  const closeY = yAxis.scale(data.close);
+                  // Calculate Y positions (y is at 'high', increasing downward)
+                  const highY = y;
+                  const lowY = y + ((high - low) * pixelsPerUnit);
+                  const openY = y + ((high - open) * pixelsPerUnit);
+                  const closeY = y + ((high - close) * pixelsPerUnit);
 
                   const bodyTop = Math.min(openY, closeY);
-                  const bodyHeight = Math.abs(closeY - openY) || 2;
-                  const candleWidth = Math.min(width * 0.7, 20);
+                  const bodyHeight = Math.max(Math.abs(closeY - openY), 2);
+                  const candleWidth = Math.min(width * 0.6, 20);
                   const candleX = x + (width - candleWidth) / 2;
+                  const centerX = x + width / 2;
 
                   return (
                     <g>
-                      {/* Wick */}
+                      {/* Wick (high-low line) */}
                       <line
-                        x1={x + width / 2}
+                        x1={centerX}
                         y1={highY}
-                        x2={x + width / 2}
+                        x2={centerX}
                         y2={lowY}
                         stroke={color}
                         strokeWidth={2}
                       />
-                      {/* Body */}
+                      {/* Body (open-close rectangle) */}
                       <rect
                         x={candleX}
                         y={bodyTop}
@@ -534,7 +541,6 @@ export function Analytics() {
                         height={bodyHeight}
                         fill={color}
                         stroke={color}
-                        strokeWidth={1}
                       />
                     </g>
                   );
