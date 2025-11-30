@@ -279,26 +279,48 @@ export function Analytics() {
     }
   }
 
-  // Custom candlestick shape
-  const Candlestick = (props: any) => {
-    const { x, y, width, height, open, close, high, low } = props;
+  // Custom candlestick rendering using recharts' coordinate system
+  const renderCandlestick = (props: any) => {
+    const { x, y, width, payload, index } = props;
+
+    if (!payload || !chartData[index]) {
+      return null;
+    }
+
+    const data = chartData[index];
+    const { open, close, high, low } = data;
+
+    // Find the Y scale from the chart area
+    const chartHeight = 400;
+    const yPadding = 40;
+    const availableHeight = chartHeight - yPadding * 2;
+
+    // Get min and max from all data for scaling
+    const allValues = chartData.flatMap((d) => [d.open, d.close, d.high, d.low]);
+    const minValue = Math.min(...allValues);
+    const maxValue = Math.max(...allValues);
+    const range = maxValue - minValue || 1;
+
+    // Calculate Y positions (inverted because SVG Y goes down)
+    const getY = (value: number) => {
+      return yPadding + ((maxValue - value) / range) * availableHeight;
+    };
+
+    const highY = getY(high);
+    const lowY = getY(low);
+    const openY = getY(open);
+    const closeY = getY(close);
 
     const isPositive = close >= open;
     const color = isPositive ? '#0a7a3c' : '#b00020';
-    const yScale = height / (Math.max(open, close, high, low) - Math.min(open, close, high, low) || 1);
-
-    // Calculate positions (invert because SVG y-axis goes down)
-    const maxVal = Math.max(open, close, high, low);
-    const highY = y + (maxVal - high) * yScale;
-    const lowY = y + (maxVal - low) * yScale;
-    const openY = y + (maxVal - open) * yScale;
-    const closeY = y + (maxVal - close) * yScale;
 
     const bodyTop = Math.min(openY, closeY);
-    const bodyHeight = Math.abs(closeY - openY) || 1;
+    const bodyHeight = Math.abs(closeY - openY) || 2;
+    const candleWidth = width * 0.6;
+    const candleX = x + (width - candleWidth) / 2;
 
     return (
-      <g>
+      <g key={`candlestick-${index}`}>
         {/* Wick (high-low line) */}
         <line
           x1={x + width / 2}
@@ -306,13 +328,13 @@ export function Analytics() {
           x2={x + width / 2}
           y2={lowY}
           stroke={color}
-          strokeWidth={1}
+          strokeWidth={1.5}
         />
         {/* Body (open-close rectangle) */}
         <rect
-          x={x + width * 0.25}
+          x={candleX}
           y={bodyTop}
-          width={width * 0.5}
+          width={candleWidth}
           height={bodyHeight}
           fill={color}
           stroke={color}
@@ -453,7 +475,7 @@ export function Analytics() {
           </p>
         ) : (
           <ResponsiveContainer width="100%" height={400}>
-            <ComposedChart data={chartData}>
+            <ComposedChart data={chartData} margin={{ top: 20, right: 20, bottom: 60, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="date"
@@ -465,14 +487,58 @@ export function Analytics() {
               <YAxis
                 tickFormatter={(value) => formatCurrency(value, 0)}
                 tick={{ fontSize: 12 }}
+                domain={['dataMin - 1000', 'dataMax + 1000']}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
               <Bar
-                dataKey="open"
+                dataKey="high"
                 fill="transparent"
-                shape={<Candlestick />}
-                name="Balance"
+                shape={(props: any) => {
+                  const { x, width, index } = props;
+                  if (!chartData[index]) return null;
+
+                  const data = chartData[index];
+                  const isPositive = data.close >= data.open;
+                  const color = isPositive ? '#0a7a3c' : '#b00020';
+
+                  // Calculate Y positions using the YAxis domain
+                  const yAxis = props.yAxis;
+                  if (!yAxis) return null;
+
+                  const highY = yAxis.scale(data.high);
+                  const lowY = yAxis.scale(data.low);
+                  const openY = yAxis.scale(data.open);
+                  const closeY = yAxis.scale(data.close);
+
+                  const bodyTop = Math.min(openY, closeY);
+                  const bodyHeight = Math.abs(closeY - openY) || 2;
+                  const candleWidth = Math.min(width * 0.7, 20);
+                  const candleX = x + (width - candleWidth) / 2;
+
+                  return (
+                    <g>
+                      {/* Wick */}
+                      <line
+                        x1={x + width / 2}
+                        y1={highY}
+                        x2={x + width / 2}
+                        y2={lowY}
+                        stroke={color}
+                        strokeWidth={2}
+                      />
+                      {/* Body */}
+                      <rect
+                        x={candleX}
+                        y={bodyTop}
+                        width={candleWidth}
+                        height={bodyHeight}
+                        fill={color}
+                        stroke={color}
+                        strokeWidth={1}
+                      />
+                    </g>
+                  );
+                }}
               />
             </ComposedChart>
           </ResponsiveContainer>
