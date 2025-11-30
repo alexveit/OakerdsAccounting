@@ -111,20 +111,22 @@ export function Analytics() {
           )
           .in('account_id', accountIds)
           .gte('transactions.date', startDateStr)
-          .lte('transactions.date', endDateStr)
-          .order('transactions.date', { ascending: true });
+          .lte('transactions.date', endDateStr);
 
-        if (txErr) throw txErr;
+        if (txErr) {
+          console.error('Transaction query error:', txErr);
+          throw txErr;
+        }
 
         // Transform nested structure
-        const txLines: TransactionLine[] = (transactions ?? []).map(
-          (tx: any) => ({
+        const txLines: TransactionLine[] = (transactions ?? [])
+          .filter((tx: any) => tx && tx.transactions && tx.transactions.date)
+          .map((tx: any) => ({
             id: tx.id,
             account_id: tx.account_id,
             amount: Number(tx.amount),
             transaction_date: tx.transactions.date,
-          })
-        );
+          }));
 
         // Calculate running balances and aggregate by period
         const balancesByDate = calculateBalancesByPeriod(
@@ -139,10 +141,9 @@ export function Analytics() {
         setChartData(balancesByDate);
         setLoading(false);
       } catch (err: unknown) {
-        console.error(err);
-        setError(
-          err instanceof Error ? err.message : 'Failed to load chart data'
-        );
+        console.error('Chart data error:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        setError(`Failed to load chart data: ${errorMessage}`);
         setLoading(false);
       }
     }
@@ -180,16 +181,21 @@ export function Analytics() {
     // Group transactions by period
     const periodMap = new Map<string, TransactionLine[]>();
 
+    // Initialize periods with empty arrays
     const start = new Date(startDateStr);
     const end = new Date(endDateStr);
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const dayCount = Math.ceil((end.getTime() - start.getTime()) / msPerDay) + 1;
 
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const periodKey = getPeriodKey(d, periodType);
+    for (let i = 0; i < dayCount; i++) {
+      const currentDate = new Date(start.getTime() + i * msPerDay);
+      const periodKey = getPeriodKey(currentDate, periodType);
       if (!periodMap.has(periodKey)) {
         periodMap.set(periodKey, []);
       }
     }
 
+    // Add transactions to their respective periods
     transactions.forEach((tx) => {
       const txDate = new Date(tx.transaction_date);
       const periodKey = getPeriodKey(txDate, periodType);
