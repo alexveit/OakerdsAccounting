@@ -1,5 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { formatCurrency } from '../utils/format';
+import { getDayOfYearForYear } from '../utils/date';
+import { isMarketingExpenseCode, isRealEstateExpenseCode } from '../utils/accounts';
 
 type RawLine = {
   id: number;
@@ -16,7 +19,7 @@ type RawLine = {
   transactions: { date: string } | null;
 };
 
-type GroupKey = 'job' | 'marketing' | 'overhead' | 'other';
+type GroupKey = 'job' | 'marketing' | 'realEstate' | 'overhead' | 'other';
 
 type CategoryTotals = {
   accountId: number;
@@ -27,49 +30,14 @@ type CategoryTotals = {
 };
 
 const MONTH_LABELS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
 const QUARTER_LABELS = ['Q1', 'Q2', 'Q3', 'Q4'];
 
 function createEmptyMonthly(): number[] {
   return new Array(12).fill(0);
-}
-
-// Same day-of-year logic used in ProfitSummary
-function getDayOfYearForYear(selectedYear: number): number | null {
-  const today = new Date();
-  const currentYear = today.getFullYear();
-
-  if (selectedYear < currentYear) {
-    const isLeap =
-      (selectedYear % 4 === 0 && selectedYear % 100 !== 0) ||
-      selectedYear % 400 === 0;
-    return isLeap ? 366 : 365;
-  }
-
-  if (selectedYear > currentYear) return null;
-
-  const startOfYear = new Date(selectedYear, 0, 1);
-  const todayMidnight = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  );
-  const diffMs = todayMidnight.getTime() - startOfYear.getTime();
-  const dayOfYear = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
-  return dayOfYear > 0 ? dayOfYear : null;
 }
 
 export function CategoriesSummaryView() {
@@ -112,9 +80,9 @@ export function CategoriesSummaryView() {
 
         setLines((data ?? []) as any[]);
         setLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message ?? 'Failed to load category summary');
+        setError(err instanceof Error ? err.message : 'Failed to load category summary');
         setLoading(false);
       }
     }
@@ -125,12 +93,14 @@ export function CategoriesSummaryView() {
   const grouped = useMemo<{
     job: CategoryTotals[];
     marketing: CategoryTotals[];
+    realEstate: CategoryTotals[];
     overhead: CategoryTotals[];
     other: CategoryTotals[];
   }>(() => {
     const maps: Record<GroupKey, Map<number, CategoryTotals>> = {
       job: new Map(),
       marketing: new Map(),
+      realEstate: new Map(),
       overhead: new Map(),
       other: new Map(),
     };
@@ -151,21 +121,20 @@ export function CategoriesSummaryView() {
       const isBusiness = purpose === 'business' || purpose === 'mixed';
       const isPersonal = purpose === 'personal';
 
-      const codeStr = line.accounts?.code ?? '';
-      const codeNum = Number(codeStr);
-      const isMarketingCode =
-        !Number.isNaN(codeNum) && codeNum >= 55000 && codeNum <= 55100;
+      const code = line.accounts?.code ?? '';
 
       let group: GroupKey | null = null;
 
-      if (isBusiness && line.job_id !== null) {
-        group = 'job';
-      } else if (isBusiness && line.job_id == null && isMarketingCode) {
-        group = 'marketing';
-      } else if (isBusiness && line.job_id == null && !isMarketingCode) {
-        group = 'overhead';
-      } else if (isPersonal) {
+      if (isPersonal) {
         group = 'other';
+      } else if (isBusiness && isRealEstateExpenseCode(code)) {
+        group = 'realEstate';
+      } else if (isBusiness && line.job_id !== null) {
+        group = 'job';
+      } else if (isBusiness && isMarketingExpenseCode(code)) {
+        group = 'marketing';
+      } else if (isBusiness) {
+        group = 'overhead';
       }
 
       if (!group) continue;
@@ -209,17 +178,13 @@ export function CategoriesSummaryView() {
     return {
       job: finalizeGroup(maps.job),
       marketing: finalizeGroup(maps.marketing),
+      realEstate: finalizeGroup(maps.realEstate),
       overhead: finalizeGroup(maps.overhead),
       other: finalizeGroup(maps.other),
     };
   }, [lines]);
 
-  const currency = (value: number) =>
-    value.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    });
+  const currency = (value: number) => formatCurrency(value, 2);
 
   const thStyle: React.CSSProperties = {
     textAlign: 'right',
@@ -257,7 +222,7 @@ export function CategoriesSummaryView() {
       );
     }
 
-    // 🔢 Group total (sum of all category totals)
+    // Group total (sum of all category totals)
     const groupTotal = categories.reduce((sum, c) => sum + c.total, 0);
 
     // Monthly and quarterly run-rate averages per account
@@ -305,35 +270,21 @@ export function CategoriesSummaryView() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            fontSize: '1.2em',   
-            fontWeight: 600,       
+            fontSize: '1.2em',
+            fontWeight: 600,
           }}
         >
           <span>{title}</span>
-          <span
-            style={{
-              color: '#555',
-              fontWeight: 600,
-              fontSize: '1.2em',
-            }}
-          >
+          <span style={{ color: '#555', fontWeight: 600, fontSize: '1.2em' }}>
             {currency(groupTotal)}
           </span>
         </h3>
-
 
         <div style={{ overflowX: 'auto' }}>
           <table className="table">
             <thead>
               <tr>
-                <th
-                  style={{
-                    ...thStyle,
-                    textAlign: 'left',
-                  }}
-                >
-                  Month
-                </th>
+                <th style={{ ...thStyle, textAlign: 'left' }}>Month</th>
                 {categories.map((c) => (
                   <th key={c.accountId} style={thStyle}>
                     {c.accountName}
@@ -356,24 +307,11 @@ export function CategoriesSummaryView() {
 
               {/* Monthly average row */}
               <tr>
-                <td
-                  style={{
-                    ...rowHeaderStyle,
-                    fontWeight: 700,
-                    background: '#f0f4ff',
-                  }}
-                >
+                <td style={{ ...rowHeaderStyle, fontWeight: 700, background: '#f0f4ff' }}>
                   Avg
                 </td>
                 {monthlyAvg.map((v, idx) => (
-                  <td
-                    key={idx}
-                    style={{
-                      ...tdStyle,
-                      fontWeight: 600,
-                      background: '#f0f4ff',
-                    }}
-                  >
+                  <td key={idx} style={{ ...tdStyle, fontWeight: 600, background: '#f0f4ff' }}>
                     {currency(v)}
                   </td>
                 ))}
@@ -383,11 +321,7 @@ export function CategoriesSummaryView() {
               <tr>
                 <td
                   colSpan={categories.length + 1}
-                  style={{
-                    padding: '6px 0',
-                    borderBottom: '1px solid #ddd',
-                    background: '#fafafa',
-                  }}
+                  style={{ padding: '6px 0', borderBottom: '1px solid #ddd', background: '#fafafa' }}
                 />
               </tr>
 
@@ -405,24 +339,11 @@ export function CategoriesSummaryView() {
 
               {/* Quarterly average row */}
               <tr>
-                <td
-                  style={{
-                    ...rowHeaderStyle,
-                    fontWeight: 700,
-                    background: '#f0f4ff',
-                  }}
-                >
+                <td style={{ ...rowHeaderStyle, fontWeight: 700, background: '#f0f4ff' }}>
                   Avg
                 </td>
                 {quarterlyAvg.map((v, idx) => (
-                  <td
-                    key={idx}
-                    style={{
-                      ...tdStyle,
-                      fontWeight: 600,
-                      background: '#f0f4ff',
-                    }}
-                  >
+                  <td key={idx} style={{ ...tdStyle, fontWeight: 600, background: '#f0f4ff' }}>
                     {currency(v)}
                   </td>
                 ))}
@@ -430,24 +351,11 @@ export function CategoriesSummaryView() {
 
               {/* Total row */}
               <tr>
-                <td
-                  style={{
-                    ...rowHeaderStyle,
-                    fontWeight: 700,
-                    borderTop: '1px solid #ddd',
-                  }}
-                >
+                <td style={{ ...rowHeaderStyle, fontWeight: 700, borderTop: '1px solid #ddd' }}>
                   Total
                 </td>
                 {totalRow.values.map((v, idx) => (
-                  <td
-                    key={idx}
-                    style={{
-                      ...tdStyle,
-                      fontWeight: 700,
-                      borderTop: '1px solid #ddd',
-                    }}
-                  >
+                  <td key={idx} style={{ ...tdStyle, fontWeight: 700, borderTop: '1px solid #ddd' }}>
                     {currency(v)}
                   </td>
                 ))}
@@ -477,9 +385,7 @@ export function CategoriesSummaryView() {
         <input
           type="number"
           value={year}
-          onChange={(e) =>
-            setYear(Number(e.target.value) || new Date().getFullYear())
-          }
+          onChange={(e) => setYear(Number(e.target.value) || new Date().getFullYear())}
           style={{ width: 80, padding: '2px 4px' }}
         />
       </div>
@@ -487,6 +393,7 @@ export function CategoriesSummaryView() {
       {renderGroupTable('Job Expenses', grouped.job)}
       {renderGroupTable('Marketing Expenses', grouped.marketing)}
       {renderGroupTable('Overhead Expenses', grouped.overhead)}
+      {renderGroupTable('Real Estate Expenses', grouped.realEstate)}
       {renderGroupTable('Other / Personal Expenses', grouped.other)}
     </div>
   );

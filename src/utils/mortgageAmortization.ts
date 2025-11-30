@@ -4,7 +4,8 @@ export type MortgageParams = {
   originalLoanAmount: number;
   annualRatePercent: number;  // e.g. 7.125
   termMonths: number;         // e.g. 360
-  startDate: string;          // ISO "YYYY-MM-DD" (close_date)
+  startDate: string;          // ISO "YYYY-MM-DD" (close_date) - used as fallback
+  firstPaymentDate?: string;  // ISO "YYYY-MM-DD" - the actual first payment due date
 };
 
 export type MortgageSplit = {
@@ -14,6 +15,39 @@ export type MortgageSplit = {
   escrowInsurance: number;
   totalPayment: number;
 };
+
+/**
+ * Calculate the payment index (0-based) for a given payment date.
+ * If firstPaymentDate is provided, that's payment index 0.
+ * Otherwise, fall back to using startDate (close_date) with month-based calculation.
+ */
+function getPaymentIndex(
+  firstPaymentDateISO: string | undefined,
+  startDateISO: string,
+  paymentDateISO: string
+): number {
+  const payDate = new Date(paymentDateISO + 'T00:00:00');
+
+  if (firstPaymentDateISO) {
+    // Use first payment date as the anchor (payment index 0)
+    const firstDate = new Date(firstPaymentDateISO + 'T00:00:00');
+    
+    const yearDiff = payDate.getFullYear() - firstDate.getFullYear();
+    const monthDiff = payDate.getMonth() - firstDate.getMonth();
+    
+    let index = yearDiff * 12 + monthDiff;
+    
+    // If payment day is before first payment day, we haven't reached this month's payment yet
+    if (payDate.getDate() < firstDate.getDate()) {
+      index -= 1;
+    }
+    
+    return Math.max(index, 0);
+  }
+
+  // Fallback: use close_date with original monthsBetween logic
+  return monthsBetween(startDateISO, paymentDateISO);
+}
 
 function monthsBetween(startISO: string, payISO: string): number {
   const s = new Date(startISO + 'T00:00:00');
@@ -88,10 +122,11 @@ export function computeMortgageSplit(
   },
   paymentDateISO: string,
   totalPayment: number
-): MortgageSplit & { escrowInferred: boolean } {
+): MortgageSplit & { escrowInferred: boolean; paymentNumber: number } {
   const hasEscrowData = (params.rentalMonthlyTaxes > 0 || params.rentalMonthlyInsurance > 0);
   
-  const index = monthsBetween(params.startDate, paymentDateISO);
+  // Use firstPaymentDate if available, otherwise fall back to startDate
+  const index = getPaymentIndex(params.firstPaymentDate, params.startDate, paymentDateISO);
   
   // First, calculate the expected P&I from loan terms (no override)
   // This gives us what principal + interest SHOULD be for this payment
@@ -143,5 +178,6 @@ export function computeMortgageSplit(
     escrowInsurance: round2(escrowInsurance),
     totalPayment: round2(totalPayment),
     escrowInferred,
+    paymentNumber: index + 1, // 1-based for display
   };
 }

@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { formatCurrency } from '../utils/format';
+import {
+  isBankCode,
+  isCreditCardCode,
+  isRentalIncomeCode,
+  isMarketingExpenseCode,
+  isRealEstateExpenseCode,
+  type Purpose,
+} from '../utils/accounts';
 
 type AccountBalance = {
   account_id: number;
@@ -9,57 +18,43 @@ type AccountBalance = {
   balance: number;
 };
 
-type PendingTransaction = {
-  line_id: number;
-  transaction_id: number;
-  account_id: number;
-  amount: number;
-  purpose: string | null;
-  account_name: string;
-  account_code: string | null;
-  account_type: string;
-  transaction_date: string;
-  description: string | null;
-  updated_at: string;
-  job_name: string | null;
-};
-
-type YTDIncome = {
-  year: number;
-  income_account: string;
-  total_income: number;
-};
-
-type YTDExpense = {
-  year: number;
-  expense_segment: string;
-  total_expense: number;
+type RealEstateDeal = {
+  id: number;
+  nickname: string;
+  type: string;
+  status: string;
+  purchase_price: number | null;
+  original_loan_amount: number | null;
+  asset_account_id: number | null;
+  loan_account_id: number | null;
 };
 
 export function DashboardOverview() {
   const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
-  const [pendingTransactions, setPendingTransactions] = useState<PendingTransaction[]>([]);
-  const [ytdIncome, setYtdIncome] = useState<YTDIncome[]>([]);
-  const [ytdExpense, setYtdExpense] = useState<YTDExpense[]>([]);
+  const [realEstateDeals, setRealEstateDeals] = useState<RealEstateDeal[]>([]);
+
+  // Income totals computed directly from transaction_lines
+  const [jobIncomeYtd, setJobIncomeYtd] = useState(0);
+  const [rentalIncomeYtd, setRentalIncomeYtd] = useState(0);
+
+  // Expense totals computed directly from transaction_lines (matching ExpensesSummary)
+  const [jobExpenseYtd, setJobExpenseYtd] = useState(0);
+  const [marketingExpenseYtd, setMarketingExpenseYtd] = useState(0);
+  const [overheadExpenseYtd, setOverheadExpenseYtd] = useState(0);
+  const [rentalExpenseYtd, setRentalExpenseYtd] = useState(0);
+  const [personalExpenseYtd, setPersonalExpenseYtd] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Clear-transaction modal state
-  const [clearOpen, setClearOpen] = useState(false);
-  const [clearTarget, setClearTarget] = useState<PendingTransaction | null>(null);
-  const [clearAmount, setClearAmount] = useState<string>('');
-  const [clearDate, setClearDate] = useState<string>('');
-  const [clearDescription, setClearDescription] = useState<string>('');
-  const [clearError, setClearError] = useState<string | null>(null);
-
-  // Load dashboard data from live views
   async function loadDashboardData() {
     setLoading(true);
     setError(null);
 
     try {
       const currentYear = new Date().getFullYear();
+      const startDate = `${currentYear}-01-01`;
+      const endDate = `${currentYear}-12-31`;
 
       // Account balances
       const { data: balancesData, error: balancesErr } = await supabase
@@ -69,36 +64,93 @@ export function DashboardOverview() {
       if (balancesErr) throw balancesErr;
       setAccountBalances((balancesData ?? []) as AccountBalance[]);
 
-      // Pending transactions
-      const { data: pendingData, error: pendingErr } = await supabase
-        .from('pending_transactions_v')
-        .select('*');
+      // YTD transactions - query ALL cleared lines for the year (income + expense)
+      const { data: allLines, error: linesErr } = await supabase
+        .from('transaction_lines')
+        .select(`
+          id,
+          account_id,
+          amount,
+          purpose,
+          job_id,
+          accounts!inner (
+            code,
+            account_types!inner ( name )
+          ),
+          transactions!inner ( date )
+        `)
+        .eq('is_cleared', true)
+        .gte('transactions.date', startDate)
+        .lte('transactions.date', endDate);
 
-      if (pendingErr) throw pendingErr;
-      setPendingTransactions((pendingData ?? []) as PendingTransaction[]);
+      if (linesErr) throw linesErr;
 
-      // YTD income
-      const { data: incomeData, error: incomeErr } = await supabase
-        .from('ytd_income_v')
-        .select('*')
-        .eq('year', currentYear);
+      // Categorize income and expenses
+      let jobInc = 0;
+      let rentalInc = 0;
+      let jobExp = 0;
+      let marketingExp = 0;
+      let overheadExp = 0;
+      let rentalExp = 0;
+      let personalExp = 0;
 
-      if (incomeErr) throw incomeErr;
-      setYtdIncome((incomeData ?? []) as YTDIncome[]);
+      for (const line of (allLines ?? []) as any[]) {
+        const amount = Math.abs(Number(line.amount) || 0);
+        const purpose: Purpose = line.purpose ?? 'business';
+        const accType = line.accounts?.account_types?.name;
+        const code = line.accounts?.code ?? '';
 
-      // YTD expenses
-      const { data: expenseData, error: expenseErr } = await supabase
-        .from('ytd_expense_v')
-        .select('*')
-        .eq('year', currentYear);
+        const isBusiness = purpose === 'business' || purpose === 'mixed';
+        const isPersonal = purpose === 'personal';
 
-      if (expenseErr) throw expenseErr;
-      setYtdExpense((expenseData ?? []) as YTDExpense[]);
+        // INCOME categorization (matching TaxExportView)
+        if (accType === 'income') {
+          if (isBusiness) {
+            if (isRentalIncomeCode(code)) {
+              rentalInc += amount;
+            } else {
+              jobInc += amount;
+            }
+          }
+        }
+
+        // EXPENSE categorization (matching ExpensesSummary)
+        else if (accType === 'expense') {
+          if (isPersonal) {
+            personalExp += amount;
+          } else if (isBusiness && isRealEstateExpenseCode(code)) {
+            rentalExp += amount;
+          } else if (isBusiness && line.job_id !== null) {
+            jobExp += amount;
+          } else if (isBusiness && isMarketingExpenseCode(code)) {
+            marketingExp += amount;
+          } else if (isBusiness) {
+            overheadExp += amount;
+          }
+        }
+      }
+
+      setJobIncomeYtd(jobInc);
+      setRentalIncomeYtd(rentalInc);
+      setJobExpenseYtd(jobExp);
+      setMarketingExpenseYtd(marketingExp);
+      setOverheadExpenseYtd(overheadExp);
+      setRentalExpenseYtd(rentalExp);
+      setPersonalExpenseYtd(personalExp);
+
+      // Real estate deals
+      const { data: dealsData, error: dealsErr } = await supabase
+        .from('real_estate_deals')
+        .select('id, nickname, type, status, purchase_price, original_loan_amount, asset_account_id, loan_account_id')
+        .in('status', ['active', 'stabilized', 'rehab']);
+
+      if (dealsErr) throw dealsErr;
+      setRealEstateDeals((dealsData ?? []) as RealEstateDeal[]);
 
       setLoading(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message ?? 'Failed to load dashboard data');
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
       setLoading(false);
     }
   }
@@ -107,635 +159,204 @@ export function DashboardOverview() {
     loadDashboardData();
   }, []);
 
-  // Open the clear-transaction modal with defaults
-  function handleMarkCleared(pending: PendingTransaction) {
-    setError(null);
-    setClearError(null);
-    setClearTarget(pending);
-
-    const defaultAmount = Math.abs(Number(pending.amount)).toFixed(2);
-    const todayISO = new Date().toISOString().slice(0, 10);
-
-    setClearDate(pending.transaction_date || todayISO);
-    setClearDescription(pending.description ?? '');
-    setClearAmount(defaultAmount);
-    
-    setClearOpen(true);
-  }
-
-  // Confirm clear: validate and call RPC
-  async function confirmClear() {
-    if (!clearTarget) return;
-
-    try {
-      setClearError(null);
-      setError(null);
-
-      // ----- Amount validation -----
-      let finalAmount = Number(clearTarget.amount);
-      const amountTrim = clearAmount.trim();
-
-      if (amountTrim !== '') {
-        const parsed = Number(amountTrim);
-        if (Number.isNaN(parsed) || parsed <= 0) {
-          setClearError('Invalid amount. Use a positive number like 58.15.');
-          return;
-        }
-        const sign = Number(clearTarget.amount) < 0 ? -1 : 1;
-        finalAmount = parsed * sign;
-      }
-
-      // ----- Date validation -----
-      let newDate: string | null = null;
-      const dateTrim = clearDate.trim();
-
-      if (dateTrim !== '') {
-        const isoPattern = /^\d{4}-\d{2}-\d{2}$/;
-        if (!isoPattern.test(dateTrim)) {
-          setClearError('Invalid date. Use YYYY-MM-DD, e.g. 2025-03-01.');
-          return;
-        }
-        const d = new Date(dateTrim + 'T00:00:00');
-        if (Number.isNaN(d.getTime())) {
-          setClearError('Invalid date value. Please check day/month.');
-          return;
-        }
-        newDate = dateTrim;
-      } else {
-        // blank => keep existing transaction.date
-        newDate = null;
-      }
-
-      // ----- Description handling -----
-      let newDescription: string | null = null;
-      const descTrim = clearDescription.trim();
-      if (descTrim !== '') {
-        newDescription = descTrim;
-      } else {
-        // blank => keep existing description
-        newDescription = null;
-      }
-
-      const { data, error: rpcErr } = await supabase.rpc('mark_transaction_cleared', {
-        p_transaction_id: clearTarget.transaction_id,
-        p_clicked_line_id: clearTarget.line_id,
-        p_new_amount: finalAmount,
-        p_new_date: newDate,
-        p_new_description: newDescription,
-      });
-
-      if (rpcErr) throw rpcErr;
-      console.log('Transaction marked cleared:', data);
-
-      // Close modal, reset local state, reload dashboard
-      setClearOpen(false);
-      setClearTarget(null);
-      setClearAmount('');
-      setClearDate('');
-      setClearDescription('');
-      setClearError(null);
-
-      await loadDashboardData();
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message ?? 'Failed to mark line cleared');
-    }
-  }
-
-  // Delete a pending transaction
-  async function handleDeletePending(pending: PendingTransaction) {
-    if (!window.confirm('Remove this pending transaction (both sides) from the database?')) return;
-
-    try {
-      const { data, error: rpcErr } = await supabase.rpc('delete_transaction', {
-        p_transaction_id: pending.transaction_id,
-      });
-
-      if (rpcErr) throw rpcErr;
-      console.log('Transaction deleted:', data);
-
-      await loadDashboardData();
-    } catch (err: any) {
-      console.error('Error deleting pending transaction', err);
-      window.alert(err.message ?? 'Failed to delete pending transaction.');
-    }
-  }
-
-  if (loading) return <p>Loading balances…</p>;
+  if (loading) return <p>Loading…</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
 
-  // Custom sort: account_id = 1 first, then by code
+  // Sort accounts
   const sortAccounts = (accounts: AccountBalance[]) => {
-    return accounts.sort((a, b) => {
+    return [...accounts].sort((a, b) => {
       if (a.account_id === 1) return -1;
       if (b.account_id === 1) return 1;
-
       const codeA = a.account_code || a.account_name;
       const codeB = b.account_code || b.account_name;
       return codeA.localeCompare(codeB);
     });
   };
 
-  // Separate accounts by type and apply custom sort
-  const cashAccounts = sortAccounts(accountBalances.filter(a => a.account_type === 'asset'));
-  const cardAccounts = sortAccounts(accountBalances.filter(a => a.account_type === 'liability'));
+  const cashAccounts = sortAccounts(accountBalances.filter((acc) => isBankCode(acc.account_code)));
+  const cardAccounts = sortAccounts(accountBalances.filter((acc) => isCreditCardCode(acc.account_code)));
 
-  // Calculate totals
   const totalCash = cashAccounts.reduce((sum, a) => sum + Number(a.balance), 0);
-  const totalCard = cardAccounts.reduce((sum, a) => sum + Number(a.balance), 0);
+  const totalCards = cardAccounts.reduce((sum, a) => sum + Number(a.balance), 0);
 
-  // Separate pending by type
-  const pendingCash = pendingTransactions.filter(p => p.account_type === 'asset');
-  const pendingCard = pendingTransactions.filter(p => p.account_type === 'liability');
-
-  const pendingCashTotal = pendingCash.reduce((sum, p) => sum + Number(p.amount), 0);
-  const pendingCardTotal = pendingCard.reduce((sum, p) => sum + Number(p.amount), 0);
-
-  const netPosition = totalCash - totalCard;
-
-  // Extract YTD income
-  const jobGrossYtd =
-    ytdIncome.find(i => i.income_account === 'Income - Job')?.total_income ?? 0;
-  const rentGrossYtd =
-    ytdIncome.find(i => i.income_account === 'Income - Rental')?.total_income ?? 0;
-  const totalGrossYtd = jobGrossYtd + rentGrossYtd;
-
-  // Extract YTD expenses
-  const contractingExpYtd =
-    ytdExpense.find(e => e.expense_segment === 'Contracting Business')?.total_expense ?? 0;
-  const rentalExpYtd =
-    ytdExpense.find(e => e.expense_segment === 'Rental Operations')?.total_expense ?? 0;
-  const personalExpYtd =
-    ytdExpense.find(e => e.expense_segment === 'Personal')?.total_expense ?? 0;
-  const totalExpYtd = contractingExpYtd + rentalExpYtd + personalExpYtd;
-
-  // Optional: business net before personal
-  const businessNetYtd =
-    jobGrossYtd + rentGrossYtd - contractingExpYtd - rentalExpYtd;
-
-  return (
-    <div>
-      {/* Income Snapshot */}
-      <h2>Gross YTD Income Snapshot</h2>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <SummaryCard label="Contracting" value={jobGrossYtd} />
-        <SummaryCard label="Rent" value={rentGrossYtd} />
-        <SummaryCard label="Total" value={totalGrossYtd} />
-      </div>
-
-      {/* Expense Snapshot */}
-      <h2>YTD Expense Snapshot</h2>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <SummaryCard label="Contracting" value={contractingExpYtd} />
-        <SummaryCard label="Rental" value={rentalExpYtd} />
-        <SummaryCard label="Personal" value={personalExpYtd} />
-        <SummaryCard label="Total" value={totalExpYtd} />
-        {/* Optional: uncomment if you want a quick business net card */}
-        {/* <SummaryCard
-          label="Business Net (Income - Contracting - Rental)"
-          value={businessNetYtd}
-          highlight={businessNetYtd >= 0 ? 'positive' : 'negative'}
-        /> */}
-      </div>
-
-      {/* Balances Overview */}
-      <h2>Balances Overview</h2>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <SummaryCard label="Total Cash / Bank" value={totalCash} />
-        <SummaryCard label="Total Cards / Loans" value={totalCard} />
-        <SummaryCard label="Pending Bank Transactions" value={pendingCashTotal} />
-        <SummaryCard label="Pending Card Transactions" value={pendingCardTotal} />
-        <SummaryCard
-          label="Net Position (Cash - Cards)"
-          value={netPosition}
-          highlight={netPosition >= 0 ? 'positive' : 'negative'}
-        />
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '1rem',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <AccountList
-            title="Cash & Bank Accounts"
-            accounts={cashAccounts}
-            emptyMessage="No asset accounts found."
-          />
-          <PendingList
-            title="Pending Bank Transactions"
-            pending={pendingCash}
-            emptyMessage="No pending bank transactions."
-            onMarkCleared={handleMarkCleared}
-            onDelete={handleDeletePending}
-          />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <AccountList
-            title="Cards & Loans"
-            accounts={cardAccounts}
-            emptyMessage="No liability accounts found."
-          />
-          <PendingList
-            title="Pending Card Transactions"
-            pending={pendingCard}
-            emptyMessage="No pending card transactions."
-            onMarkCleared={handleMarkCleared}
-            onDelete={handleDeletePending}
-          />
-        </div>
-      </div>
-
-      {/* Clear-transaction modal */}
-      {clearOpen && clearTarget && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-          onClick={() => {
-            setClearOpen(false);
-            setClearError(null);
-          }}
-        >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 8,
-              padding: '1rem',
-              width: '90%',
-              maxWidth: 520,
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <h3 style={{ margin: 0, fontSize: 16 }}>Clear transaction</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setClearOpen(false);
-                  setClearError(null);
-                }}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  fontSize: 18,
-                  cursor: 'pointer',
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div style={{ fontSize: 12, color: '#555', marginBottom: '0.75rem' }}>
-              <div>
-                <strong>Account:</strong>{' '}
-                {clearTarget.account_code ?? clearTarget.account_name}
-              </div>
-              <div>
-                <strong>Job:</strong>{' '}
-                {clearTarget.job_name ?? '(none)'}
-              </div>
-            </div>
-
-            {clearError && (
-              <p style={{ color: 'red', fontSize: 13, marginBottom: '0.5rem' }}>
-                {clearError}
-              </p>
-            )}
-
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-                marginBottom: '0.75rem',
-                fontSize: 13,
-              }}
-            >
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span>Cleared date</span>
-                <input
-                  type="date"
-                  value={clearDate}
-                  onChange={(e) => setClearDate(e.target.value)}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: 4,
-                    border: '1px solid #ccc',
-                    fontSize: 13,
-                  }}
-                />
-                <span style={{ fontSize: 11, color: '#777' }}>
-                  Leave blank to keep the existing transaction date.
-                </span>
-              </label>
-
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span>Description</span>
-                <input
-                  type="text"
-                  value={clearDescription}
-                  onChange={(e) => setClearDescription(e.target.value)}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: 4,
-                    border: '1px solid #ccc',
-                    fontSize: 13,
-                  }}
-                  placeholder="Leave blank to keep the existing description"
-                />
-              </label>
-
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span>Final cleared amount (tip included)</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={clearAmount}
-                  onChange={(e) => setClearAmount(e.target.value)}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: 4,
-                    border: '1px solid #ccc',
-                    fontSize: 13,
-                  }}
-                />
-                <span style={{ fontSize: 11, color: '#777' }}>
-                  Enter a positive amount. The system will keep the debit/credit sign
-                  automatically.
-                </span>
-              </label>
-
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '0.5rem',
-                marginTop: '0.25rem',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setClearOpen(false);
-                  setClearError(null);
-                }}
-                style={{
-                  padding: '4px 10px',
-                  fontSize: 13,
-                  borderRadius: 4,
-                  border: '1px solid #ccc',
-                  background: '#f5f5f5',
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void confirmClear()}
-                style={{
-                  padding: '4px 10px',
-                  fontSize: 13,
-                  borderRadius: 4,
-                  border: '1px solid #111',
-                  background: '#111',
-                  color: '#fff',
-                  cursor: 'pointer',
-                }}
-              >
-                Confirm clear
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: number;
-  highlight?: 'positive' | 'negative';
-}) {
-  let color = '#111';
-  if (highlight === 'positive') color = '#0a7a3c';
-  if (highlight === 'negative') color = '#b00020';
-
-  const text = value.toLocaleString(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
+  // RE equity
+  const rePortfolio = realEstateDeals.map((deal) => {
+    const loanAccount = accountBalances.find((a) => a.account_id === deal.loan_account_id);
+    const mortgageAccountBalance = loanAccount ? Number(loanAccount.balance) : 0;
+    const purchasePrice = deal.purchase_price ?? 0;
+    const originalLoan = deal.original_loan_amount ?? 0;
+    const equity = purchasePrice - originalLoan - mortgageAccountBalance;
+    return { id: deal.id, nickname: deal.nickname, equity };
   });
 
-  return (
-    <div
-      style={{
-        borderRadius: 12,
-        border: '1px solid #eee',
-        padding: '0.6rem 0.9rem',
-        background: '#fff',
-      }}
-    >
-      <div style={{ fontSize: 16, color: '#777', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontWeight: 600, fontSize: 22, color }}>{text}</div>
-    </div>
-  );
-}
+  const totalEquity = rePortfolio.reduce((sum, p) => sum + p.equity, 0);
+  const liquidNet = totalCash - totalCards;
+  const totalNetWorth = liquidNet + totalEquity;
 
-function AccountList({
-  title,
-  accounts,
-  emptyMessage,
-}: {
-  title: string;
-  accounts: AccountBalance[];
-  emptyMessage: string;
-}) {
-  const thStyle = {
-    textAlign: 'left' as const,
-    borderBottom: '1px solid #ddd',
-    padding: '3px 4px',
+  // YTD totals
+  const totalIncomeYtd = jobIncomeYtd + rentalIncomeYtd;
+  const totalExpenseYtd = jobExpenseYtd + marketingExpenseYtd + overheadExpenseYtd + rentalExpenseYtd + personalExpenseYtd;
+  const netYtd = totalIncomeYtd - totalExpenseYtd;
+
+  const currency = (val: number, decimals = 0) => formatCurrency(val, decimals);
+
+  const rowStyle = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '4px 0',
+    fontSize: 14,
   };
-  const tdStyle = { padding: '3px 4px', borderBottom: '1px solid #f2f2f2' };
 
-  return (
-    <div className="card">
-      <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>{title}</h3>
-      {accounts.length === 0 && (
-        <p style={{ fontSize: 13, color: '#777' }}>{emptyMessage}</p>
-      )}
-      {accounts.length > 0 && (
-        <table className="table">
-          <thead>
-            <tr>
-              <th style={thStyle}>Account</th>
-              <th style={{ ...thStyle, textAlign: 'right' }}>Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {accounts.map((acc) => {
-              const label = acc.account_code
-                ? `${acc.account_name} - ${acc.account_code}`
-                : acc.account_name;
-              return (
-                <tr key={acc.account_id}>
-                  <td style={tdStyle}>{label}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>
-                    {Number(acc.balance).toLocaleString('en-US', {
-                      style: 'currency',
-                      currency: 'USD',
-                      minimumFractionDigits: 2,
-                    })}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
-
-function PendingList({
-  title,
-  pending,
-  emptyMessage,
-  onMarkCleared,
-  onDelete,
-}: {
-  title: string;
-  pending: PendingTransaction[];
-  emptyMessage: string;
-  onMarkCleared: (p: PendingTransaction) => void;
-  onDelete: (p: PendingTransaction) => void;
-}) {
-  const thStyle = {
-    textAlign: 'left' as const,
-    borderBottom: '1px solid #ddd',
-    padding: '3px 4px',
+  const dividerStyle = {
+    borderTop: '1px solid #e0e0e0',
+    margin: '6px 0',
   };
-  const tdStyle = { padding: '3px 4px', borderBottom: '1px solid #f2f2f2' };
-  const btnStyle = {
-    borderRadius: 999,
-    border: '1px solid #ccc',
-    padding: '2px 8px',
-    background: '#f5f5f5',
-    cursor: 'pointer',
-    fontSize: 12,
+
+  const thickDividerStyle = {
+    borderTop: '2px solid #ccc',
+    margin: '8px 0',
+  };
+
+  const subtotalStyle = {
+    ...rowStyle,
+    fontWeight: 600,
+    color: '#555',
+  };
+
+  const totalStyle = {
+    ...rowStyle,
+    fontWeight: 700,
+    fontSize: 15,
   };
 
   return (
-    <div className="card">
-      <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>{title}</h3>
-      {pending.length === 0 && (
-        <p style={{ fontSize: 13, color: '#777' }}>{emptyMessage}</p>
-      )}
-      {pending.length > 0 && (
-        <table className="table">
-          <thead>
-            <tr>
-              <th style={thStyle}>Account</th>
-              <th style={thStyle}>Description</th>
-              <th style={{ ...thStyle, textAlign: 'right' }}>Amount</th>
-              <th style={{ ...thStyle, textAlign: 'center' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pending.map((p) => {
-              const accountCode = p.account_code ?? p.account_name;
-              const jobName = p.job_name ?? '';
-              const desc = p.description ?? '';
-              const description =
-                jobName && desc ? `${jobName} / ${desc}` : jobName || desc || '';
-              const amountText = Number(p.amount).toLocaleString('en-US', {
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 2,
-              });
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1rem', alignItems: 'start' }}>
+      {/* YTD Snapshot Card */}
+      <div className="card">
+        <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>YTD Snapshot</h3>
+        
+        <div style={rowStyle}>
+          <span>Job Income</span>
+          <span style={{ color: '#0a7a3c' }}>{currency(jobIncomeYtd)}</span>
+        </div>
+        <div style={rowStyle}>
+          <span>Rental Income</span>
+          <span style={{ color: '#0a7a3c' }}>{currency(rentalIncomeYtd)}</span>
+        </div>
+        
+        <div style={dividerStyle} />
+        
+        <div style={rowStyle}>
+          <span>Job Expenses</span>
+          <span style={{ color: '#b00020' }}>-{currency(jobExpenseYtd)}</span>
+        </div>
+        <div style={rowStyle}>
+          <span>Marketing</span>
+          <span style={{ color: '#b00020' }}>-{currency(marketingExpenseYtd)}</span>
+        </div>
+        <div style={rowStyle}>
+          <span>Overhead</span>
+          <span style={{ color: '#b00020' }}>-{currency(overheadExpenseYtd)}</span>
+        </div>
+        <div style={rowStyle}>
+          <span>Real Estate</span>
+          <span style={{ color: '#b00020' }}>-{currency(rentalExpenseYtd)}</span>
+        </div>
+        <div style={rowStyle}>
+          <span>Personal</span>
+          <span style={{ color: '#b00020' }}>-{currency(personalExpenseYtd)}</span>
+        </div>
+        
+        <div style={thickDividerStyle} />
+        
+        <div style={totalStyle}>
+          <span>Net</span>
+          <span style={{ color: netYtd >= 0 ? '#0a7a3c' : '#b00020' }}>
+            {netYtd >= 0 ? '' : '-'}{currency(Math.abs(netYtd))}
+          </span>
+        </div>
+      </div>
 
-              return (
-                <tr key={p.line_id}>
-                  <td style={tdStyle}>{accountCode}</td>
-                  <td style={tdStyle}>{description}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>{amountText}</td>
-                  <td style={{ ...tdStyle, textAlign: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => onMarkCleared(p)}
-                      style={{ ...btnStyle, marginRight: 4 }}
-                    >
-                      Cleared
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(p)}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                        padding: '0 4px',
-                        fontSize: 14,
-                        color: '#b00020',
-                      }}
-                      title="Remove"
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* Balances Card */}
+      <div className="card">
+        <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Balances</h3>
+        
+        {/* Cash accounts */}
+        {cashAccounts.map((acc) => (
+          <div key={acc.account_id} style={rowStyle}>
+            <span style={{ color: '#555' }}>{acc.account_name}</span>
+            <span>{currency(Number(acc.balance), 2)}</span>
+          </div>
+        ))}
+        
+        <div style={dividerStyle} />
+        
+        <div style={subtotalStyle}>
+          <span>Cash Total</span>
+          <span>{currency(totalCash)}</span>
+        </div>
+        
+        <div style={dividerStyle} />
+        
+        {/* Credit cards */}
+        {cardAccounts.map((acc) => (
+          <div key={acc.account_id} style={rowStyle}>
+            <span style={{ color: '#555' }}>{acc.account_name}</span>
+            <span style={{ color: Number(acc.balance) < 0 ? '#b00020' : undefined }}>
+              {currency(Number(acc.balance), 2)}
+            </span>
+          </div>
+        ))}
+        
+        <div style={dividerStyle} />
+        
+        <div style={subtotalStyle}>
+          <span>Cards Total</span>
+          <span style={{ color: totalCards < 0 ? '#b00020' : undefined }}>{currency(totalCards)}</span>
+        </div>
+        
+        <div style={thickDividerStyle} />
+        
+        <div style={totalStyle}>
+          <span>Liquid Net</span>
+          <span style={{ color: liquidNet >= 0 ? '#0a7a3c' : '#b00020' }}>{currency(liquidNet)}</span>
+        </div>
+        
+        <div style={rowStyle}>
+          <span>RE Equity</span>
+          <span style={{ color: totalEquity >= 0 ? '#0a7a3c' : '#b00020' }}>{currency(totalEquity)}</span>
+        </div>
+        
+        <div style={dividerStyle} />
+        
+        <div style={{ ...totalStyle, fontSize: 16 }}>
+          <span>Net Worth</span>
+          <span style={{ color: totalNetWorth >= 0 ? '#0a7a3c' : '#b00020' }}>{currency(totalNetWorth)}</span>
+        </div>
+      </div>
+
+      {/* RE Portfolio Card */}
+      {rePortfolio.length > 0 && (
+        <div className="card">
+          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Real Estate</h3>
+          
+          {rePortfolio.map((p) => (
+            <div key={p.id} style={rowStyle}>
+              <span style={{ color: '#555' }}>{p.nickname}</span>
+              <span style={{ color: p.equity >= 0 ? '#0a7a3c' : '#b00020' }}>{currency(p.equity)}</span>
+            </div>
+          ))}
+          
+          {rePortfolio.length > 1 && (
+            <>
+              <div style={dividerStyle} />
+              <div style={subtotalStyle}>
+                <span>Total Equity</span>
+                <span style={{ color: totalEquity >= 0 ? '#0a7a3c' : '#b00020' }}>{currency(totalEquity)}</span>
+              </div>
+            </>
+          )}
+        </div>
       )}
     </div>
   );

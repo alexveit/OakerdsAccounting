@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { formatCurrency } from '../utils/format';
+import { isRentalIncomeCode, isRealEstateExpenseCode } from '../utils/accounts';
 import * as XLSX from 'xlsx';
 
 type TaxYear = number;
@@ -61,7 +63,6 @@ export function TaxExportView() {
         .gte('transactions.date', startDate)
         .lte('transactions.date', endDate);
 
-
       if (linesErr) throw linesErr;
 
       const lines = (linesData ?? []) as any[];
@@ -78,27 +79,19 @@ export function TaxExportView() {
         const accountId = line.account_id;
         const accountName = line.accounts?.name ?? 'Unknown';
         const amount = Math.abs(Number(line.amount) || 0);
+        const code = line.accounts?.code ?? '';
 
-        const codeStr: string = line.accounts?.code ?? '';
-        const codeNum = Number(codeStr) || 0;
-
-        // -----------------------------
         // INCOME
-        // -----------------------------
         if (accType === 'income') {
           if (purpose === 'business' || purpose === 'mixed') {
-            
-            // Rental Income = 42000–42999
-            if (codeNum >= 42000 && codeNum <= 42999) {
+            if (isRentalIncomeCode(code)) {
               let row = schedEIncomeMap.get(accountId);
               if (!row) {
                 row = { category: 'Rental Income', accountName, total: 0 };
                 schedEIncomeMap.set(accountId, row);
               }
               row.total += amount;
-
             } else {
-              // Everything else is Schedule C (Job/business income)
               let row = schedCIncomeMap.get(accountId);
               if (!row) {
                 row = { category: 'Business Income', accountName, total: 0 };
@@ -109,24 +102,17 @@ export function TaxExportView() {
           }
         }
 
-        // -----------------------------
         // EXPENSES
-        // -----------------------------
         else if (accType === 'expense') {
-
           if (purpose === 'business' || purpose === 'mixed') {
-
-            // Rental Expenses = 62000–62999
-            if (codeNum >= 62000 && codeNum <= 62999) {
+            if (isRealEstateExpenseCode(code)) {
               let row = schedEExpenseMap.get(accountId);
               if (!row) {
                 row = { category: 'Rental Expense', accountName, total: 0 };
                 schedEExpenseMap.set(accountId, row);
               }
               row.total += amount;
-
             } else {
-              // Everything else is Schedule C
               let row = schedCExpenseMap.get(accountId);
               if (!row) {
                 row = { category: 'Business Expense', accountName, total: 0 };
@@ -134,10 +120,7 @@ export function TaxExportView() {
               }
               row.total += amount;
             }
-          }
-
-          // Personal section unchanged
-          else if (purpose === 'personal') {
+          } else if (purpose === 'personal') {
             let row = personalExpenseMap.get(accountId);
             if (!row) {
               row = { category: 'Personal Expense', accountName, total: 0 };
@@ -148,9 +131,7 @@ export function TaxExportView() {
         }
       }
 
-
-      const sortByTotal = (a: ScheduleCRow, b: ScheduleCRow) =>
-        b.total - a.total;
+      const sortByTotal = (a: ScheduleCRow, b: ScheduleCRow) => b.total - a.total;
 
       setScheduleCIncome(Array.from(schedCIncomeMap.values()).sort(sortByTotal));
       setScheduleCExpenses(Array.from(schedCExpenseMap.values()).sort(sortByTotal));
@@ -161,9 +142,9 @@ export function TaxExportView() {
       await loadContractorPayments();
 
       setLoading(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message ?? 'Failed to load tax data');
+      setError(err instanceof Error ? err.message : 'Failed to load tax data');
       setLoading(false);
     }
   }
@@ -218,106 +199,378 @@ export function TaxExportView() {
         .sort((a, b) => b.totalPaid - a.totalPaid);
 
       setContractors(contractorList);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error loading contractor payments:', err);
     }
   }
 
   function generateExcelWorkbook() {
     const wb = XLSX.utils.book_new();
+    const data: (string | number | null)[][] = [];
 
-    // Schedule C Income Sheet
+    let row = 1;
+
+    const refs = {
+      schedCIncomeTotal: '',
+      schedCExpenseTotal: '',
+      schedCNet: '',
+      schedEIncomeTotal: '',
+      schedEExpenseTotal: '',
+      schedENet: '',
+      personalTotal: '',
+      contractorTotal: '',
+      schedCIncomeStart: 0,
+      schedCIncomeEnd: 0,
+      schedCExpenseStart: 0,
+      schedCExpenseEnd: 0,
+      schedEIncomeStart: 0,
+      schedEIncomeEnd: 0,
+      schedEExpenseStart: 0,
+      schedEExpenseEnd: 0,
+      personalStart: 0,
+      personalEnd: 0,
+      contractorStart: 0,
+      contractorEnd: 0,
+    };
+
+    const summaryRows = {
+      schedCIncome: 0,
+      schedCExpense: 0,
+      schedCNet: 0,
+      schedEIncome: 0,
+      schedEExpense: 0,
+      schedENet: 0,
+      personal: 0,
+      contractor: 0,
+    };
+
+    // Header
+    data.push([`OAKERDS TAX REPORT - TAX YEAR ${year}`]);
+    row++;
+    data.push([`Generated: ${new Date().toLocaleDateString()}`]);
+    row++;
+    data.push([]);
+    row++;
+
+    // SUMMARY SECTION
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push(['SUMMARY']);
+    row++;
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push([]);
+    row++;
+
+    data.push(['Schedule C (Business)', '', 'Amount']);
+    row++;
+    summaryRows.schedCIncome = row;
+    data.push(['  Gross Income', '', null]);
+    row++;
+    summaryRows.schedCExpense = row;
+    data.push(['  Total Expenses', '', null]);
+    row++;
+    summaryRows.schedCNet = row;
+    data.push(['  Net Profit/Loss', '', null]);
+    row++;
+    data.push([]);
+    row++;
+
+    data.push(['Schedule E (Rental)', '', 'Amount']);
+    row++;
+    summaryRows.schedEIncome = row;
+    data.push(['  Gross Income', '', null]);
+    row++;
+    summaryRows.schedEExpense = row;
+    data.push(['  Total Expenses', '', null]);
+    row++;
+    summaryRows.schedENet = row;
+    data.push(['  Net Profit/Loss', '', null]);
+    row++;
+    data.push([]);
+    row++;
+
+    summaryRows.personal = row;
+    data.push(['Personal Expenses', '', null]);
+    row++;
+    summaryRows.contractor = row;
+    data.push(['1099-NEC Contractors', '', null]);
+    row++;
+    data.push([]);
+    row++;
+
+    // SCHEDULE C - BUSINESS INCOME
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push(['SCHEDULE C - BUSINESS INCOME']);
+    row++;
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push([]);
+    row++;
+
     if (scheduleCIncome.length > 0) {
-      const schedCIncomeData = [
-        [`Schedule C - Business Income (Tax Year ${year})`],
-        [],
-        ['Account', 'Total'],
-        ...scheduleCIncome.map((r) => [r.accountName, r.total]),
-        [],
-        ['TOTAL', scheduleCIncome.reduce((s, r) => s + r.total, 0)],
-      ];
-      const ws1 = XLSX.utils.aoa_to_sheet(schedCIncomeData);
-      XLSX.utils.book_append_sheet(wb, ws1, 'Sched C Income');
+      data.push(['Account', '', 'Amount']);
+      row++;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.schedCIncomeStart = row;
+      for (const item of scheduleCIncome) {
+        data.push([item.accountName, '', item.total]);
+        row++;
+      }
+      refs.schedCIncomeEnd = row - 1;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.schedCIncomeTotal = `C${row}`;
+      data.push(['TOTAL BUSINESS INCOME', '', null]);
+      row++;
+    } else {
+      data.push(['No business income recorded for this year.']);
+      row++;
     }
+    data.push([]);
+    row++;
 
-    // Schedule C Expenses Sheet
+    // SCHEDULE C - BUSINESS EXPENSES
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push(['SCHEDULE C - BUSINESS EXPENSES']);
+    row++;
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push([]);
+    row++;
+
     if (scheduleCExpenses.length > 0) {
-      const schedCExpenseData = [
-        [`Schedule C - Business Expenses (Tax Year ${year})`],
-        [],
-        ['Account', 'Total'],
-        ...scheduleCExpenses.map((r) => [r.accountName, r.total]),
-        [],
-        ['TOTAL', scheduleCExpenses.reduce((s, r) => s + r.total, 0)],
-      ];
-      const ws2 = XLSX.utils.aoa_to_sheet(schedCExpenseData);
-      XLSX.utils.book_append_sheet(wb, ws2, 'Sched C Expenses');
+      data.push(['Account', '', 'Amount']);
+      row++;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.schedCExpenseStart = row;
+      for (const item of scheduleCExpenses) {
+        data.push([item.accountName, '', item.total]);
+        row++;
+      }
+      refs.schedCExpenseEnd = row - 1;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.schedCExpenseTotal = `C${row}`;
+      data.push(['TOTAL BUSINESS EXPENSES', '', null]);
+      row++;
+      data.push([]);
+      row++;
+      refs.schedCNet = `C${row}`;
+      data.push(['SCHEDULE C NET PROFIT/LOSS', '', null]);
+      row++;
+    } else {
+      data.push(['No business expenses recorded for this year.']);
+      row++;
     }
+    data.push([]);
+    row++;
 
-    // Schedule E Income Sheet
+    // SCHEDULE E - RENTAL INCOME
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push(['SCHEDULE E - RENTAL INCOME']);
+    row++;
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push([]);
+    row++;
+
     if (scheduleEIncome.length > 0) {
-      const schedEIncomeData = [
-        [`Schedule E - Rental Income (Tax Year ${year})`],
-        [],
-        ['Account', 'Total'],
-        ...scheduleEIncome.map((r) => [r.accountName, r.total]),
-        [],
-        ['TOTAL', scheduleEIncome.reduce((s, r) => s + r.total, 0)],
-      ];
-      const ws3 = XLSX.utils.aoa_to_sheet(schedEIncomeData);
-      XLSX.utils.book_append_sheet(wb, ws3, 'Sched E Income');
+      data.push(['Account', '', 'Amount']);
+      row++;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.schedEIncomeStart = row;
+      for (const item of scheduleEIncome) {
+        data.push([item.accountName, '', item.total]);
+        row++;
+      }
+      refs.schedEIncomeEnd = row - 1;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.schedEIncomeTotal = `C${row}`;
+      data.push(['TOTAL RENTAL INCOME', '', null]);
+      row++;
+    } else {
+      data.push(['No rental income recorded for this year.']);
+      row++;
     }
+    data.push([]);
+    row++;
 
-    // Schedule E Expenses Sheet
+    // SCHEDULE E - RENTAL EXPENSES
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push(['SCHEDULE E - RENTAL EXPENSES']);
+    row++;
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push([]);
+    row++;
+
     if (scheduleEExpenses.length > 0) {
-      const schedEExpenseData = [
-        [`Schedule E - Rental Expenses (Tax Year ${year})`],
-        [],
-        ['Account', 'Total'],
-        ...scheduleEExpenses.map((r) => [r.accountName, r.total]),
-        [],
-        ['TOTAL', scheduleEExpenses.reduce((s, r) => s + r.total, 0)],
-      ];
-      const ws4 = XLSX.utils.aoa_to_sheet(schedEExpenseData);
-      XLSX.utils.book_append_sheet(wb, ws4, 'Sched E Expenses');
+      data.push(['Account', '', 'Amount']);
+      row++;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.schedEExpenseStart = row;
+      for (const item of scheduleEExpenses) {
+        data.push([item.accountName, '', item.total]);
+        row++;
+      }
+      refs.schedEExpenseEnd = row - 1;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.schedEExpenseTotal = `C${row}`;
+      data.push(['TOTAL RENTAL EXPENSES', '', null]);
+      row++;
+      data.push([]);
+      row++;
+      refs.schedENet = `C${row}`;
+      data.push(['SCHEDULE E NET PROFIT/LOSS', '', null]);
+      row++;
+    } else {
+      data.push(['No rental expenses recorded for this year.']);
+      row++;
     }
+    data.push([]);
+    row++;
 
-    // 1099 Contractors Sheet
-    if (contractors.length > 0) {
-      const contractorData = [
-        [`1099-NEC Contractor Report (Tax Year ${year})`],
-        [`Threshold: $600 or more`],
-        [],
-        ['First Name', 'Last Name', 'Company Name', 'Tax ID', 'Address', 'Total Paid'],
-        ...contractors.map((c) => [
-          c.firstName,
-          c.lastName ?? '',
-          c.companyName ?? '',
-          c.taxId ?? '',
-          c.address ?? '',
-          c.totalPaid,
-        ]),
-        [],
-        ['', '', '', '', 'TOTAL', contractors.reduce((s, c) => s + c.totalPaid, 0)],
-      ];
-      const ws5 = XLSX.utils.aoa_to_sheet(contractorData);
-      XLSX.utils.book_append_sheet(wb, ws5, '1099 Contractors');
-    }
+    // PERSONAL EXPENSES
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push(['PERSONAL EXPENSES (POTENTIAL ITEMIZED DEDUCTIONS)']);
+    row++;
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push([]);
+    row++;
 
-    // Personal Expenses Sheet
     if (personalExpenses.length > 0) {
-      const personalData = [
-        [`Personal Expenses - Potential Itemized Deductions (Tax Year ${year})`],
-        [],
-        ['Account', 'Total'],
-        ...personalExpenses.map((r) => [r.accountName, r.total]),
-        [],
-        ['TOTAL', personalExpenses.reduce((s, r) => s + r.total, 0)],
-      ];
-      const ws6 = XLSX.utils.aoa_to_sheet(personalData);
-      XLSX.utils.book_append_sheet(wb, ws6, 'Personal Expenses');
+      data.push(['Account', '', 'Amount']);
+      row++;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.personalStart = row;
+      for (const item of personalExpenses) {
+        data.push([item.accountName, '', item.total]);
+        row++;
+      }
+      refs.personalEnd = row - 1;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.personalTotal = `C${row}`;
+      data.push(['TOTAL PERSONAL EXPENSES', '', null]);
+      row++;
+    } else {
+      data.push(['No personal expenses recorded for this year.']);
+      row++;
+    }
+    data.push([]);
+    row++;
+
+    // 1099-NEC CONTRACTORS
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push(['1099-NEC CONTRACTOR PAYMENTS ($600+ THRESHOLD)']);
+    row++;
+    data.push(['═══════════════════════════════════════════════════════════════']);
+    row++;
+    data.push([]);
+    row++;
+
+    if (contractors.length > 0) {
+      data.push(['Name', 'Company', 'Tax ID', 'Address', 'Total Paid']);
+      row++;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.contractorStart = row;
+      for (const c of contractors) {
+        const name = `${c.firstName} ${c.lastName}`.trim();
+        data.push([name, c.companyName ?? '', c.taxId ?? '', c.address ?? '', c.totalPaid]);
+        row++;
+      }
+      refs.contractorEnd = row - 1;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.contractorTotal = `E${row}`;
+      data.push(['TOTAL 1099 PAYMENTS', '', '', '', null]);
+      row++;
+      data.push([]);
+      row++;
+      data.push([`${contractors.length} contractor(s) requiring 1099-NEC forms`]);
+    } else {
+      data.push(['No contractors paid $600 or more this year.']);
     }
 
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Add formulas
+    if (refs.schedCIncomeTotal && refs.schedCIncomeStart) {
+      ws[refs.schedCIncomeTotal] = { t: 's', f: `SUM(C${refs.schedCIncomeStart}:C${refs.schedCIncomeEnd})` };
+    }
+    if (refs.schedCExpenseTotal && refs.schedCExpenseStart) {
+      ws[refs.schedCExpenseTotal] = { t: 's', f: `SUM(C${refs.schedCExpenseStart}:C${refs.schedCExpenseEnd})` };
+    }
+    if (refs.schedCNet && refs.schedCIncomeTotal && refs.schedCExpenseTotal) {
+      ws[refs.schedCNet] = { t: 's', f: `${refs.schedCIncomeTotal}-${refs.schedCExpenseTotal}` };
+    }
+    if (refs.schedEIncomeTotal && refs.schedEIncomeStart) {
+      ws[refs.schedEIncomeTotal] = { t: 's', f: `SUM(C${refs.schedEIncomeStart}:C${refs.schedEIncomeEnd})` };
+    }
+    if (refs.schedEExpenseTotal && refs.schedEExpenseStart) {
+      ws[refs.schedEExpenseTotal] = { t: 's', f: `SUM(C${refs.schedEExpenseStart}:C${refs.schedEExpenseEnd})` };
+    }
+    if (refs.schedENet && refs.schedEIncomeTotal && refs.schedEExpenseTotal) {
+      ws[refs.schedENet] = { t: 's', f: `${refs.schedEIncomeTotal}-${refs.schedEExpenseTotal}` };
+    }
+    if (refs.personalTotal && refs.personalStart) {
+      ws[refs.personalTotal] = { t: 's', f: `SUM(C${refs.personalStart}:C${refs.personalEnd})` };
+    }
+    if (refs.contractorTotal && refs.contractorStart) {
+      ws[refs.contractorTotal] = { t: 's', f: `SUM(E${refs.contractorStart}:E${refs.contractorEnd})` };
+    }
+
+    // Summary formulas
+    if (refs.schedCIncomeTotal) {
+      ws[`C${summaryRows.schedCIncome}`] = { t: 's', f: refs.schedCIncomeTotal };
+    }
+    if (refs.schedCExpenseTotal) {
+      ws[`C${summaryRows.schedCExpense}`] = { t: 's', f: refs.schedCExpenseTotal };
+    }
+    if (refs.schedCNet) {
+      ws[`C${summaryRows.schedCNet}`] = { t: 's', f: refs.schedCNet };
+    }
+    if (refs.schedEIncomeTotal) {
+      ws[`C${summaryRows.schedEIncome}`] = { t: 's', f: refs.schedEIncomeTotal };
+    }
+    if (refs.schedEExpenseTotal) {
+      ws[`C${summaryRows.schedEExpense}`] = { t: 's', f: refs.schedEExpenseTotal };
+    }
+    if (refs.schedENet) {
+      ws[`C${summaryRows.schedENet}`] = { t: 's', f: refs.schedENet };
+    }
+    if (refs.personalTotal) {
+      ws[`C${summaryRows.personal}`] = { t: 's', f: refs.personalTotal };
+    }
+    if (refs.contractorTotal) {
+      ws[`C${summaryRows.contractor}`] = { t: 's', f: refs.contractorTotal };
+    }
+
+    ws['!cols'] = [
+      { wch: 40 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 30 },
+      { wch: 15 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, `Tax Report ${year}`);
     return wb;
   }
 
@@ -326,12 +579,7 @@ export function TaxExportView() {
     XLSX.writeFile(wb, `Oakerds_Tax_Report_${year}.xlsx`);
   }
 
-  const currency = (value: number) =>
-    value.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    });
+  const currency = (val: number) => formatCurrency(val, 2);
 
   const btnStyle: React.CSSProperties = {
     padding: '0.75rem 1.5rem',
@@ -346,6 +594,14 @@ export function TaxExportView() {
 
   if (loading) return <p>Loading tax data…</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+
+  const schedCIncomeTotal = scheduleCIncome.reduce((s, r) => s + r.total, 0);
+  const schedCExpenseTotal = scheduleCExpenses.reduce((s, r) => s + r.total, 0);
+  const schedCNet = schedCIncomeTotal - schedCExpenseTotal;
+
+  const schedEIncomeTotal = scheduleEIncome.reduce((s, r) => s + r.total, 0);
+  const schedEExpenseTotal = scheduleEExpenses.reduce((s, r) => s + r.total, 0);
+  const schedENet = schedEIncomeTotal - schedEExpenseTotal;
 
   return (
     <div>
@@ -376,7 +632,7 @@ export function TaxExportView() {
       </div>
 
       <div style={{ display: 'grid', gap: '1.5rem' }}>
-        {/* Schedule C - Business Income/Expenses */}
+        {/* Schedule C */}
         <div className="card">
           <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
             Schedule C (Profit or Loss from Business)
@@ -384,7 +640,7 @@ export function TaxExportView() {
 
           <div style={{ marginBottom: '1.5rem' }}>
             <h4 style={{ fontSize: 15, marginBottom: '0.5rem' }}>
-              Business Income - {currency(scheduleCIncome.reduce((s, r) => s + r.total, 0))}
+              Business Income - {currency(schedCIncomeTotal)}
             </h4>
             {scheduleCIncome.length === 0 && (
               <p style={{ fontSize: 13, color: '#777' }}>No business income for {year}.</p>
@@ -392,18 +648,34 @@ export function TaxExportView() {
             {scheduleCIncome.length > 0 && <ReportTable rows={scheduleCIncome} />}
           </div>
 
-          <div>
+          <div style={{ marginBottom: '1rem' }}>
             <h4 style={{ fontSize: 15, marginBottom: '0.5rem' }}>
-              Business Expenses - {currency(scheduleCExpenses.reduce((s, r) => s + r.total, 0))}
+              Business Expenses - {currency(schedCExpenseTotal)}
             </h4>
             {scheduleCExpenses.length === 0 && (
               <p style={{ fontSize: 13, color: '#777' }}>No business expenses for {year}.</p>
             )}
             {scheduleCExpenses.length > 0 && <ReportTable rows={scheduleCExpenses} />}
           </div>
+
+          <div
+            style={{
+              borderTop: '2px solid #ccc',
+              paddingTop: '0.75rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            <span>Schedule C Net Profit/Loss:</span>
+            <span style={{ color: schedCNet >= 0 ? '#0a7a3c' : '#b00020' }}>
+              {currency(schedCNet)}
+            </span>
+          </div>
         </div>
 
-        {/* Schedule E - Rental Income/Expenses */}
+        {/* Schedule E */}
         <div className="card">
           <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
             Schedule E (Supplemental Income - Rental Property)
@@ -411,7 +683,7 @@ export function TaxExportView() {
 
           <div style={{ marginBottom: '1.5rem' }}>
             <h4 style={{ fontSize: 15, marginBottom: '0.5rem' }}>
-              Rental Income - {currency(scheduleEIncome.reduce((s, r) => s + r.total, 0))}
+              Rental Income - {currency(schedEIncomeTotal)}
             </h4>
             {scheduleEIncome.length === 0 && (
               <p style={{ fontSize: 13, color: '#777' }}>No rental income for {year}.</p>
@@ -419,15 +691,51 @@ export function TaxExportView() {
             {scheduleEIncome.length > 0 && <ReportTable rows={scheduleEIncome} />}
           </div>
 
-          <div>
+          <div style={{ marginBottom: '1rem' }}>
             <h4 style={{ fontSize: 15, marginBottom: '0.5rem' }}>
-              Rental Expenses - {currency(scheduleEExpenses.reduce((s, r) => s + r.total, 0))}
+              Rental Expenses - {currency(schedEExpenseTotal)}
             </h4>
             {scheduleEExpenses.length === 0 && (
               <p style={{ fontSize: 13, color: '#777' }}>No rental expenses for {year}.</p>
             )}
             {scheduleEExpenses.length > 0 && <ReportTable rows={scheduleEExpenses} />}
           </div>
+
+          <div
+            style={{
+              borderTop: '2px solid #ccc',
+              paddingTop: '0.75rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            <span>Schedule E Net Profit/Loss:</span>
+            <span style={{ color: schedENet >= 0 ? '#0a7a3c' : '#b00020' }}>
+              {currency(schedENet)}
+            </span>
+          </div>
+        </div>
+
+        {/* Personal Expenses */}
+        <div className="card">
+          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
+            Personal Expenses (Potential Itemized Deductions)
+          </h3>
+          {personalExpenses.length === 0 && (
+            <p style={{ fontSize: 13, color: '#777' }}>
+              No personal expenses recorded for {year}.
+            </p>
+          )}
+          {personalExpenses.length > 0 && (
+            <>
+              <p style={{ fontSize: 13, color: '#555', marginBottom: '0.5rem' }}>
+                Total: {currency(personalExpenses.reduce((s, r) => s + r.total, 0))}
+              </p>
+              <ReportTable rows={personalExpenses} />
+            </>
+          )}
         </div>
 
         {/* 1099-NEC Contractors */}
@@ -450,38 +758,13 @@ export function TaxExportView() {
             </>
           )}
         </div>
-
-        {/* Personal Expenses (Itemized Deductions) */}
-        <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
-            Personal Expenses (Potential Itemized Deductions)
-          </h3>
-          {personalExpenses.length === 0 && (
-            <p style={{ fontSize: 13, color: '#777' }}>
-              No personal expenses recorded for {year}.
-            </p>
-          )}
-          {personalExpenses.length > 0 && (
-            <>
-              <p style={{ fontSize: 13, color: '#555', marginBottom: '0.5rem' }}>
-                Total: {currency(personalExpenses.reduce((s, r) => s + r.total, 0))}
-              </p>
-              <ReportTable rows={personalExpenses} />
-            </>
-          )}
-        </div>
       </div>
     </div>
   );
 }
 
 function ReportTable({ rows }: { rows: ScheduleCRow[] }) {
-  const currency = (value: number) =>
-    value.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    });
+  const currency = (value: number) => formatCurrency(value, 2);
 
   const thStyle: React.CSSProperties = {
     textAlign: 'left',
@@ -515,12 +798,7 @@ function ReportTable({ rows }: { rows: ScheduleCRow[] }) {
 }
 
 function ContractorTable({ contractors }: { contractors: ContractorPayment[] }) {
-  const currency = (value: number) =>
-    value.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    });
+  const currency = (value: number) => formatCurrency(value, 2);
 
   const thStyle: React.CSSProperties = {
     textAlign: 'left',

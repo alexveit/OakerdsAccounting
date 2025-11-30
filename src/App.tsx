@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { JobDetailView } from './components/JobDetailView';
 import { DashboardOverview } from './components/DashboardOverview';
 import { InstallersOverview } from './components/InstallersOverview';
@@ -47,6 +47,16 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType> = {
 function App() {
   const [view, setView] = useState<View>('dashboard');
   const [initialJobIdForEntry, setInitialJobIdForEntry] = useState<number | null>(null);
+
+  // Add shadow to header when scrolled
+  useEffect(() => {
+    const header = document.querySelector('.app-header-shell');
+    const handleScroll = () => {
+      header?.classList.toggle('scrolled', window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const isWideView = view === 'jobDetail' || view === 'expenses';
 

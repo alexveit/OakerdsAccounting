@@ -4,10 +4,12 @@ import { NewTransactionForm } from './NewTransactionForm';
 import { NewJobForm } from './NewJobForm';
 import { NewRealEstateDealForm } from './NewRealEstateDealForm';
 import { Transfers } from './Transfers';
+import { formatCurrency } from '../utils/format';
+import { isBankCode, isCreditCardCode } from '../utils/accounts';
 
 type EntryTab = 'transaction' | 'job' | 'deal' | 'transfer';
 
-type CashAccount = {
+type AccountBalance = {
   account_id: number;
   account_name: string;
   account_code: string | null;
@@ -18,27 +20,23 @@ type CashAccount = {
 export function NewEntryView({ initialJobId }: { initialJobId?: number | null }) {
   const [tab, setTab] = useState<EntryTab>('transaction');
 
-  const [cashAccounts, setCashAccounts] = useState<CashAccount[]>([]);
-  const [loadingCash, setLoadingCash] = useState(true);
-  const [cashError, setCashError] = useState<string | null>(null);
+  const [allAccounts, setAllAccounts] = useState<AccountBalance[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
 
   // Shared loader so we can refresh after each transaction save
-  async function loadCashAccounts() {
-    setLoadingCash(true);
-    setCashError(null);
+  async function loadAccounts() {
+    setLoadingAccounts(true);
+    setAccountsError(null);
 
     try {
-      // Load account balances from the same materialized view used on the dashboard
       const { data, error } = await supabase
         .from('account_balances_v')
         .select('*');
 
       if (error) throw error;
 
-      const rawBalances = (data ?? []) as any[];
-
-      // Keep only asset-type accounts and normalize types
-      const cashOnly: CashAccount[] = rawBalances
+      const accounts: AccountBalance[] = ((data ?? []) as any[])
         .map((row: any) => ({
           account_id: Number(row.account_id),
           account_name: String(row.account_name),
@@ -46,30 +44,35 @@ export function NewEntryView({ initialJobId }: { initialJobId?: number | null })
           account_type: String(row.account_type),
           balance: Number(row.balance) || 0,
         }))
-        .filter((a) => a.account_type === 'asset')
         .sort((a, b) => {
           // Always put account_id = 1 first
           if (a.account_id === 1) return -1;
           if (b.account_id === 1) return 1;
-
           // Then sort by code/name
           const codeA = a.account_code || a.account_name;
           const codeB = b.account_code || b.account_name;
           return codeA.localeCompare(codeB);
         });
 
-      setCashAccounts(cashOnly);
-      setLoadingCash(false);
-    } catch (err: any) {
+      setAllAccounts(accounts);
+      setLoadingAccounts(false);
+    } catch (err: unknown) {
       console.error(err);
-      setCashError(err.message ?? 'Failed to load cash accounts');
-      setLoadingCash(false);
+      setAccountsError(err instanceof Error ? err.message : 'Failed to load accounts');
+      setLoadingAccounts(false);
     }
   }
 
   useEffect(() => {
-    void loadCashAccounts();
+    void loadAccounts();
   }, []);
+
+  // Filter into banks and credit cards (exclude RE assets)
+  const bankAccounts = allAccounts.filter((a) => isBankCode(a.account_code));
+  const creditCardAccounts = allAccounts.filter((a) => isCreditCardCode(a.account_code));
+
+  const bankTotal = bankAccounts.reduce((sum, a) => sum + a.balance, 0);
+  const cardTotal = creditCardAccounts.reduce((sum, a) => sum + a.balance, 0);
 
   const gap = '0.75rem';
 
@@ -77,10 +80,75 @@ export function NewEntryView({ initialJobId }: { initialJobId?: number | null })
     textAlign: 'left',
     borderBottom: '1px solid #ddd',
     padding: '3px 4px',
+    fontSize: 12,
+    fontWeight: 600,
   };
   const tdStyle: CSSProperties = {
     padding: '3px 4px',
     borderBottom: '1px solid #f2f2f2',
+    fontSize: 13,
+  };
+  const totalRowStyle: CSSProperties = {
+    ...tdStyle,
+    fontWeight: 600,
+    borderTop: '2px solid #ccc',
+    borderBottom: 'none',
+    paddingTop: '6px',
+  };
+
+  const renderAccountTable = (
+    accounts: AccountBalance[],
+    total: number,
+    isCard = false
+  ) => {
+    if (loadingAccounts) {
+      return <p style={{ fontSize: 13, color: '#777' }}>Loading…</p>;
+    }
+    if (accountsError) {
+      return <p style={{ color: 'red', fontSize: 13 }}>Error: {accountsError}</p>;
+    }
+    if (accounts.length === 0) {
+      return <p style={{ fontSize: 13, color: '#777' }}>No accounts found.</p>;
+    }
+
+    return (
+      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+        <thead>
+          <tr>
+            <th style={thStyle}>Account</th>
+            <th style={{ ...thStyle, textAlign: 'right' }}>Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {accounts.map((acc) => (
+            <tr key={acc.account_id}>
+              <td style={tdStyle}>{acc.account_name}</td>
+              <td
+                style={{
+                  ...tdStyle,
+                  textAlign: 'right',
+                  color: isCard && acc.balance < 0 ? '#b00020' : undefined,
+                }}
+              >
+                {formatCurrency(acc.balance, 2)}
+              </td>
+            </tr>
+          ))}
+          <tr>
+            <td style={totalRowStyle}>Total</td>
+            <td
+              style={{
+                ...totalRowStyle,
+                textAlign: 'right',
+                color: isCard ? '#b00020' : (total >= 0 ? '#0a7a3c' : '#b00020'),
+              }}
+            >
+              {formatCurrency(total, 2)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    );
   };
 
   return (
@@ -129,65 +197,28 @@ export function NewEntryView({ initialJobId }: { initialJobId?: number | null })
               <div className="card" style={{ padding: '1rem' }}>
                 <NewTransactionForm
                   initialJobId={initialJobId ?? null}
-                  onTransactionSaved={loadCashAccounts}
+                  onTransactionSaved={loadAccounts}
                 />
               </div>
             </div>
 
-            {/* RIGHT: Cash & Bank Accounts */}
-            <div className="card">
-              <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>
-                Cash &amp; Bank Accounts
-              </h3>
+            {/* RIGHT: Account Balances */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap }}>
+              {/* Cash & Banks Card */}
+              <div className="card" style={{ minWidth: 260 }}>
+                <h3 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: 15 }}>
+                  Cash &amp; Banks
+                </h3>
+                {renderAccountTable(bankAccounts, bankTotal, false)}
+              </div>
 
-              {loadingCash && <p style={{ fontSize: 13 }}>Loading…</p>}
-
-              {cashError && (
-                <p style={{ color: 'red', fontSize: 13 }}>
-                  Error: {cashError}
-                </p>
-              )}
-
-              {!loadingCash && !cashError && cashAccounts.length === 0 && (
-                <p style={{ fontSize: 13 }}>No cash/bank accounts found.</p>
-              )}
-
-              {!loadingCash && !cashError && cashAccounts.length > 0 && (
-                <table
-                  style={{
-                    borderCollapse: 'collapse',
-                    width: '100%',
-                    fontSize: 13,
-                  }}
-                >
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>Account</th>
-                      <th style={{ ...thStyle, textAlign: 'right' }}>Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cashAccounts.map((acc) => {
-                      const label = acc.account_code
-                        ? `${acc.account_name} - ${acc.account_code}`
-                        : acc.account_name;
-
-                      return (
-                        <tr key={acc.account_id}>
-                          <td style={tdStyle}>{label}</td>
-                          <td style={{ ...tdStyle, textAlign: 'right' }}>
-                            {acc.balance.toLocaleString('en-US', {
-                              style: 'currency',
-                              currency: 'USD',
-                              minimumFractionDigits: 2,
-                            })}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
+              {/* Credit Cards Card */}
+              <div className="card" style={{ minWidth: 260 }}>
+                <h3 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: 15 }}>
+                  Credit Cards
+                </h3>
+                {renderAccountTable(creditCardAccounts, cardTotal, true)}
+              </div>
             </div>
           </>
         )}
@@ -201,7 +232,7 @@ export function NewEntryView({ initialJobId }: { initialJobId?: number | null })
               padding: '1rem',
             }}
           >
-            <Transfers onTransferSaved={loadCashAccounts} />
+            <Transfers onTransferSaved={loadAccounts} />
           </div>
         )}
 

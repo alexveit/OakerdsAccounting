@@ -5,26 +5,60 @@ import { WholesaleOperationsView } from './WholesaleOperationsView';
 
 type REITab = 'rentals' | 'flips' | 'wholesales';
 
+// Generate year options from 2020 to current year
+function getYearOptions(): string[] {
+  const currentYear = new Date().getFullYear();
+  const years: string[] = ['all'];
+  for (let y = currentYear; y >= 2020; y--) {
+    years.push(String(y));
+  }
+  return years;
+}
+
 export function REIView() {
+  const currentYear = new Date().getFullYear();
   const [tab, setTab] = useState<REITab>('rentals');
+  const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
+
+  const yearOptions = getYearOptions();
 
   return (
     <div>
-      {/* Optional title &subtitle 
-      <h2>Real Estate Investing</h2>
-      <p
+      {/* Header row with title and year selector */}
+      <div
         style={{
-          fontSize: 13,
-          color: '#777',
-          marginTop: 0,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           marginBottom: '0.75rem',
         }}
       >
-        Rentals for long-term cash flow. Flips for mid-term profit. Wholesales for
-        fast turn.
-      </p> */}
-          
-      {/* REI tabs (match NewEntryView style) */}
+        <h2 style={{ margin: 0 }}>Real Estate Investing</h2>
+
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontSize: 14,
+          }}
+        >
+          Year:
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            style={{ padding: '0.25rem 0.5rem', fontSize: 14 }}
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y === 'all' ? 'All Years' : y}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {/* REI tabs */}
       <div className="tab-strip">
         <button
           type="button"
@@ -53,7 +87,7 @@ export function REIView() {
 
       {/* Content */}
       <div style={{ marginTop: '0.75rem' }}>
-        {tab === 'rentals' && <RentalOperationsView />}
+        {tab === 'rentals' && <RentalOperationsView selectedYear={selectedYear} />}
         {tab === 'flips' && <FlipOperationsView />}
         {tab === 'wholesales' && <WholesaleOperationsView />}
       </div>

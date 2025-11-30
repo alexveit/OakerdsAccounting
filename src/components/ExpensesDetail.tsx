@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatLocalDate } from '../utils/date';
 
-
 type ViewMode = 'year' | 'month' | 'day' | 'detail';
 type CategorySort = 'total' | 'name';
 
@@ -20,6 +19,11 @@ type RawLine = {
   jobs: { name: string } | null;
 };
 
+const MONTH_KEYS = [
+  '01', '02', '03', '04', '05', '06',
+  '07', '08', '09', '10', '11', '12',
+];
+
 const formatMonthLabel = (monthKey: string) => {
   const [y, m] = monthKey.split('-').map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString(undefined, {
@@ -28,11 +32,19 @@ const formatMonthLabel = (monthKey: string) => {
   });
 };
 
+const formatMonthShort = (monthKey: string) => {
+  const [, m] = monthKey.split('-').map(Number);
+  return new Date(2000, m - 1, 1).toLocaleDateString(undefined, {
+    month: 'short',
+  });
+};
+
 type SimpleTableRow = {
   key: string | number;
   label: string;
   value: number;
   onClick?: () => void;
+  highlight?: boolean;
 };
 
 type SimpleTableProps = {
@@ -40,17 +52,29 @@ type SimpleTableProps = {
   headerValue: string;
   rows: SimpleTableRow[];
   formatMoney: (value: number) => string;
+  showTotal?: boolean;
+  totalLabel?: string;
 };
 
-function SimpleTable({ headerLabel, headerValue, rows, formatMoney }: SimpleTableProps) {
+function SimpleTable({
+  headerLabel,
+  headerValue,
+  rows,
+  formatMoney,
+  showTotal = false,
+  totalLabel = 'Total',
+}: SimpleTableProps) {
   const thStyle: React.CSSProperties = {
     textAlign: 'left',
     borderBottom: '1px solid #ccc',
+    padding: '6px 4px',
   };
   const tdStyle: React.CSSProperties = {
     borderBottom: '1px solid #eee',
     padding: '6px 4px',
   };
+
+  const total = rows.reduce((sum, r) => sum + r.value, 0);
 
   return (
     <table className="table">
@@ -65,7 +89,10 @@ function SimpleTable({ headerLabel, headerValue, rows, formatMoney }: SimpleTabl
           <tr
             key={r.key}
             onClick={r.onClick}
-            style={r.onClick ? { cursor: 'pointer' } : undefined}
+            style={{
+              cursor: r.onClick ? 'pointer' : undefined,
+              background: r.highlight ? '#fffde7' : undefined,
+            }}
           >
             <td style={tdStyle}>{r.label}</td>
             <td style={{ ...tdStyle, textAlign: 'right' }}>
@@ -73,6 +100,14 @@ function SimpleTable({ headerLabel, headerValue, rows, formatMoney }: SimpleTabl
             </td>
           </tr>
         ))}
+        {showTotal && (
+          <tr style={{ fontWeight: 600, background: '#f5f5f5' }}>
+            <td style={{ ...tdStyle, borderTop: '2px solid #ccc' }}>{totalLabel}</td>
+            <td style={{ ...tdStyle, borderTop: '2px solid #ccc', textAlign: 'right' }}>
+              {formatMoney(total)}
+            </td>
+          </tr>
+        )}
       </tbody>
     </table>
   );
@@ -85,6 +120,8 @@ export function ExpenseByCategory() {
   const [error, setError] = useState<string | null>(null);
 
   const currentYear = new Date().getFullYear();
+  const currentMonth = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
   const [year, setYear] = useState<number>(currentYear);
 
   const [viewMode, setViewMode] = useState<ViewMode>('year');
@@ -92,6 +129,7 @@ export function ExpenseByCategory() {
   const [selectedAccountName, setSelectedAccountName] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
 
   const [categorySort, setCategorySort] = useState<CategorySort>('total');
 
@@ -104,6 +142,7 @@ export function ExpenseByCategory() {
       setSelectedAccountName('');
       setSelectedMonth(null);
       setSelectedDate(null);
+      setShowAllTransactions(false);
 
       try {
         const { data: typeRow, error: typeErr } = await supabase
@@ -157,8 +196,6 @@ export function ExpenseByCategory() {
           total,
         }));
 
-        // NOTE: we don't sort here so we can let the memoized sorter
-        // handle "by total" vs "by name" dynamically.
         setRows(aggregated);
         setLoading(false);
       } catch (err: any) {
@@ -187,20 +224,32 @@ export function ExpenseByCategory() {
     return arr;
   }, [rows, categorySort]);
 
+  // Show all 12 months, even if $0
   const monthRows = useMemo(() => {
     if (!selectedAccountId) return [];
+    
     const map = new Map<string, number>();
+    
+    // Initialize all months with 0
+    for (const m of MONTH_KEYS) {
+      map.set(`${year}-${m}`, 0);
+    }
+    
+    // Sum up actual values
     for (const line of rawLines) {
       if (line.account_id !== selectedAccountId) continue;
       const dateStr = line.transactions?.date;
       if (!dateStr) continue;
       const monthKey = dateStr.slice(0, 7);
-      map.set(monthKey, (map.get(monthKey) ?? 0) + (line.amount ?? 0));
+      if (map.has(monthKey)) {
+        map.set(monthKey, (map.get(monthKey) ?? 0) + (line.amount ?? 0));
+      }
     }
+    
     return Array.from(map.entries())
       .map(([monthKey, total]) => ({ monthKey, total }))
       .sort((a, b) => a.monthKey.localeCompare(b.monthKey));
-  }, [rawLines, selectedAccountId]);
+  }, [rawLines, selectedAccountId, year]);
 
   const dayRows = useMemo(() => {
     if (!selectedAccountId || !selectedMonth) return [];
@@ -223,33 +272,52 @@ export function ExpenseByCategory() {
         if (line.account_id !== selectedAccountId) return false;
         const dateStr = line.transactions?.date;
         if (!dateStr) return false;
+        // If showing all transactions, skip month/date filters
+        if (showAllTransactions) return true;
         if (selectedMonth && !dateStr.startsWith(selectedMonth)) return false;
         if (selectedDate && dateStr !== selectedDate) return false;
         return true;
       })
       .sort((a, b) =>
-        (a.transactions?.date ?? '').localeCompare(
-          b.transactions?.date ?? ''
-        )
+        (a.transactions?.date ?? '').localeCompare(b.transactions?.date ?? '')
       );
-  }, [rawLines, selectedAccountId, selectedMonth, selectedDate]);
+  }, [rawLines, selectedAccountId, selectedMonth, selectedDate, showAllTransactions]);
+
+  // Calculate running totals for detail view
+  const detailLinesWithRunning = useMemo(() => {
+    let running = 0;
+    return detailLines.map((line) => {
+      running += line.amount ?? 0;
+      return { ...line, runningTotal: running };
+    });
+  }, [detailLines]);
 
   const handleCategoryClick = (row: ExpenseRow) => {
     setSelectedAccountId(row.account_id);
     setSelectedAccountName(row.account_name);
     setSelectedMonth(null);
     setSelectedDate(null);
+    setShowAllTransactions(false);
     setViewMode('month');
   };
 
   const handleMonthClick = (monthKey: string) => {
     setSelectedMonth(monthKey);
     setSelectedDate(null);
+    setShowAllTransactions(false);
     setViewMode('day');
   };
 
   const handleDayClick = (dateStr: string) => {
     setSelectedDate(dateStr);
+    setShowAllTransactions(false);
+    setViewMode('detail');
+  };
+
+  const handleShowAllTransactions = () => {
+    setSelectedMonth(null);
+    setSelectedDate(null);
+    setShowAllTransactions(true);
     setViewMode('detail');
   };
 
@@ -259,18 +327,26 @@ export function ExpenseByCategory() {
     setSelectedAccountName('');
     setSelectedMonth(null);
     setSelectedDate(null);
+    setShowAllTransactions(false);
+  };
+
+  const backToCategory = () => {
+    setViewMode('month');
+    setSelectedMonth(null);
+    setSelectedDate(null);
+    setShowAllTransactions(false);
   };
 
   const backToMonth = () => {
-    setViewMode('month');
+    setViewMode('day');
     setSelectedDate(null);
+    setShowAllTransactions(false);
   };
-
-  const backToDay = () => setViewMode('day');
 
   const thStyle: React.CSSProperties = {
     textAlign: 'left',
     borderBottom: '1px solid #ccc',
+    padding: '6px 4px',
   };
   const tdStyle: React.CSSProperties = {
     borderBottom: '1px solid #eee',
@@ -284,6 +360,16 @@ export function ExpenseByCategory() {
     cursor: 'pointer',
     fontSize: 12,
     marginRight: '0.5rem',
+  };
+  const breadcrumbBtn: React.CSSProperties = {
+    border: 'none',
+    background: 'none',
+    padding: 0,
+    margin: 0,
+    cursor: 'pointer',
+    textDecoration: 'underline',
+    fontSize: 12,
+    color: '#1976d2',
   };
 
   return (
@@ -304,41 +390,45 @@ export function ExpenseByCategory() {
         </select>
       </label>
 
+      {/* Clickable breadcrumbs */}
       <div style={{ fontSize: 12, color: '#777', marginBottom: '0.75rem' }}>
         <strong>View:</strong>{' '}
         {viewMode === 'year' ? (
           <span>{year}</span>
         ) : (
-          <button
-            type="button"
-            onClick={resetToYear}
-            style={{
-              border: 'none',
-              background: 'none',
-              padding: 0,
-              margin: 0,
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              fontSize: 12,
-            }}
-          >
+          <button type="button" onClick={resetToYear} style={breadcrumbBtn}>
             {year}
           </button>
         )}
         {viewMode !== 'year' && selectedAccountName && (
           <>
-            {'  ›  '} <span>{selectedAccountName}</span>
+            {'  ›  '}
+            {viewMode === 'month' ? (
+              <span>{selectedAccountName}</span>
+            ) : (
+              <button type="button" onClick={backToCategory} style={breadcrumbBtn}>
+                {selectedAccountName}
+              </button>
+            )}
           </>
         )}
-        {viewMode === 'day' && selectedMonth && (
+        {(viewMode === 'day' || (viewMode === 'detail' && !showAllTransactions)) && selectedMonth && (
           <>
-            {'  ›  '} <span>{formatMonthLabel(selectedMonth)}</span>
+            {'  ›  '}
+            {viewMode === 'day' ? (
+              <span>{formatMonthShort(selectedMonth)}</span>
+            ) : (
+              <button type="button" onClick={backToMonth} style={breadcrumbBtn}>
+                {formatMonthShort(selectedMonth)}
+              </button>
+            )}
           </>
         )}
-        {viewMode === 'detail' && selectedDate && (
-          <>
-            {'  ›  '} <span>{formatLocalDate(selectedDate)}</span>
-          </>
+        {viewMode === 'detail' && showAllTransactions && (
+          <>{'  ›  '}<span>All Transactions</span></>
+        )}
+        {viewMode === 'detail' && selectedDate && !showAllTransactions && (
+          <>{'  ›  '}<span>{formatLocalDate(selectedDate)}</span></>
         )}
       </div>
 
@@ -366,9 +456,7 @@ export function ExpenseByCategory() {
               Sort by:{' '}
               <select
                 value={categorySort}
-                onChange={(e) =>
-                  setCategorySort(e.target.value as CategorySort)
-                }
+                onChange={(e) => setCategorySort(e.target.value as CategorySort)}
                 style={{ fontSize: 12 }}
               >
                 <option value="total">Total (largest first)</option>
@@ -387,6 +475,8 @@ export function ExpenseByCategory() {
               onClick: () => handleCategoryClick(r),
             }))}
             formatMoney={formatMoney}
+            showTotal
+            totalLabel="Grand Total"
           />
         </>
       )}
@@ -394,32 +484,35 @@ export function ExpenseByCategory() {
       {/* MONTH VIEW */}
       {viewMode === 'month' && selectedAccountId && (
         <>
-          <div style={{ marginBottom: '0.75rem' }}>
+          <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button type="button" onClick={resetToYear} style={btnStyle}>
-              ← Back to all categories
+              ← All categories
+            </button>
+            <button
+              type="button"
+              onClick={handleShowAllTransactions}
+              style={{ ...btnStyle, background: '#e3f2fd' }}
+            >
+              View all transactions
             </button>
           </div>
-          {monthRows.length === 0 && (
-            <p>No expense lines for this category in {year}.</p>
-          )}
-          {monthRows.length > 0 && (
-            <>
-              <p style={{ fontSize: 12, color: '#777' }}>
-                Click a month to see daily totals.
-              </p>
-              <SimpleTable
-                headerLabel="Month"
-                headerValue="Total"
-                rows={monthRows.map((m) => ({
-                  key: m.monthKey,
-                  label: formatMonthLabel(m.monthKey),
-                  value: m.total,
-                  onClick: () => handleMonthClick(m.monthKey),
-                }))}
-                formatMoney={formatMoney}
-              />
-            </>
-          )}
+          <p style={{ fontSize: 12, color: '#777', marginBottom: '0.5rem' }}>
+            Click a month to see daily totals.
+          </p>
+          <SimpleTable
+            headerLabel="Month"
+            headerValue="Total"
+            rows={monthRows.map((m) => ({
+              key: m.monthKey,
+              label: formatMonthShort(m.monthKey),
+              value: m.total,
+              onClick: m.total !== 0 ? () => handleMonthClick(m.monthKey) : undefined,
+              highlight: m.monthKey === currentMonth && year === currentYear,
+            }))}
+            formatMoney={formatMoney}
+            showTotal
+            totalLabel="Year Total"
+          />
         </>
       )}
 
@@ -427,17 +520,17 @@ export function ExpenseByCategory() {
       {viewMode === 'day' && selectedAccountId && selectedMonth && (
         <>
           <div style={{ marginBottom: '0.75rem' }}>
-            <button type="button" onClick={backToMonth} style={btnStyle}>
-              ← Back to months
+            <button type="button" onClick={backToCategory} style={btnStyle}>
+              ← Months
             </button>
             <button type="button" onClick={resetToYear} style={btnStyle}>
-              ← Back to all categories
+              ← All categories
             </button>
           </div>
           {dayRows.length === 0 && <p>No expense lines for this month.</p>}
           {dayRows.length > 0 && (
             <>
-              <p style={{ fontSize: 12, color: '#777' }}>
+              <p style={{ fontSize: 12, color: '#777', marginBottom: '0.5rem' }}>
                 Click a day to see individual transactions.
               </p>
               <SimpleTable
@@ -450,6 +543,8 @@ export function ExpenseByCategory() {
                   onClick: () => handleDayClick(d.dateStr),
                 }))}
                 formatMoney={formatMoney}
+                showTotal
+                totalLabel="Month Total"
               />
             </>
           )}
@@ -460,69 +555,77 @@ export function ExpenseByCategory() {
       {viewMode === 'detail' && selectedAccountId && (
         <>
           <div style={{ marginBottom: '0.75rem' }}>
-            <button type="button" onClick={backToDay} style={btnStyle}>
-              ← Back to days
-            </button>
-            <button
-              type="button"
-              onClick={backToMonth}
-              style={{ ...btnStyle, marginLeft: 0 }}
-            >
-              ← Back to months
-            </button>
-            <button
-              type="button"
-              onClick={resetToYear}
-              style={{ ...btnStyle, marginLeft: '0.5rem' }}
-            >
-              ← Back to all categories
+            {!showAllTransactions && selectedDate && (
+              <button type="button" onClick={backToMonth} style={btnStyle}>
+                ← Days
+              </button>
+            )}
+            {!showAllTransactions && (
+              <button type="button" onClick={backToCategory} style={btnStyle}>
+                ← Months
+              </button>
+            )}
+            {showAllTransactions && (
+              <button type="button" onClick={backToCategory} style={btnStyle}>
+                ← Back to months
+              </button>
+            )}
+            <button type="button" onClick={resetToYear} style={btnStyle}>
+              ← All categories
             </button>
           </div>
-          {detailLines.length === 0 && <p>No transactions found for this day.</p>}
-          {detailLines.length > 0 && (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th style={thStyle}>Date</th>
-                  <th style={thStyle}>Description</th>
-                  <th style={thStyle}>Job</th>
-                  <th style={thStyle}>Vendor / Installer</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detailLines.map((line) => {
-                  const tDate = formatLocalDate(line.transactions?.date);
-                  const desc = line.transactions?.description ?? '';
-                  const jobName = line.jobs?.name ?? '';
-                  let party = line.vendors?.nick_name ?? '';
-                  if (line.installers) {
-                    const fullName = `${line.installers.first_name} ${
-                      line.installers.last_name ?? ''
-                    }`.trim();
-                    party = party ? `${party} / ${fullName}` : fullName;
-                  }
-                  return (
-                    <tr key={line.id}>
-                      <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
-                        {tDate}
-                      </td>
-                      <td style={tdStyle}>{desc}</td>
-                      <td style={tdStyle}>{jobName}</td>
-                      <td style={tdStyle}>{party}</td>
-                      <td
-                        style={{
-                          ...tdStyle,
-                          textAlign: 'right',
-                        }}
-                      >
-                        {formatMoney(line.amount)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {detailLinesWithRunning.length === 0 && <p>No transactions found.</p>}
+          {detailLinesWithRunning.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Date</th>
+                    <th style={thStyle}>Description</th>
+                    <th style={thStyle}>Job</th>
+                    <th style={thStyle}>Vendor / Installer</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>Amount</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>Running</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detailLinesWithRunning.map((line) => {
+                    const tDate = formatLocalDate(line.transactions?.date);
+                    const desc = line.transactions?.description ?? '';
+                    const jobName = line.jobs?.name ?? '';
+                    let party = line.vendors?.nick_name ?? '';
+                    if (line.installers) {
+                      const fullName = `${line.installers.first_name} ${line.installers.last_name ?? ''}`.trim();
+                      party = party ? `${party} / ${fullName}` : fullName;
+                    }
+                    return (
+                      <tr key={line.id}>
+                        <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{tDate}</td>
+                        <td style={tdStyle}>{desc}</td>
+                        <td style={tdStyle}>{jobName}</td>
+                        <td style={tdStyle}>{party}</td>
+                        <td style={{ ...tdStyle, textAlign: 'right' }}>
+                          {formatMoney(line.amount)}
+                        </td>
+                        <td style={{ ...tdStyle, textAlign: 'right', color: '#777' }}>
+                          {formatMoney(line.runningTotal)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* Total row */}
+                  <tr style={{ fontWeight: 600, background: '#f5f5f5' }}>
+                    <td style={{ ...tdStyle, borderTop: '2px solid #ccc' }} colSpan={4}>
+                      Total ({detailLinesWithRunning.length} transactions)
+                    </td>
+                    <td style={{ ...tdStyle, borderTop: '2px solid #ccc', textAlign: 'right' }}>
+                      {formatMoney(detailLinesWithRunning.reduce((sum, l) => sum + l.amount, 0))}
+                    </td>
+                    <td style={{ ...tdStyle, borderTop: '2px solid #ccc' }}>&nbsp;</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           )}
         </>
       )}

@@ -83,6 +83,7 @@ CREATE TABLE public.real_estate_deals (
   interest_rate numeric,
   loan_term_months integer,
   original_loan_amount numeric,
+  first_payment_date date,
   CONSTRAINT real_estate_deals_pkey PRIMARY KEY (id),
   CONSTRAINT real_estate_deals_job_id_fkey FOREIGN KEY (job_id) REFERENCES public.jobs(id),
   CONSTRAINT real_estate_deals_asset_account_id_fkey FOREIGN KEY (asset_account_id) REFERENCES public.accounts(id),

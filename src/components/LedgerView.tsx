@@ -3,11 +3,12 @@ import { supabase } from '../lib/supabaseClient';
 
 type LedgerRow = {
   transaction_id: number;
-  line_id: number; // cash-side line id (for clear RPC)
+  line_id: number;
   date: string;
   created_at: string;
   updated_at: string;
   description: string | null;
+  job_name: string | null;
   vendor_installer: string;
   cash_account: string | null;
   cash_account_id: number | null;
@@ -22,7 +23,8 @@ type SortField =
   | 'vendor_installer'
   | 'cash_account'
   | 'type_label'
-  | 'amount';
+  | 'amount'
+  | 'is_cleared';
 
 type SortDir = 'asc' | 'desc';
 
@@ -37,7 +39,7 @@ export function LedgerView() {
   const [page, setPage] = useState<number>(1);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortField, setSortField] = useState<SortField>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const [rowActionError, setRowActionError] = useState<string | null>(null);
@@ -52,12 +54,18 @@ export function LedgerView() {
   const [editDate, setEditDate] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editAmount, setEditAmount] = useState('');
+  const [editCashAccountId, setEditCashAccountId] = useState<number | null>(null);
+  const [editCategoryAccountId, setEditCategoryAccountId] = useState<number | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
+  // Account options for edit modal
+  const [cashAccountOptions, setCashAccountOptions] = useState<{ id: number; label: string }[]>([]);
+  const [categoryAccountOptions, setCategoryAccountOptions] = useState<{ id: number; label: string }[]>([]);
+
   const [accountFilter, setAccountFilter] = useState<AccountFilter>('all');
 
-  // Clear-transaction modal state (same logic as Dashboard, but using LedgerRow)
+  // Clear-transaction modal state
   const [clearOpen, setClearOpen] = useState(false);
   const [clearTarget, setClearTarget] = useState<LedgerRow | null>(null);
   const [clearAmount, setClearAmount] = useState<string>('');
@@ -65,7 +73,7 @@ export function LedgerView() {
   const [clearDescription, setClearDescription] = useState<string>('');
   const [clearError, setClearError] = useState<string | null>(null);
 
-  // ---------- load ledger (shared, so we can call after clear) ----------
+  // ---------- load ledger ----------
   async function loadLedger() {
     setLoading(true);
     setError(null);
@@ -87,6 +95,7 @@ export function LedgerView() {
           is_cleared,
           created_at,
           account_id,
+          job_id,
           accounts (
             name,
             code,
@@ -97,6 +106,9 @@ export function LedgerView() {
             description,
             created_at,
             updated_at
+          ),
+          jobs (
+            name
           ),
           vendors (
             name
@@ -132,6 +144,10 @@ export function LedgerView() {
         const date: string = tx?.date ?? '';
         const createdAt: string = tx?.created_at ?? first.created_at;
 
+        // Job name from any line that has a job_id
+        const lineWithJob = lines.find((l: any) => l.jobs?.name);
+        const jobName: string | null = lineWithJob?.jobs?.name ?? null;
+
         // Vendor / installer label
         let vendorInstaller = '';
         const withVendor = lines.find(
@@ -166,9 +182,7 @@ export function LedgerView() {
             : null;
 
         const cashAccountId: number | null =
-          typeof cashLine.account_id === 'number'
-            ? cashLine.account_id
-            : null;
+          typeof cashLine.account_id === 'number' ? cashLine.account_id : null;
 
         const cashLineId: number = cashLine.id;
 
@@ -187,6 +201,7 @@ export function LedgerView() {
           created_at: createdAt,
           updated_at: updatedAt,
           description: tx?.description ?? null,
+          job_name: jobName,
           vendor_installer: vendorInstaller || '',
           cash_account: cashAccount,
           cash_account_id: cashAccountId,
@@ -195,20 +210,6 @@ export function LedgerView() {
           is_cleared: isCleared,
         });
       }
-
-      // default: pending first, newest first
-      ledgerRows.sort((a, b) => {
-        if (a.is_cleared !== b.is_cleared) {
-          return a.is_cleared ? 1 : -1;
-        }
-        if (a.date !== b.date) {
-          return a.date < b.date ? 1 : -1;
-        }
-        if (a.updated_at !== b.updated_at) {
-          return a.updated_at < b.updated_at ? 1 : -1;
-        }
-        return a.transaction_id - b.transaction_id;
-      });
 
       setAllRows(ledgerRows);
       setLoading(false);
@@ -219,7 +220,6 @@ export function LedgerView() {
     }
   }
 
-  // initial load
   useEffect(() => {
     void loadLedger();
   }, []);
@@ -238,6 +238,14 @@ export function LedgerView() {
       minimumFractionDigits: 2,
     });
 
+  // Combine job name and description for display
+  const getDisplayDescription = (row: LedgerRow): string => {
+    if (row.job_name && row.description) {
+      return `${row.job_name} / ${row.description}`;
+    }
+    return row.job_name || row.description || '';
+  };
+
   const thStyleBase = {
     textAlign: 'left' as const,
     borderBottom: '1px solid #ccc',
@@ -248,17 +256,32 @@ export function LedgerView() {
     borderBottom: '1px solid #eee',
   };
 
-  const sortableTh = (field: SortField, label: string) => {
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      // New field: default direction based on field type
+      setSortField(field);
+      const defaultDir: SortDir =
+        field === 'date' || field === 'amount' ? 'desc' : 'asc';
+      setSortDir(defaultDir);
+    }
+  };
+
+  const sortableTh = (field: SortField, label: string, align: 'left' | 'right' | 'center' = 'left') => {
     const isActive = sortField === field;
-    const arrow = !isActive ? '' : sortDir === 'asc' ? ' ▲' : ' ▼';
+    const arrow = isActive ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
 
     return (
       <th
         style={{
           ...thStyleBase,
+          textAlign: align,
           cursor: 'pointer',
           userSelect: 'none' as const,
           whiteSpace: 'nowrap' as const,
+          background: isActive ? '#f5f5f5' : 'transparent',
         }}
         onClick={() => handleSort(field)}
       >
@@ -281,20 +304,6 @@ export function LedgerView() {
     setPage(1);
   }, [searchTerm, accountFilter]);
 
-  const handleSort = (field: SortField) => {
-    setSortField((prevField) => {
-      if (prevField === field) {
-        setSortDir((prevDir) => (prevDir === 'asc' ? 'desc' : 'asc'));
-        return prevField;
-      } else {
-        const defaultDir: SortDir =
-          field === 'date' || field === 'amount' ? 'desc' : 'asc';
-        setSortDir(defaultDir);
-        return field;
-      }
-    });
-  };
-
   const compareValues = (a: any, b: any, dir: SortDir) => {
     if (a == null && b == null) return 0;
     if (a == null) return dir === 'asc' ? 1 : -1;
@@ -302,6 +311,12 @@ export function LedgerView() {
 
     if (typeof a === 'number' && typeof b === 'number') {
       return dir === 'asc' ? a - b : b - a;
+    }
+
+    if (typeof a === 'boolean' && typeof b === 'boolean') {
+      if (a === b) return 0;
+      // asc: false first (pending), desc: true first (cleared)
+      return dir === 'asc' ? (a ? 1 : -1) : (a ? -1 : 1);
     }
 
     const sa = String(a).toLowerCase();
@@ -319,9 +334,7 @@ export function LedgerView() {
         map.set(row.cash_account_id, row.cash_account);
       }
     }
-    return Array.from(map.entries()).sort((a, b) =>
-      a[1].localeCompare(b[1])
-    );
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
   }, [allRows]);
 
   // ---------- filtered + sorted rows ----------
@@ -332,18 +345,17 @@ export function LedgerView() {
 
     // account filter first
     if (accountFilter !== 'all') {
-      rows = rows.filter(
-        (r) => r.cash_account_id === accountFilter
-      );
+      rows = rows.filter((r) => r.cash_account_id === accountFilter);
     }
 
-    // text search
+    // text search (include job_name in search)
     if (term) {
       rows = rows.filter((row) => {
         const haystacks: string[] = [
           formatDate(row.date),
           row.date ?? '',
           row.description ?? '',
+          row.job_name ?? '',
           row.vendor_installer ?? '',
           row.cash_account ?? '',
           row.type_label ?? '',
@@ -353,28 +365,62 @@ export function LedgerView() {
       });
     }
 
-    if (!sortField) {
-      return rows;
-    }
-
-    const dir = sortDir;
+    // Always sort - pending first, then user's chosen sort within each group
     const sorted = [...rows].sort((a, b) => {
+      // Pending always on top
+      if (a.is_cleared !== b.is_cleared) {
+        return a.is_cleared ? 1 : -1;
+      }
+
+      // Within same cleared status, apply user's sort
+      let result = 0;
+
       switch (sortField) {
         case 'date':
-          return compareValues(a.date, b.date, dir);
+          result = compareValues(a.date, b.date, sortDir);
+          // Secondary: updated_at in same direction as date
+          if (result === 0) {
+            result = compareValues(a.updated_at, b.updated_at, sortDir);
+          }
+          break;
         case 'amount':
-          return compareValues(a.amount, b.amount, dir);
+          result = compareValues(a.amount, b.amount, sortDir);
+          break;
         case 'description':
-          return compareValues(a.description, b.description, dir);
+          result = compareValues(
+            getDisplayDescription(a),
+            getDisplayDescription(b),
+            sortDir
+          );
+          break;
         case 'vendor_installer':
-          return compareValues(a.vendor_installer, b.vendor_installer, dir);
+          result = compareValues(a.vendor_installer, b.vendor_installer, sortDir);
+          break;
         case 'cash_account':
-          return compareValues(a.cash_account, b.cash_account, dir);
+          result = compareValues(a.cash_account, b.cash_account, sortDir);
+          break;
         case 'type_label':
-          return compareValues(a.type_label, b.type_label, dir);
-        default:
-          return 0;
+          result = compareValues(a.type_label, b.type_label, sortDir);
+          break;
+        case 'is_cleared':
+          // Already sorted by cleared status above, so just use secondary sort
+          break;
       }
+
+      // For non-date sorts, secondary sort by date desc, then updated_at desc
+      if (result === 0 && sortField !== 'date') {
+        result = compareValues(a.date, b.date, 'desc');
+        if (result === 0) {
+          result = compareValues(a.updated_at, b.updated_at, 'desc');
+        }
+      }
+      
+      // Final tiebreaker: transaction_id for stability
+      if (result === 0) {
+        result = b.transaction_id - a.transaction_id;
+      }
+
+      return result;
     });
 
     return sorted;
@@ -409,6 +455,7 @@ export function LedgerView() {
           formatDate(row.date),
           row.date ?? '',
           row.description ?? '',
+          row.job_name ?? '',
           row.vendor_installer ?? '',
           row.cash_account ?? '',
           row.type_label ?? '',
@@ -437,13 +484,77 @@ export function LedgerView() {
   };
 
   // ---------- edit / delete ----------
-  const openEditModal = (row: LedgerRow) => {
+  const openEditModal = async (row: LedgerRow) => {
     setEditingRow(row);
     setEditDate(row.date);
     setEditDescription(row.description ?? '');
     setEditAmount(Math.abs(row.amount).toFixed(2));
     setEditError(null);
     setRowActionError(null);
+
+    // Load account options
+    try {
+      const { data: accounts, error: accErr } = await supabase
+        .from('accounts')
+        .select('id, name, code, account_type_id, account_types ( name )')
+        .eq('is_active', true)
+        .order('code');
+
+      if (accErr) throw accErr;
+
+      const allAccounts = (accounts ?? []) as any[];
+
+      // Cash accounts: asset or liability
+      const cashAccs = allAccounts
+        .filter((a) => {
+          const typeName = a.account_types?.name;
+          return typeName === 'asset' || typeName === 'liability';
+        })
+        .map((a) => ({
+          id: a.id,
+          label: a.code ? `${a.name} - ${a.code}` : a.name,
+        }));
+
+      // Category accounts: income or expense
+      const categoryAccs = allAccounts
+        .filter((a) => {
+          const typeName = a.account_types?.name;
+          return typeName === 'income' || typeName === 'expense';
+        })
+        .map((a) => ({
+          id: a.id,
+          label: a.code ? `${a.name} - ${a.code}` : a.name,
+        }));
+
+      setCashAccountOptions(cashAccs);
+      setCategoryAccountOptions(categoryAccs);
+
+      // Get current account IDs from the transaction lines
+      const { data: lines, error: lineErr } = await supabase
+        .from('transaction_lines')
+        .select('id, account_id, accounts ( account_types ( name ) )')
+        .eq('transaction_id', row.transaction_id);
+
+      if (lineErr) throw lineErr;
+
+      const typedLines = (lines ?? []) as any[];
+
+      const cashLine = typedLines.find((l) => {
+        const t = l.accounts?.account_types?.name;
+        return t === 'asset' || t === 'liability';
+      });
+
+      const categoryLine = typedLines.find((l) => {
+        const t = l.accounts?.account_types?.name;
+        return t === 'income' || t === 'expense';
+      });
+
+      setEditCashAccountId(cashLine?.account_id ?? null);
+      setEditCategoryAccountId(categoryLine?.account_id ?? null);
+    } catch (err: any) {
+      console.error('Error loading accounts for edit:', err);
+      setEditError('Failed to load account options');
+    }
   };
 
   const closeEditModal = () => {
@@ -467,13 +578,20 @@ export function LedgerView() {
       setEditError('Amount must be greater than zero.');
       return;
     }
+    if (!editCashAccountId) {
+      setEditError('Please select a bank/credit account.');
+      return;
+    }
+    if (!editCategoryAccountId) {
+      setEditError('Please select a category.');
+      return;
+    }
 
     setEditSaving(true);
     setEditError(null);
     setRowActionError(null);
 
     try {
-      // update transaction header
       const { error: txErr } = await supabase
         .from('transactions')
         .update({
@@ -484,7 +602,6 @@ export function LedgerView() {
 
       if (txErr) throw txErr;
 
-      // load lines
       const { data: lines, error: lineErr } = await supabase
         .from('transaction_lines')
         .select(
@@ -507,53 +624,45 @@ export function LedgerView() {
         throw new Error('No lines found for this transaction.');
       }
 
-      // keep sign from current ledger row
       const sign = editingRow.amount >= 0 ? 1 : -1;
       const targetCashAmount = sign * newAmountNum;
-      const targetTypeAmount = -targetCashAmount;
+      const targetCategoryAmount = -targetCashAmount;
 
-      const cashLine =
-        typedLines.find((l: any) => {
-          const t = l.accounts?.account_types?.name;
-          return t === 'asset' || t === 'liability';
-        }) ?? typedLines[0];
+      const cashLine = typedLines.find((l: any) => {
+        const t = l.accounts?.account_types?.name;
+        return t === 'asset' || t === 'liability';
+      }) ?? typedLines[0];
 
-      const typeLine =
-        typedLines.find((l: any) => l.id !== cashLine.id) ?? typedLines[0];
+      const categoryLine = typedLines.find((l: any) => l.id !== cashLine.id) ?? typedLines[0];
 
-      // update both sides, keep double-entry balanced
-      const updates: any[] = [];
+      // Update cash line (amount + account)
+      const { error: cashUpdateErr } = await supabase
+        .from('transaction_lines')
+        .update({ 
+          amount: targetCashAmount,
+          account_id: editCashAccountId,
+        })
+        .eq('id', cashLine.id);
 
-      updates.push(
-        supabase
+      if (cashUpdateErr) throw cashUpdateErr;
+
+      // Update category line (amount + account) if different line
+      if (categoryLine.id !== cashLine.id) {
+        const { error: catUpdateErr } = await supabase
           .from('transaction_lines')
-          .update({ amount: targetCashAmount })
-          .eq('id', cashLine.id)
-      );
+          .update({ 
+            amount: targetCategoryAmount,
+            account_id: editCategoryAccountId,
+          })
+          .eq('id', categoryLine.id);
 
-      if (typeLine.id === cashLine.id) {
-        updates.push(
-          supabase
-            .from('transaction_lines')
-            .update({ amount: targetTypeAmount })
-            .eq('id', typeLine.id)
-        );
-      } else {
-        updates.push(
-          supabase
-            .from('transaction_lines')
-            .update({ amount: targetTypeAmount })
-            .eq('id', typeLine.id)
-        );
+        if (catUpdateErr) throw catUpdateErr;
       }
 
-      const results: any[] = await Promise.all(updates);
+      // Find new labels for local state update
+      const newCashLabel = cashAccountOptions.find((a) => a.id === editCashAccountId)?.label ?? null;
+      const newCategoryLabel = categoryAccountOptions.find((a) => a.id === editCategoryAccountId)?.label ?? null;
 
-      for (const r of results) {
-        if (r && r.error) throw r.error;
-      }
-
-      // update local state for the edited transaction
       setAllRows((prev) =>
         prev.map((r) =>
           r.transaction_id === txId
@@ -562,6 +671,9 @@ export function LedgerView() {
                 date: newDate,
                 description: newDesc || null,
                 amount: targetCashAmount,
+                cash_account: newCashLabel,
+                cash_account_id: editCashAccountId,
+                type_label: newCategoryLabel,
                 updated_at: new Date().toISOString(),
               }
             : r
@@ -583,7 +695,7 @@ export function LedgerView() {
       `Delete this transaction?\n\n` +
         `Date: ${formatDate(row.date)}\n` +
         `Amount: ${formatMoney(row.amount)}\n` +
-        `Description: ${row.description ?? '(no description)'}\n\n` +
+        `Description: ${getDisplayDescription(row) || '(no description)'}\n\n` +
         `This will delete ALL lines for this transaction. This cannot be undone.`
     );
     if (!confirmed) return;
@@ -636,7 +748,6 @@ export function LedgerView() {
       setClearError(null);
       setRowActionError(null);
 
-      // ----- Amount validation -----
       let finalAmount = Number(clearTarget.amount);
       const amountTrim = clearAmount.trim();
 
@@ -650,7 +761,6 @@ export function LedgerView() {
         finalAmount = parsed * sign;
       }
 
-      // ----- Date validation -----
       let newDate: string | null = null;
       const dateTrim = clearDate.trim();
 
@@ -666,17 +776,12 @@ export function LedgerView() {
           return;
         }
         newDate = dateTrim;
-      } else {
-        newDate = null; // keep existing transaction date
       }
 
-      // ----- Description handling -----
       let newDescription: string | null = null;
       const descTrim = clearDescription.trim();
       if (descTrim !== '') {
         newDescription = descTrim;
-      } else {
-        newDescription = null; // keep existing
       }
 
       const { data, error: rpcErr } = await supabase.rpc(
@@ -693,7 +798,6 @@ export function LedgerView() {
       if (rpcErr) throw rpcErr;
       console.log('Transaction marked cleared from ledger:', data);
 
-      // Close modal + reset state
       setClearOpen(false);
       setClearTarget(null);
       setClearAmount('');
@@ -701,7 +805,6 @@ export function LedgerView() {
       setClearDescription('');
       setClearError(null);
 
-      // Reload ledger so pending/cleared flags and amounts stay in sync
       await loadLedger();
     } catch (err: any) {
       console.error(err);
@@ -762,19 +865,23 @@ export function LedgerView() {
             }}
           >
             {/* page size */}
-            <div>
-              Show{' '}
-              <select value={pageSize} onChange={handlePageSizeChange}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>Show</span>
+              <select
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                style={{ padding: '4px 8px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc', width: 'auto' }}
+              >
                 <option value={25}>25</option>
                 <option value={50}>50</option>
                 <option value={100}>100</option>
-              </select>{' '}
-              rows
+              </select>
+              <span>rows</span>
             </div>
 
             {/* account selector */}
-            <div>
-              Account:{' '}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>Account:</span>
               <select
                 value={accountFilter === 'all' ? 'all' : String(accountFilter)}
                 onChange={(e) => {
@@ -785,6 +892,7 @@ export function LedgerView() {
                     setAccountFilter(Number(val));
                   }
                 }}
+                style={{ padding: '4px 8px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc', width: 'auto' }}
               >
                 <option value="all">All cash & card accounts</option>
                 {cashAccountsList.map(([id, label]) => (
@@ -810,7 +918,7 @@ export function LedgerView() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Fast search: date, description, vendor, account, type, amount…"
+                placeholder="Search: date, description, job, vendor, account, type, amount…"
                 style={{
                   flex: 1,
                   minWidth: 0,
@@ -849,7 +957,7 @@ export function LedgerView() {
             >
               Showing {totalCount === 0 ? 0 : startIndex + 1}–
               {Math.min(endIndex, totalCount)} of {totalCount}{' '}
-              {accountFilter !== 'all' ? '(filtered by account)' : '(all accounts)'}
+              {accountFilter !== 'all' ? '(filtered)' : ''}
             </div>
           </div>
 
@@ -867,22 +975,14 @@ export function LedgerView() {
                     {sortableTh('date', 'Date')}
                     {sortableTh('description', 'Description')}
                     {sortableTh('vendor_installer', 'Vendor / Installer')}
-                    {sortableTh('cash_account', 'Account (Cash side)')}
-                    {sortableTh('type_label', 'Type (Category side)')}
-                    {sortableTh('amount', 'Amount')}
+                    {sortableTh('cash_account', 'Account')}
+                    {sortableTh('type_label', 'Category')}
+                    {sortableTh('amount', 'Amount', 'right')}
+                    {sortableTh('is_cleared', 'Cleared', 'center')}
                     <th
                       style={{
                         ...thStyleBase,
-                        textAlign: 'center',
-                        cursor: 'default',
-                      }}
-                    >
-                      Cleared
-                    </th>
-                    <th
-                      style={{
-                        ...thStyleBase,
-                        textAlign: 'center',
+                        textAlign: 'right',
                         cursor: 'default',
                       }}
                     >
@@ -892,9 +992,14 @@ export function LedgerView() {
                 </thead>
                 <tbody>
                   {pageRows.map((row) => (
-                    <tr key={row.transaction_id}>
+                    <tr
+                      key={row.transaction_id}
+                      style={{
+                        background: row.is_cleared ? 'transparent' : '#fffbe6',
+                      }}
+                    >
                       <td style={tdStyle}>{formatDate(row.date)}</td>
-                      <td style={tdStyle}>{row.description}</td>
+                      <td style={tdStyle}>{getDisplayDescription(row)}</td>
                       <td style={tdStyle}>{row.vendor_installer}</td>
                       <td style={tdStyle}>{row.cash_account}</td>
                       <td style={tdStyle}>{row.type_label}</td>
@@ -907,7 +1012,7 @@ export function LedgerView() {
                       <td
                         style={{
                           ...tdStyle,
-                          textAlign: 'center',
+                          textAlign: 'right',
                           whiteSpace: 'nowrap',
                         }}
                       >
@@ -916,17 +1021,19 @@ export function LedgerView() {
                             type="button"
                             onClick={() => handleMarkClearedFromLedger(row)}
                             style={{
-                              borderRadius: 999,
-                              border: '1px solid #ccc',
-                              padding: '2px 6px',
-                              background: '#f5f5f5',
+                              border: '1px solid #0a7a3c',
+                              background: '#e8f5e9',
+                              borderRadius: 4,
                               cursor: 'pointer',
-                              fontSize: 11,
+                              padding: '2px 6px',
+                              fontSize: 13,
+                              color: '#0a7a3c',
                               marginRight: 4,
+                              lineHeight: 1,
                             }}
                             title="Mark cleared"
                           >
-                            Cleared
+                            ✓
                           </button>
                         )}
                         <button
@@ -1057,7 +1164,6 @@ export function LedgerView() {
                 marginBottom: '0.75rem',
               }}
             >
-              {/* deep search input + clear */}
               <div
                 style={{
                   display: 'flex',
@@ -1070,7 +1176,7 @@ export function LedgerView() {
                   type="text"
                   value={deepTerm}
                   onChange={(e) => setDeepTerm(e.target.value)}
-                  placeholder="Search by keyword, vendor, account, type, amount…"
+                  placeholder="Search by keyword, job, vendor, account, type, amount…"
                   style={{
                     flex: 1,
                     minWidth: 0,
@@ -1119,7 +1225,8 @@ export function LedgerView() {
                   border: '1px solid #111',
                   background: deepLoading ? '#888' : '#111',
                   color: '#fff',
-                  cursor: deepLoading || !deepTerm.trim() ? 'default' : 'pointer',
+                  cursor:
+                    deepLoading || !deepTerm.trim() ? 'default' : 'pointer',
                 }}
               >
                 {deepLoading ? 'Searching…' : 'Search'}
@@ -1150,22 +1257,12 @@ export function LedgerView() {
                       <th style={thStyleBase}>Date</th>
                       <th style={thStyleBase}>Description</th>
                       <th style={thStyleBase}>Vendor / Installer</th>
-                      <th style={thStyleBase}>Account (Cash side)</th>
-                      <th style={thStyleBase}>Type (Category side)</th>
-                      <th
-                        style={{
-                          ...thStyleBase,
-                          textAlign: 'right',
-                        }}
-                      >
+                      <th style={thStyleBase}>Account</th>
+                      <th style={thStyleBase}>Category</th>
+                      <th style={{ ...thStyleBase, textAlign: 'right' }}>
                         Amount
                       </th>
-                      <th
-                        style={{
-                          ...thStyleBase,
-                          textAlign: 'center',
-                        }}
-                      >
+                      <th style={{ ...thStyleBase, textAlign: 'center' }}>
                         Cleared
                       </th>
                     </tr>
@@ -1174,7 +1271,7 @@ export function LedgerView() {
                     {deepRows.map((row) => (
                       <tr key={`deep-${row.transaction_id}-${row.date}`}>
                         <td style={tdStyle}>{formatDate(row.date)}</td>
-                        <td style={tdStyle}>{row.description}</td>
+                        <td style={tdStyle}>{getDisplayDescription(row)}</td>
                         <td style={tdStyle}>{row.vendor_installer}</td>
                         <td style={tdStyle}>{row.cash_account}</td>
                         <td style={tdStyle}>{row.type_label}</td>
@@ -1243,11 +1340,15 @@ export function LedgerView() {
               </button>
             </div>
 
+            {editingRow.job_name && (
+              <p style={{ fontSize: 12, color: '#555', margin: '0 0 0.5rem 0' }}>
+                Job: <strong>{editingRow.job_name}</strong>
+              </p>
+            )}
+
             <div style={{ fontSize: 13, marginBottom: '0.75rem' }}>
               <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', marginBottom: 2 }}>
-                  Date
-                </label>
+                <label style={{ display: 'block', marginBottom: 2 }}>Date</label>
                 <input
                   type="date"
                   value={editDate}
@@ -1274,6 +1375,50 @@ export function LedgerView() {
                     fontSize: 13,
                   }}
                 />
+              </div>
+
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label style={{ display: 'block', marginBottom: 2 }}>
+                  Bank / Credit Account
+                </label>
+                <select
+                  value={editCashAccountId ?? ''}
+                  onChange={(e) => setEditCashAccountId(Number(e.target.value) || null)}
+                  style={{
+                    width: '100%',
+                    padding: '4px 6px',
+                    fontSize: 13,
+                  }}
+                >
+                  <option value="">Select account...</option>
+                  {cashAccountOptions.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label style={{ display: 'block', marginBottom: 2 }}>
+                  Category
+                </label>
+                <select
+                  value={editCategoryAccountId ?? ''}
+                  onChange={(e) => setEditCategoryAccountId(Number(e.target.value) || null)}
+                  style={{
+                    width: '100%',
+                    padding: '4px 6px',
+                    fontSize: 13,
+                  }}
+                >
+                  <option value="">Select category...</option>
+                  {categoryAccountOptions.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div style={{ marginBottom: '0.5rem' }}>
@@ -1397,15 +1542,19 @@ export function LedgerView() {
               </button>
             </div>
 
-            <div style={{ fontSize: 12, color: '#555', marginBottom: '0.75rem' }}>
+            <div
+              style={{ fontSize: 12, color: '#555', marginBottom: '0.75rem' }}
+            >
               <div>
-                <strong>Account:</strong> {clearTarget.cash_account ?? '(unknown)'}
+                <strong>Account:</strong>{' '}
+                {clearTarget.cash_account ?? '(unknown)'}
               </div>
               <div>
                 <strong>Date:</strong> {formatDate(clearTarget.date)}
               </div>
               <div>
-                <strong>Description:</strong> {clearTarget.description ?? '(none)'}
+                <strong>Description:</strong>{' '}
+                {getDisplayDescription(clearTarget) || '(none)'}
               </div>
             </div>
 
@@ -1424,7 +1573,9 @@ export function LedgerView() {
                 fontSize: 13,
               }}
             >
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label
+                style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+              >
                 <span>Cleared date</span>
                 <input
                   type="date"
@@ -1442,7 +1593,9 @@ export function LedgerView() {
                 </span>
               </label>
 
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label
+                style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+              >
                 <span>Description</span>
                 <input
                   type="text"
@@ -1458,7 +1611,9 @@ export function LedgerView() {
                 />
               </label>
 
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label
+                style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+              >
                 <span>Final cleared amount (tip included)</span>
                 <input
                   type="number"
@@ -1473,8 +1628,8 @@ export function LedgerView() {
                   }}
                 />
                 <span style={{ fontSize: 11, color: '#777' }}>
-                  Enter a positive amount. The system will keep the debit/credit sign
-                  automatically.
+                  Enter a positive amount. The system will keep the debit/credit
+                  sign automatically.
                 </span>
               </label>
             </div>

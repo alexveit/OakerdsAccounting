@@ -1,18 +1,28 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatLocalDate } from '../utils/date';
 
 type PropertyData = {
+  dealId: number;
+  nickname: string;
   address: string;
-  ytdIncome: number;
-  ytdMortgage: number;
-  ytdRepairs: number;
-  ytdOtherExpenses: number;
-  ytdNetProfit: number;
-  monthlyRent: number;
-  monthlyMortgage: number;
-  monthlyNet: number;
+  status: string;
+  totalIncome: number;
+  totalMortgageInterest: number;
+  totalMortgagePrincipal: number;
+  totalTaxesInsurance: number;
+  totalRepairs: number;
+  totalOtherExpenses: number;
+  totalNetProfit: number;
+  avgMonthlyRent: number;
+  avgMonthlyExpenses: number;
+  avgMonthlyNet: number;
   transactions: PropertyTransaction[];
+};
+
+type MortgageDetail = {
+  accountName: string;
+  amount: number;
 };
 
 type PropertyTransaction = {
@@ -20,122 +30,243 @@ type PropertyTransaction = {
   description: string;
   accountName: string;
   amount: number;
+  // For aggregated mortgage payments
+  isMortgageAggregate?: boolean;
+  mortgageDetails?: MortgageDetail[];
 };
 
 type RawLine = {
   id: number;
   account_id: number;
   amount: number;
-  accounts: { name: string; account_types: { name: string } | null } | null;
+  real_estate_deal_id: number | null;
+  accounts: { name: string; code: string | null; account_types: { name: string } | null } | null;
   transactions: { date: string; description: string | null } | null;
 };
 
-export function RentalOperationsView() {
-  const [properties, setProperties] = useState<Record<string, PropertyData>>({});
+type Props = {
+  selectedYear: string; // 'all' or '2024', '2025', etc.
+};
+
+/**
+ * Calculate how many months are in the selected period for averaging.
+ * For 'all' years, calculate from the earliest transaction to now.
+ */
+function getMonthsInPeriod(selectedYear: string, earliestDate?: string): number {
+  if (selectedYear === 'all') {
+    if (!earliestDate) return 1; // Fallback if no transactions
+    
+    const earliest = new Date(earliestDate + 'T00:00:00');
+    const now = new Date();
+    
+    const yearDiff = now.getFullYear() - earliest.getFullYear();
+    const monthDiff = now.getMonth() - earliest.getMonth();
+    
+    const totalMonths = yearDiff * 12 + monthDiff + 1; // +1 to include current month
+    return Math.max(totalMonths, 1);
+  }
+
+  const year = parseInt(selectedYear, 10);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  if (year < currentYear) {
+    // Past year: full 12 months
+    return 12;
+  } else if (year === currentYear) {
+    // Current year: months elapsed so far
+    return now.getMonth() + 1;
+  } else {
+    // Future year: no data yet
+    return 1;
+  }
+}
+
+/**
+ * Simplify account name for display (strip common prefixes)
+ */
+function simplifyAccountName(name: string): string {
+  return name
+    .replace(/^RE – /, '')
+    .replace(/^Expense - /, '')
+    .replace(/^Income - /, '');
+}
+
+/**
+ * Aggregate mortgage-related transactions (Principal, Interest, Taxes & Insurance)
+ * that occur on the same date into a single row with expandable details.
+ */
+function aggregateMortgagePayments(transactions: PropertyTransaction[]): PropertyTransaction[] {
+  const mortgageCategories = ['Mortgage Principal', 'Mortgage Interest', 'Taxes & Insurance'];
+  
+  // Group transactions by date
+  const byDate = new Map<string, PropertyTransaction[]>();
+  const nonMortgage: PropertyTransaction[] = [];
+  
+  for (const tx of transactions) {
+    if (mortgageCategories.includes(tx.accountName)) {
+      const existing = byDate.get(tx.date) || [];
+      existing.push(tx);
+      byDate.set(tx.date, existing);
+    } else {
+      nonMortgage.push(tx);
+    }
+  }
+  
+  // Create aggregated mortgage rows
+  const aggregated: PropertyTransaction[] = [];
+  
+  for (const [date, txs] of byDate.entries()) {
+    if (txs.length === 1) {
+      // Single mortgage component, keep as-is
+      aggregated.push(txs[0]);
+    } else {
+      // Multiple components on same date, aggregate
+      const totalAmount = txs.reduce((sum, t) => sum + t.amount, 0);
+      const description = txs[0].description || 'Mortgage Payment';
+      
+      // Build details array sorted by type
+      const details: MortgageDetail[] = txs
+        .map((t) => ({ accountName: t.accountName, amount: t.amount }))
+        .sort((a, b) => {
+          // Sort order: Principal, Interest, Escrow
+          const order = ['Mortgage Principal', 'Mortgage Interest', 'Taxes & Insurance'];
+          return order.indexOf(a.accountName) - order.indexOf(b.accountName);
+        });
+      
+      aggregated.push({
+        date,
+        description,
+        accountName: 'Mortgage Payment',
+        amount: totalAmount,
+        isMortgageAggregate: true,
+        mortgageDetails: details,
+      });
+    }
+  }
+  
+  // Combine and sort by date descending
+  const result = [...nonMortgage, ...aggregated];
+  result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  
+  return result;
+}
+
+export function RentalOperationsView({ selectedYear }: Props) {
+  const [properties, setProperties] = useState<Record<number, PropertyData>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedProperties, setExpandedProperties] = useState<Record<string, boolean>>({});
-
-  const currentYear = new Date().getFullYear();
+  const [expandedProperties, setExpandedProperties] = useState<Record<number, boolean>>({});
+  const [expandedMortgages, setExpandedMortgages] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadRentalData();
-  }, []);
+  }, [selectedYear]);
 
   async function loadRentalData() {
     setLoading(true);
     setError(null);
 
     try {
-      const startDate = `${currentYear}-01-01`;
-      const endDate = `${currentYear}-12-31`;
+      // First, load all rental deals
+      const { data: dealsData, error: dealsErr } = await supabase
+        .from('real_estate_deals')
+        .select('id, nickname, address, type, status')
+        .eq('type', 'rental');
 
-      // Load all cleared rental-related transaction lines for current year
-      const { data: linesData, error: linesErr } = await supabase
+      if (dealsErr) throw dealsErr;
+
+      const rentalDeals = (dealsData ?? []) as Array<{
+        id: number;
+        nickname: string;
+        address: string;
+        type: string;
+        status: string;
+      }>;
+
+      if (rentalDeals.length === 0) {
+        setProperties({});
+        setLoading(false);
+        return;
+      }
+
+      const dealIds = rentalDeals.map((d) => d.id);
+
+      // Build date filter
+      let startDate: string | null = null;
+      let endDate: string | null = null;
+
+      if (selectedYear !== 'all') {
+        startDate = `${selectedYear}-01-01`;
+        endDate = `${selectedYear}-12-31`;
+      }
+
+      // Load all transaction lines linked to rental deals
+      let query = supabase
         .from('transaction_lines')
         .select(`
           id,
           account_id,
           amount,
-          purpose,
-          accounts!inner (
+          real_estate_deal_id,
+          accounts (
             name,
-            account_type_id,
+            code,
             account_types (name)
           ),
           transactions!inner (date, description)
         `)
         .eq('is_cleared', true)
-        .eq('purpose', 'business')
-        .like('accounts.name', '%Rental%')
-        .gte('transactions.date', startDate)
-        .lte('transactions.date', endDate);
+        .in('real_estate_deal_id', dealIds);
+
+      if (startDate && endDate) {
+        query = query.gte('transactions.date', startDate).lte('transactions.date', endDate);
+      }
+
+      const { data: linesData, error: linesErr } = await query;
 
       if (linesErr) throw linesErr;
 
       const lines = (linesData ?? []) as any[] as RawLine[];
 
-      // DEBUG: Log what we're actually getting
-      console.log('=== RENTAL DATA DEBUG ===');
-      console.log('Total lines fetched:', lines.length);
-      console.log('First 3 lines:', lines.slice(0, 3));
-      console.log('Sample line structure:', JSON.stringify(lines[0], null, 2));
+      // Initialize property map from deals
+      const propertyMap = new Map<number, PropertyData>();
 
-      // Filter for rental accounts only
-      const rentalLines = lines.filter(
-        (line) => line.accounts?.name?.includes('Rental')
-      );
-
-      console.log('Rental lines after filter:', rentalLines.length);
-      console.log('First rental line:', rentalLines[0]);
-
-      // Group by property (extract address from account name)
-      const propertyMap = new Map<string, PropertyData>();
-
-      for (const line of rentalLines) {
-        const accountName = line.accounts?.name ?? '';
-        const accType = line.accounts?.account_types?.name;
-
-        console.log('Processing line:', {
-          accountName,
-          accType,
-          amount: line.amount
+      for (const deal of rentalDeals) {
+        propertyMap.set(deal.id, {
+          dealId: deal.id,
+          nickname: deal.nickname,
+          address: deal.address,
+          status: deal.status,
+          totalIncome: 0,
+          totalMortgageInterest: 0,
+          totalMortgagePrincipal: 0,
+          totalTaxesInsurance: 0,
+          totalRepairs: 0,
+          totalOtherExpenses: 0,
+          totalNetProfit: 0,
+          avgMonthlyRent: 0,
+          avgMonthlyExpenses: 0,
+          avgMonthlyNet: 0,
+          transactions: [],
         });
+      }
 
-        // Extract property address - just take everything after the last " - "
-        const parts = accountName.split(' - ');
-        const address = parts[parts.length - 1].trim();
-        
-        console.log('Extracted address:', address);
-        
-        if (!address || address.length === 0) {
-          console.warn('Could not extract address from:', accountName);
-          continue;
-        }
+      // Process transaction lines
+      for (const line of lines) {
+        const dealId = line.real_estate_deal_id;
+        if (!dealId || !propertyMap.has(dealId)) continue;
 
-        // Initialize property if not exists
-        if (!propertyMap.has(address)) {
-          propertyMap.set(address, {
-            address,
-            ytdIncome: 0,
-            ytdMortgage: 0,
-            ytdRepairs: 0,
-            ytdOtherExpenses: 0,
-            ytdNetProfit: 0,
-            monthlyRent: 0,
-            monthlyMortgage: 0,
-            monthlyNet: 0,
-            transactions: [],
-          });
-        }
-
-        const property = propertyMap.get(address)!;
+        const property = propertyMap.get(dealId)!;
+        const accountName = line.accounts?.name ?? '';
+        const accountCode = line.accounts?.code ?? '';
+        const accType = line.accounts?.account_types?.name;
         const amount = Number(line.amount) || 0;
         const absAmount = Math.abs(amount);
 
-        // Categorize transactions
+        // Categorize by account
         if (accType === 'income') {
-          property.ytdIncome += absAmount;
+          property.totalIncome += absAmount;
           property.transactions.push({
             date: line.transactions?.date ?? '',
             description: line.transactions?.description ?? '',
@@ -143,16 +274,25 @@ export function RentalOperationsView() {
             amount: absAmount,
           });
         } else if (accType === 'expense') {
-          if (accountName.includes('Mortgage')) {
-            property.ytdMortgage += absAmount;
+          // Categorize expense type by account name or code
+          if (accountName.includes('Mortgage Interest') || accountCode === '62012') {
+            property.totalMortgageInterest += absAmount;
             property.transactions.push({
               date: line.transactions?.date ?? '',
               description: line.transactions?.description ?? '',
-              accountName: 'Mortgage',
+              accountName: 'Mortgage Interest',
               amount: -absAmount,
             });
-          } else if (accountName.includes('Repairs') || accountName.includes('Maintenance')) {
-            property.ytdRepairs += absAmount;
+          } else if (accountName.includes('Taxes') || accountName.includes('Insurance') || accountCode === '62011') {
+            property.totalTaxesInsurance += absAmount;
+            property.transactions.push({
+              date: line.transactions?.date ?? '',
+              description: line.transactions?.description ?? '',
+              accountName: 'Taxes & Insurance',
+              amount: -absAmount,
+            });
+          } else if (accountName.includes('Repairs') || accountName.includes('Maintenance') || accountCode === '62005') {
+            property.totalRepairs += absAmount;
             property.transactions.push({
               date: line.transactions?.date ?? '',
               description: line.transactions?.description ?? '',
@@ -160,45 +300,67 @@ export function RentalOperationsView() {
               amount: -absAmount,
             });
           } else {
-            property.ytdOtherExpenses += absAmount;
+            property.totalOtherExpenses += absAmount;
             property.transactions.push({
               date: line.transactions?.date ?? '',
               description: line.transactions?.description ?? '',
-              accountName: accountName.replace(/^Expense - Rental - /, '').replace(/ - .+$/, ''),
+              accountName: simplifyAccountName(accountName),
+              amount: -absAmount,
+            });
+          }
+        } else if (accType === 'liability') {
+          // Principal payments (debit to loan liability = positive amount reducing the loan)
+          if (accountName.includes('Mortgage') || accountCode?.startsWith('63')) {
+            property.totalMortgagePrincipal += absAmount;
+            property.transactions.push({
+              date: line.transactions?.date ?? '',
+              description: line.transactions?.description ?? '',
+              accountName: 'Mortgage Principal',
               amount: -absAmount,
             });
           }
         }
       }
 
-      // Calculate derived metrics for each property
+      // Calculate derived metrics
       for (const property of propertyMap.values()) {
-        property.ytdNetProfit =
-          property.ytdIncome -
-          property.ytdMortgage -
-          property.ytdRepairs -
-          property.ytdOtherExpenses;
+        const totalExpenses =
+          property.totalMortgageInterest +
+          property.totalMortgagePrincipal +
+          property.totalTaxesInsurance +
+          property.totalRepairs +
+          property.totalOtherExpenses;
 
-        // Calculate monthly averages (divide by months elapsed)
-        const today = new Date();
-        const monthsElapsed = today.getMonth() + 1;
+        property.totalNetProfit = property.totalIncome - totalExpenses;
 
-        if (monthsElapsed > 0) {
-          property.monthlyRent = property.ytdIncome / monthsElapsed;
-          property.monthlyMortgage = property.ytdMortgage / monthsElapsed;
-          property.monthlyNet = property.ytdNetProfit / monthsElapsed;
+        // Find earliest transaction date for this property
+        const transactionDates = property.transactions
+          .map((t) => t.date)
+          .filter((d) => d)
+          .sort();
+        const earliestDate = transactionDates.length > 0 ? transactionDates[0] : undefined;
+
+        const monthsInPeriod = getMonthsInPeriod(selectedYear, earliestDate);
+
+        if (monthsInPeriod > 0) {
+          property.avgMonthlyRent = property.totalIncome / monthsInPeriod;
+          property.avgMonthlyExpenses = totalExpenses / monthsInPeriod;
+          property.avgMonthlyNet = property.totalNetProfit / monthsInPeriod;
         }
 
         // Sort transactions by date descending
         property.transactions.sort(
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         );
+
+        // Aggregate mortgage payments by date
+        property.transactions = aggregateMortgagePayments(property.transactions);
       }
 
-      // Convert map to object
-      const propertiesObj: Record<string, PropertyData> = {};
-      for (const [address, data] of propertyMap.entries()) {
-        propertiesObj[address] = data;
+      // Convert map to object keyed by deal ID
+      const propertiesObj: Record<number, PropertyData> = {};
+      for (const [dealId, data] of propertyMap.entries()) {
+        propertiesObj[dealId] = data;
       }
 
       setProperties(propertiesObj);
@@ -210,10 +372,18 @@ export function RentalOperationsView() {
     }
   }
 
-  function handleToggleProperty(address: string) {
+  function handleToggleProperty(dealId: number) {
     setExpandedProperties((prev) => ({
       ...prev,
-      [address]: !prev[address],
+      [dealId]: !prev[dealId],
+    }));
+  }
+
+  function handleToggleMortgage(key: string, e: React.MouseEvent) {
+    e.stopPropagation(); // Don't toggle the property card
+    setExpandedMortgages((prev) => ({
+      ...prev,
+      [key]: !prev[key],
     }));
   }
 
@@ -231,21 +401,28 @@ export function RentalOperationsView() {
   const propertyCount = propertyList.length;
 
   // Portfolio totals
-  const portfolioMonthlyRent = propertyList.reduce((sum, p) => sum + p.monthlyRent, 0);
-  const portfolioMonthlyExpenses = propertyList.reduce(
-    (sum, p) => sum + p.monthlyMortgage + (p.ytdRepairs + p.ytdOtherExpenses) / 11,
+  const portfolioTotalIncome = propertyList.reduce((sum, p) => sum + p.totalIncome, 0);
+  const portfolioTotalExpenses = propertyList.reduce(
+    (sum, p) =>
+      sum +
+      p.totalMortgageInterest +
+      p.totalMortgagePrincipal +
+      p.totalTaxesInsurance +
+      p.totalRepairs +
+      p.totalOtherExpenses,
     0
   );
-  const portfolioMonthlyNet = propertyList.reduce((sum, p) => sum + p.monthlyNet, 0);
+  const portfolioNetProfit = propertyList.reduce((sum, p) => sum + p.totalNetProfit, 0);
+  const portfolioAvgMonthlyNet = propertyList.reduce((sum, p) => sum + p.avgMonthlyNet, 0);
+
+  const periodLabel = selectedYear === 'all' ? 'Total' : selectedYear;
 
   return (
     <div>
-      <h2>Rental Operations</h2>
-
       {propertyCount === 0 && (
         <div className="card">
           <p style={{ fontSize: 14, color: '#777' }}>
-            No rental properties found. Create rental accounts with "Rental" in the name to track properties here.
+            No rental properties found. Create a real estate deal with type "rental" to track properties here.
           </p>
         </div>
       )}
@@ -262,28 +439,35 @@ export function RentalOperationsView() {
             }}
           >
             <SummaryCard label="Properties" value={propertyCount} isCount />
-            <SummaryCard label="Avg Monthly Rent" value={portfolioMonthlyRent} />
-            <SummaryCard label="Avg Monthly Expenses" value={portfolioMonthlyExpenses} />
+            <SummaryCard label={`${periodLabel} Income`} value={portfolioTotalIncome} />
+            <SummaryCard label={`${periodLabel} Expenses`} value={portfolioTotalExpenses} />
+            <SummaryCard
+              label={`${periodLabel} Net Profit`}
+              value={portfolioNetProfit}
+              highlight={portfolioNetProfit >= 0 ? 'positive' : 'negative'}
+            />
             <SummaryCard
               label="Avg Monthly Cash Flow"
-              value={portfolioMonthlyNet}
-              highlight={portfolioMonthlyNet >= 0 ? 'positive' : 'negative'}
+              value={portfolioAvgMonthlyNet}
+              highlight={portfolioAvgMonthlyNet >= 0 ? 'positive' : 'negative'}
             />
           </div>
 
           {/* Property Cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {propertyList.map((property) => {
-              const isExpanded = expandedProperties[property.address] ?? false;
+              const isExpanded = expandedProperties[property.dealId] ?? false;
               const marginPct =
-                property.ytdIncome > 0
-                  ? (property.ytdNetProfit / property.ytdIncome) * 100
+                property.totalIncome > 0
+                  ? (property.totalNetProfit / property.totalIncome) * 100
                   : 0;
+
+              const totalMortgage = property.totalMortgageInterest + property.totalMortgagePrincipal;
 
               return (
                 <div
-                  key={property.address}
-                  onClick={() => handleToggleProperty(property.address)}
+                  key={property.dealId}
+                  onClick={() => handleToggleProperty(property.dealId)}
                   style={{
                     borderRadius: 12,
                     border: '1px solid #eee',
@@ -295,7 +479,10 @@ export function RentalOperationsView() {
                 >
                   {/* Property Header */}
                   <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>
-                    {property.address}
+                    {property.nickname}
+                    <span style={{ fontSize: 13, fontWeight: 400, color: '#666', marginLeft: '0.5rem' }}>
+                      {property.address}
+                    </span>
                   </h3>
 
                   <div
@@ -310,40 +497,41 @@ export function RentalOperationsView() {
                     }}
                   >
                     <span>
-                      <strong>Avg Rent:</strong> {currency(property.monthlyRent)}/mo
+                      <strong>Avg Rent:</strong> {currency(property.avgMonthlyRent)}/mo
                     </span>
                     <span>
-                      <strong>Avg Mortgage:</strong> {currency(property.monthlyMortgage)}/mo
+                      <strong>Avg Expenses:</strong> {currency(property.avgMonthlyExpenses)}/mo
                     </span>
                     <span
                       style={{
-                        color: property.monthlyNet >= 0 ? '#0a7a3c' : '#b00020',
+                        color: property.avgMonthlyNet >= 0 ? '#0a7a3c' : '#b00020',
                         fontWeight: 600,
                       }}
                     >
-                      <strong>Avg Net:</strong> {currency(property.monthlyNet)}/mo
+                      <strong>Avg Net:</strong> {currency(property.avgMonthlyNet)}/mo
                     </span>
                   </div>
 
-                  {/* YTD Stats */}
+                  {/* Period Stats */}
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
                       gap: '0.75rem',
                       fontSize: 14,
                       marginBottom: '0.75rem',
                     }}
                   >
-                    <Stat label="YTD Income" value={property.ytdIncome} money />
-                    <Stat label="YTD Mortgage" value={property.ytdMortgage} money />
-                    <Stat label="YTD Repairs" value={property.ytdRepairs} money />
-                    <Stat label="YTD Other Exp" value={property.ytdOtherExpenses} money />
+                    <Stat label={`${periodLabel} Income`} value={property.totalIncome} money />
+                    <Stat label="Mortgage (P+I)" value={totalMortgage} money />
+                    <Stat label="Taxes & Ins" value={property.totalTaxesInsurance} money />
+                    <Stat label="Repairs" value={property.totalRepairs} money />
+                    <Stat label="Other Exp" value={property.totalOtherExpenses} money />
                     <Stat
-                      label="YTD Net Profit"
-                      value={property.ytdNetProfit}
+                      label="Net Profit"
+                      value={property.totalNetProfit}
                       money
-                      highlight={property.ytdNetProfit >= 0 ? 'positive' : 'negative'}
+                      highlight={property.totalNetProfit >= 0 ? 'positive' : 'negative'}
                     />
                     <Stat label="Margin" value={marginPct} suffix="%" />
                   </div>
@@ -367,7 +555,7 @@ export function RentalOperationsView() {
                   {isExpanded && (
                     <>
                       {property.transactions.length === 0 && (
-                        <p style={{ fontSize: 13 }}>No transactions found.</p>
+                        <p style={{ fontSize: 13 }}>No transactions found for this period.</p>
                       )}
 
                       {property.transactions.length > 0 && (
@@ -388,22 +576,73 @@ export function RentalOperationsView() {
                             </tr>
                           </thead>
                           <tbody>
-                            {property.transactions.map((tx, idx) => (
-                              <tr key={idx}>
-                                <Td>{formatLocalDate(tx.date)}</Td>
-                                <Td>{tx.description}</Td>
-                                <Td>{tx.accountName}</Td>
-                                <Td align="right">
-                                  <span
-                                    style={{
-                                      color: tx.amount >= 0 ? '#0a7a3c' : '#b00020',
-                                    }}
-                                  >
-                                    {currency(tx.amount)}
-                                  </span>
-                                </Td>
-                              </tr>
-                            ))}
+                            {property.transactions.map((tx, idx) => {
+                              const mortgageKey = `${property.dealId}-${tx.date}`;
+                              const isMortgageExpanded = expandedMortgages[mortgageKey] ?? false;
+                              
+                              if (tx.isMortgageAggregate && tx.mortgageDetails) {
+                                // Aggregated mortgage row with expandable details
+                                return (
+                                  <React.Fragment key={idx}>
+                                    <tr
+                                      onClick={(e) => handleToggleMortgage(mortgageKey, e)}
+                                      style={{ cursor: 'pointer', backgroundColor: isMortgageExpanded ? '#f8f9fa' : undefined }}
+                                    >
+                                      <Td>{formatLocalDate(tx.date)}</Td>
+                                      <Td>
+                                        <span style={{ marginRight: '0.4rem' }}>
+                                          {isMortgageExpanded ? '▾' : '▸'}
+                                        </span>
+                                        {tx.description}
+                                      </Td>
+                                      <Td>{tx.accountName}</Td>
+                                      <Td align="right">
+                                        <span style={{ color: '#b00020', fontWeight: 500 }}>
+                                          {currency(tx.amount)}
+                                        </span>
+                                      </Td>
+                                    </tr>
+                                    {isMortgageExpanded && tx.mortgageDetails.map((detail, detailIdx) => (
+                                      <tr
+                                        key={`${idx}-detail-${detailIdx}`}
+                                        style={{ backgroundColor: '#f8f9fa' }}
+                                      >
+                                        <Td>&nbsp;</Td>
+                                        <Td>
+                                          <span style={{ paddingLeft: '1.5rem', color: '#666', fontSize: 12 }}>
+                                            └ {detail.accountName}
+                                          </span>
+                                        </Td>
+                                        <Td>&nbsp;</Td>
+                                        <Td align="right">
+                                          <span style={{ color: '#666', fontSize: 12 }}>
+                                            {currency(detail.amount)}
+                                          </span>
+                                        </Td>
+                                      </tr>
+                                    ))}
+                                  </React.Fragment>
+                                );
+                              }
+                              
+                              // Regular transaction row
+                              return (
+                                <tr key={idx}>
+                                  <Td>{formatLocalDate(tx.date)}</Td>
+                                  <Td>{tx.description}</Td>
+                                  <Td>{tx.accountName}</Td>
+                                  <Td align="right">
+                                    <span
+                                      style={{
+                                        color: tx.amount >= 0 ? '#0a7a3c' : '#b00020',
+                                      }}
+                                    >
+                                      {currency(tx.amount)}
+                                    </span>
+                                  </Td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       )}
@@ -418,6 +657,10 @@ export function RentalOperationsView() {
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Helper Components
+// ─────────────────────────────────────────────────────────────────
 
 function SummaryCard({
   label,
@@ -436,7 +679,7 @@ function SummaryCard({
 
   const text = isCount
     ? value.toString()
-    : value.toLocaleString(undefined, {
+    : value.toLocaleString('en-US', {
         style: 'currency',
         currency: 'USD',
         minimumFractionDigits: 2,
@@ -451,8 +694,8 @@ function SummaryCard({
         background: '#fff',
       }}
     >
-      <div style={{ fontSize: 16, color: '#777', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontWeight: 600, fontSize: 22, color }}>{text}</div>
+      <div style={{ fontSize: 12, color: '#777', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontWeight: 600, fontSize: 20, color }}>{text}</div>
     </div>
   );
 }
@@ -486,7 +729,7 @@ function Stat({
       <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#777' }}>
         {label}
       </div>
-      <div style={{ fontSize: 18, fontWeight: 600, color }}>{display}</div>
+      <div style={{ fontSize: 16, fontWeight: 600, color }}>{display}</div>
     </div>
   );
 }

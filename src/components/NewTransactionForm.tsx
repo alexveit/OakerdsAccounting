@@ -41,6 +41,8 @@ type MortgagePreview = {
   isAutoCalculated: boolean;
   // Warnings/notes
   warnings: string[];
+  // Payment number for display
+  paymentNumber?: number;
 };
 
 
@@ -56,6 +58,7 @@ type RealEstateDeal = {
   interest_rate: number | null;
   loan_term_months: number | null;
   close_date: string | null;
+  first_payment_date: string | null; // NEW: actual first payment due date
   rental_monthly_taxes: number | null;
   rental_monthly_insurance: number | null;
 };
@@ -231,6 +234,7 @@ export function NewTransactionForm({
           .select(`
             id, nickname, address, type, status, loan_account_id,
             original_loan_amount, interest_rate, loan_term_months, close_date,
+            first_payment_date,
             rental_monthly_taxes, rental_monthly_insurance
           `)
           .order('id', { ascending: true });
@@ -415,20 +419,26 @@ export function NewTransactionForm({
     selectedDeal.interest_rate >= 0 &&
     selectedDeal.loan_term_months &&
     selectedDeal.loan_term_months > 0 &&
-    selectedDeal.close_date
+    (selectedDeal.first_payment_date || selectedDeal.close_date) // Need at least one date
   );
 
   // Helper to compute auto-split preview
   function computeAutoSplitPreview(deal: RealEstateDeal, totalPayment: number, paymentDate: string): MortgagePreview {
     const warnings: string[] = [];
 
-    // Use the utility function
+    // Warn if using close_date as fallback (less accurate)
+    if (!deal.first_payment_date && deal.close_date) {
+      warnings.push('Using close date as fallback. For accurate splits, set first_payment_date on the deal.');
+    }
+
+    // Use the utility function with first_payment_date support
     const split = computeMortgageSplit(
       {
         originalLoanAmount: deal.original_loan_amount!,
         annualRatePercent: deal.interest_rate!,
         termMonths: deal.loan_term_months!,
-        startDate: deal.close_date!,
+        startDate: deal.close_date!, // fallback
+        firstPaymentDate: deal.first_payment_date || undefined, // NEW: pass first payment date
         rentalMonthlyTaxes: deal.rental_monthly_taxes || 0,
         rentalMonthlyInsurance: deal.rental_monthly_insurance || 0,
       },
@@ -456,6 +466,7 @@ export function NewTransactionForm({
       escrowInsurance: split.escrowInsurance,
       isAutoCalculated: true,
       warnings,
+      paymentNumber: split.paymentNumber,
     };
   }
 
@@ -1165,7 +1176,7 @@ function handleCancelMortgageSplit() {
                     marginLeft: 24,
                   }}
                 >
-                  ⚠️ This deal is missing loan data (rate, term, original amount, or close date).
+                  ⚠️ This deal is missing loan data (rate, term, original amount, or payment date).
                   Enter values manually or update the deal.
                 </div>
               )}
@@ -1180,7 +1191,12 @@ function handleCancelMortgageSplit() {
                   }}
                 >
                   Using {selectedDeal?.interest_rate}% rate, {selectedDeal?.loan_term_months}-month term,
-                  ${selectedDeal?.original_loan_amount?.toLocaleString()} loan, started {selectedDeal?.close_date}.
+                  ${selectedDeal?.original_loan_amount?.toLocaleString()} loan.
+                  {selectedDeal?.first_payment_date
+                    ? ` First payment: ${selectedDeal.first_payment_date}.`
+                    : selectedDeal?.close_date
+                    ? ` Close date: ${selectedDeal.close_date} (set first_payment_date for accuracy).`
+                    : ''}
                   {selectedDeal?.rental_monthly_taxes || selectedDeal?.rental_monthly_insurance
                     ? ` Escrow: $${((selectedDeal?.rental_monthly_taxes || 0) + (selectedDeal?.rental_monthly_insurance || 0)).toFixed(2)}/mo.`
                     : ' Escrow will be inferred from payment.'}
@@ -1491,6 +1507,11 @@ function handleCancelMortgageSplit() {
           </p>
           <p style={{ margin: 0, marginBottom: '0.5rem' }}>
             <strong>Payment Date:</strong> {date}
+            {mortgagePreview.paymentNumber && (
+              <span style={{ color: '#666', marginLeft: '0.5rem' }}>
+                (Payment #{mortgagePreview.paymentNumber})
+              </span>
+            )}
           </p>
           <p style={{ margin: 0, marginBottom: '0.75rem' }}>
             <strong>Total payment:</strong> ${mortgagePreview.total.toFixed(2)}
