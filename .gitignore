@@ -40,8 +40,8 @@ pnpm-lock.yaml
 yarn.lock
 
 # DB Snapshots
-db_backup/
-my_db_backup.ps1
-*.sql
-*.gz
+#db_backup/
+#my_db_backup.ps1
+#*.sql
+#*.gz
 
