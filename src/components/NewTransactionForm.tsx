@@ -635,8 +635,8 @@ export function NewTransactionForm({
           ? 'personal'
           : 'business';
 
-      const cashPurpose = txPurpose;
-      const categoryPurpose = txPurpose;
+      //const cashPurpose = txPurpose;
+      //const categoryPurpose = txPurpose;
       // ---------------------------------------------------
 
       // ---------- MORTGAGE PAYMENT FLOW ----------

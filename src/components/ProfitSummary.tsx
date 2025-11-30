@@ -269,7 +269,7 @@ export function ProfitSummary() {
       return { quarterlyAverage: null, yearTotal: total };
     }
 
-    // Quarterly average (daily rate × 91.25 days per quarter)
+    // Quarterly average (daily rate Ã— 91.25 days per quarter)
     const daysPerQuarter = 91.25;
     const avg = createEmptyBucket('Avg');
     avg.jobIncome = (total.jobIncome / dayOfYear) * daysPerQuarter;
@@ -416,7 +416,7 @@ export function ProfitSummary() {
     </thead>
   );
 
-  if (loading) return <p>Loading profit summary…</p>;
+  if (loading) return <p>Loading profit summary...</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
 
   return (
@@ -430,13 +430,18 @@ export function ProfitSummary() {
         }}
       >
         <h2 style={{ margin: 0 }}>Profit Summary</h2>
-        <span style={{ fontSize: 14, color: '#555' }}>Year:</span>
-        <input
-          type="number"
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value) || new Date().getFullYear())}
-          style={{ width: 80, padding: '2px 4px' }}
-        />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 14 }}>
+          Year:
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            style={{ padding: '0.25rem 0.5rem', fontSize: 14 }}
+          >
+            {Array.from({ length: new Date().getFullYear() - 2019 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {/* Monthly table */}

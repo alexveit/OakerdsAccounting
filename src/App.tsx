@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { JobDetailView } from './components/JobDetailView';
 import { DashboardOverview } from './components/DashboardOverview';
-import { InstallersOverview } from './components/InstallersOverview';
+import { InstallersView } from './components/InstallersView';
+import { VendorsView } from './components/VendorsView';
+import { LeadSourcesView } from './components/LeadSourcesView';
 import { LedgerView } from './components/LedgerView';
 import { ProfitSummary } from './components/ProfitSummary';
 import { ExpenseCategoriesView } from './components/ExpensesView';
@@ -12,6 +14,8 @@ import { REIView } from './components/REIView';
 type View =
   | 'dashboard'
   | 'installers'
+  | 'vendors'
+  | 'leadSources'
   | 'expenses'
   | 'entry'
   | 'jobDetail'
@@ -23,9 +27,11 @@ type View =
 const NAV_ITEMS: { view: View; label: string }[] = [
   { view: 'dashboard', label: 'Dashboard' },
   { view: 'installers', label: 'Installers' },
+  { view: 'vendors', label: 'Vendors' },
+  { view: 'leadSources', label: 'Lead Sources' },
   { view: 'expenses', label: 'Exp by Category' },
   { view: 'profitSummary', label: 'Profit Summary' },
-  { view: 'rei', label: 'REI' },                // <── ADDED
+  { view: 'rei', label: 'REI' },                // <â”€â”€ ADDED
   { view: 'taxExport', label: 'Tax Exports' },
   { view: 'entry', label: 'New Entry' },
   { view: 'jobDetail', label: 'Job Detail' },
@@ -34,14 +40,16 @@ const NAV_ITEMS: { view: View; label: string }[] = [
 
 const VIEW_COMPONENTS: Record<View, React.ComponentType> = {
   dashboard: DashboardOverview,
-  installers: InstallersOverview,
+  installers: InstallersView,
+  vendors: VendorsView,
+  leadSources: LeadSourcesView,
   expenses: ExpenseCategoriesView,
   entry: NewEntryView,
   jobDetail: JobDetailView,
   ledger: LedgerView,
   profitSummary: ProfitSummary,
   taxExport: TaxExportView,
-  rei: REIView,                                 // <── ADDED
+  rei: REIView,                                 // <â”€â”€ ADDED
 };
 
 function App() {

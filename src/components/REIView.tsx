@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { RentalOperationsView } from './RentalOperationsView';
 import { FlipOperationsView } from './FlipOperationsView';
 import { WholesaleOperationsView } from './WholesaleOperationsView';
+import { DealEditView } from './DealEditView';
 
-type REITab = 'rentals' | 'flips' | 'wholesales';
+type REITab = 'rentals' | 'flips' | 'wholesales' | 'editDeal';
 
 // Generate year options from 2020 to current year
 function getYearOptions(): string[] {
@@ -22,6 +23,9 @@ export function REIView() {
 
   const yearOptions = getYearOptions();
 
+  // Only show year selector for views that use it
+  const showYearSelector = tab === 'rentals' || tab === 'flips' || tab === 'wholesales';
+
   return (
     <div>
       {/* Header row with title and year selector */}
@@ -35,27 +39,29 @@ export function REIView() {
       >
         <h2 style={{ margin: 0 }}>Real Estate Investing</h2>
 
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontSize: 14,
-          }}
-        >
-          Year:
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            style={{ padding: '0.25rem 0.5rem', fontSize: 14 }}
+        {showYearSelector && (
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: 14,
+            }}
           >
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y === 'all' ? 'All Years' : y}
-              </option>
-            ))}
-          </select>
-        </label>
+            Year:
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              style={{ padding: '0.25rem 0.5rem', fontSize: 14 }}
+            >
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>
+                  {y === 'all' ? 'All Years' : y}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       {/* REI tabs */}
@@ -83,6 +89,14 @@ export function REIView() {
         >
           Wholesales
         </button>
+
+        <button
+          type="button"
+          className={`tab ${tab === 'editDeal' ? 'tab--active' : ''}`}
+          onClick={() => setTab('editDeal')}
+        >
+          Edit Deal
+        </button>
       </div>
 
       {/* Content */}
@@ -90,6 +104,7 @@ export function REIView() {
         {tab === 'rentals' && <RentalOperationsView selectedYear={selectedYear} />}
         {tab === 'flips' && <FlipOperationsView />}
         {tab === 'wholesales' && <WholesaleOperationsView />}
+        {tab === 'editDeal' && <DealEditView />}
       </div>
     </div>
   );

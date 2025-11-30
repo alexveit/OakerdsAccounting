@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "zip-project": "node scripts/createSnapshot.cjs"
+    "debug-docs": "node scripts/createSnapshot.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.81.1",

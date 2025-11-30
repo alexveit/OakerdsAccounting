@@ -7,6 +7,7 @@ type Installer = {
   last_name: string | null;
   company_name: string | null;
   tax_id: string | null;
+  is_active: boolean;
 };
 
 export function InstallersOverview() {
@@ -15,6 +16,7 @@ export function InstallersOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<"name" | "paidDesc">("paidDesc");
+  const [showInactive, setShowInactive] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -25,12 +27,12 @@ export function InstallersOverview() {
         // 1) Load installers
         const { data: installersData, error: instErr } = await supabase
           .from("installers")
-          .select("id, first_name, last_name, company_name, tax_id")
+          .select("id, first_name, last_name, company_name, tax_id, is_active")
           .order("first_name", { ascending: true });
 
         if (instErr) throw instErr;
 
-        const installersTyped: Installer[] = (installersData ?? []) as any[];
+        const installersTyped: Installer[] = (installersData ?? []) as Installer[];
 
         // 2) Load cleared payments grouped by installer_id
         const { data: sumsData, error: sumsErr } = await supabase
@@ -57,7 +59,7 @@ export function InstallersOverview() {
     loadData();
   }, []);
 
-  if (loading) return <p>Loading installers…</p>;
+  if (loading) return <p>Loading installers...</p>;
   if (error) return <p style={{ color: "red" }}>Error: {error}</p>;
   if (installers.length === 0) return <p>No installers found.</p>;
 
@@ -69,41 +71,59 @@ export function InstallersOverview() {
     });
   }
 
-  // apply sorting logic
-  const sortedInstallers = [...installers].sort((a, b) => {
+  // Filter and sort
+  const filteredInstallers = showInactive
+    ? installers
+    : installers.filter((i) => i.is_active);
+
+  const sortedInstallers = [...filteredInstallers].sort((a, b) => {
     const nameA = `${a.first_name} ${a.last_name ?? ""}`.toLowerCase();
     const nameB = `${b.first_name} ${b.last_name ?? ""}`.toLowerCase();
     const paidA = ytdPaid[a.id] ?? 0;
     const paidB = ytdPaid[b.id] ?? 0;
 
     if (sortMode === "name") {
-      if (nameA < nameB) return -1;
-      if (nameA > nameB) return 1;
-      return 0;
+      return nameA.localeCompare(nameB);
     }
 
     // paidDesc
-    if (paidA > paidB) return -1;
-    if (paidA < paidB) return 1;
-    return 0;
+    return paidB - paidA;
   });
 
   return (
     <div className="card">
-      <h2>Installers Overview</h2>
+      {/* Controls row */}
+      <div
+        style={{
+          marginBottom: "1rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "1.5rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <label style={{ fontSize: 13 }}>Sort by:</label>
+          <select
+            value={sortMode}
+            onChange={(e) =>
+              setSortMode(e.target.value as "name" | "paidDesc")
+            }
+            style={{ padding: "0.25rem 0.5rem", fontSize: 13, width: "auto" }}
+          >
+            <option value="name">Name (A to Z)</option>
+            <option value="paidDesc">Paid (High to Low)</option>
+          </select>
+        </div>
 
-      {/* Sort Selector */}
-      <div style={{ marginBottom: "1rem" }}>
-        <label style={{ marginRight: "0.5rem" }}>Sort by:</label>
-        <select
-          value={sortMode}
-          onChange={(e) =>
-            setSortMode(e.target.value as "name" | "paidDesc")
-          }
-        >
-          <option value="name">Name (A → Z)</option>
-          <option value="paidDesc">Paid (High → Low)</option>
-        </select>
+        <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <input
+            type="checkbox"
+            checked={showInactive}
+            onChange={(e) => setShowInactive(e.target.checked)}
+          />
+          Show inactive
+        </label>
       </div>
 
       <table className="table">
@@ -122,7 +142,7 @@ export function InstallersOverview() {
             const ytd = ytdPaid[i.id] ?? 0;
 
             return (
-              <tr key={i.id}>
+              <tr key={i.id} style={{ opacity: i.is_active ? 1 : 0.5 }}>
                 <Td>{name}</Td>
                 <Td>{i.company_name ?? ""}</Td>
                 <Td>{i.tax_id ?? ""}</Td>

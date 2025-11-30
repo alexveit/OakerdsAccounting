@@ -24,6 +24,7 @@ type RealEstateDeal = {
   type: string;
   status: string;
   purchase_price: number | null;
+  arv: number | null;
   original_loan_amount: number | null;
   asset_account_id: number | null;
   loan_account_id: number | null;
@@ -141,7 +142,7 @@ export function DashboardOverview() {
       // Real estate deals
       const { data: dealsData, error: dealsErr } = await supabase
         .from('real_estate_deals')
-        .select('id, nickname, type, status, purchase_price, original_loan_amount, asset_account_id, loan_account_id')
+        .select('id, nickname, type, status, purchase_price, arv, original_loan_amount, asset_account_id, loan_account_id')
         .in('status', ['active', 'stabilized', 'rehab']);
 
       if (dealsErr) throw dealsErr;
@@ -159,7 +160,7 @@ export function DashboardOverview() {
     loadDashboardData();
   }, []);
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <p>Loading...</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
 
   // Sort accounts
@@ -179,13 +180,13 @@ export function DashboardOverview() {
   const totalCash = cashAccounts.reduce((sum, a) => sum + Number(a.balance), 0);
   const totalCards = cardAccounts.reduce((sum, a) => sum + Number(a.balance), 0);
 
-  // RE equity
+  // RE equity: use ARV if available, otherwise fall back to purchase_price
   const rePortfolio = realEstateDeals.map((deal) => {
     const loanAccount = accountBalances.find((a) => a.account_id === deal.loan_account_id);
     const mortgageAccountBalance = loanAccount ? Number(loanAccount.balance) : 0;
-    const purchasePrice = deal.purchase_price ?? 0;
+    const propertyValue = deal.arv ?? deal.purchase_price ?? 0;
     const originalLoan = deal.original_loan_amount ?? 0;
-    const equity = purchasePrice - originalLoan - mortgageAccountBalance;
+    const equity = propertyValue - originalLoan - mortgageAccountBalance;
     return { id: deal.id, nickname: deal.nickname, equity };
   });
 

@@ -24,6 +24,7 @@ const MONTH_KEYS = [
   '07', '08', '09', '10', '11', '12',
 ];
 
+/*
 const formatMonthLabel = (monthKey: string) => {
   const [y, m] = monthKey.split('-').map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString(undefined, {
@@ -31,6 +32,7 @@ const formatMonthLabel = (monthKey: string) => {
     year: 'numeric',
   });
 };
+*/
 
 const formatMonthShort = (monthKey: string) => {
   const [, m] = monthKey.split('-').map(Number);

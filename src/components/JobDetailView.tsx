@@ -9,6 +9,8 @@ type Job = {
   status: string | null;
   start_date?: string | null;
   end_date?: string | null;
+  lead_source_id?: number | null;
+  lead_sources?: { id: number; name: string; nick_name: string | null } | null;
 };
 
 type Line = {
@@ -54,6 +56,8 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
   const [error, setError] = useState<string | null>(null);
 
   const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [groupByLeadSource, setGroupByLeadSource] = useState<boolean>(false);
+  const [selectedLeadSource, setSelectedLeadSource] = useState<string>('all');
 
   const [endDateByJob, setEndDateByJob] = useState<Record<number, string>>({});
   const [expandedJobs, setExpandedJobs] = useState<Record<number, boolean>>({});
@@ -69,10 +73,10 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
       setError(null);
 
       try {
-        // Load jobs
+        // Load jobs with lead source
         const { data: jobsData, error: jobsErr } = await supabase
           .from('jobs')
-          .select('id, name, address, status, start_date, end_date')
+          .select('id, name, address, status, start_date, end_date, lead_source_id, lead_sources ( id, name, nick_name )')
           .order('created_at', { ascending: false });
 
         if (jobsErr) throw jobsErr;
@@ -246,10 +250,10 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
     }));
   }
 
-  if (loading) return <p>Loading jobs…</p>;
+  if (loading) return <p>Loading jobs...</p>;
 
   // ------------------------------------------------------------
-  // YEAR FILTERING
+  // YEAR FILTERING + LEAD SOURCE FILTERING
   // ------------------------------------------------------------
   const years = Array.from(
     new Set(
@@ -259,9 +263,30 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
     .sort()
     .reverse();
 
+  // Build unique lead sources from jobs
+  const leadSourcesMap = new Map<number, { id: number; name: string; nick_name: string | null }>();
+  for (const job of jobs) {
+    if (job.lead_sources) {
+      leadSourcesMap.set(job.lead_sources.id, job.lead_sources);
+    }
+  }
+  const leadSources = Array.from(leadSourcesMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
   const filteredJobs = jobs.filter((j) => {
-    if (selectedYear === 'all') return true;
-    return j.start_date?.slice(0, 4) === selectedYear;
+    // Year filter
+    if (selectedYear !== 'all' && j.start_date?.slice(0, 4) !== selectedYear) {
+      return false;
+    }
+    // Lead source filter
+    if (selectedLeadSource !== 'all') {
+      const sourceId = j.lead_sources?.id;
+      if (selectedLeadSource === 'none') {
+        if (sourceId) return false;
+      } else {
+        if (String(sourceId) !== selectedLeadSource) return false;
+      }
+    }
+    return true;
   });
 
   // ------------------------------------------------------------
@@ -284,6 +309,19 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
     });
 
   // ------------------------------------------------------------
+  // GROUP BY LEAD SOURCE (for closed jobs)
+  // ------------------------------------------------------------
+  const closedByLeadSource = new Map<string, Job[]>();
+  if (groupByLeadSource) {
+    for (const job of closedJobs) {
+      const key = job.lead_sources?.name ?? 'No Lead Source';
+      const arr = closedByLeadSource.get(key) ?? [];
+      arr.push(job);
+      closedByLeadSource.set(key, arr);
+    }
+  }
+
+  // ------------------------------------------------------------
   // COLUMN BUILDER (bottom-up tetris per group)
   // ------------------------------------------------------------
   function buildColumns(list: Job[]) {
@@ -300,9 +338,6 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
 
   const openCols = buildColumns(openJobs);
   const closedCols = buildColumns(closedJobs);
-
-  const leftCol = [...openCols.left, ...closedCols.left];
-  const rightCol = [...openCols.right, ...closedCols.right];
 
   // ------------------------------------------------------------
   // RENDER CARD
@@ -340,12 +375,19 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
           </div>
         )}
 
-        {/* STATUS */}
-        <div style={{ fontSize: 12, color: '#777', marginBottom: 4 }}>
-          Status:{' '}
-          <strong style={{ color: job.status === 'closed' ? '#b00020' : '#0a7a3c' }}>
-            {job.status || 'open'}
-          </strong>
+        {/* STATUS + LEAD SOURCE */}
+        <div style={{ fontSize: 12, color: '#777', marginBottom: 4, display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <span>
+            Status:{' '}
+            <strong style={{ color: job.status === 'closed' ? '#b00020' : '#0a7a3c' }}>
+              {job.status || 'open'}
+            </strong>
+          </span>
+          {job.lead_sources && (
+            <span>
+              Source: <strong>{job.lead_sources.nick_name || job.lead_sources.name}</strong>
+            </span>
+          )}
         </div>
 
         {/* --- Start / End / Close job on same row --- */}
@@ -363,14 +405,14 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
           {/* START DATE */}
           <span>
             <strong>Start:</strong>{' '}
-            {job.start_date ? formatLocalDate(job.start_date) : '—'}
+            {job.start_date ? formatLocalDate(job.start_date) : 'â€”'}
           </span>
 
           {/* END DATE + CLOSE BUTTON */}
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <strong>End:</strong>{' '}
             {job.status === 'closed' ? (
-              job.end_date ? formatLocalDate(job.end_date) : '—'
+              job.end_date ? formatLocalDate(job.end_date) : 'â€”'
             ) : (
               <input
                 type="date"
@@ -468,7 +510,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
             fontSize: 15,
           }}
         >
-          <span>{isExpanded ? '▾' : '▸'}</span>
+          <span>{isExpanded ? 'â–¾' : 'â–¸'}</span>
           <span>Transactions</span>
         </h3>
 
@@ -511,7 +553,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
                           maximumFractionDigits: 2,
                         })}
                       </Td>
-                      <Td align="center">{row.cleared ? '✓' : ''}</Td>
+                      <Td align="center">{row.cleared ? 'âœ“' : ''}</Td>
                     </tr>
                   ))}
                 </tbody>
@@ -532,42 +574,151 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      <label>
-        Year{' '}
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(e.target.value)}
-        >
-          <option value="all">All years</option>
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* Filters row */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1.5rem',
+          flexWrap: 'wrap',
+          marginBottom: '1rem',
+        }}
+      >
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: 14 }}>
+          Year:
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            style={{ padding: '0.25rem 0.5rem', fontSize: 14 }}
+          >
+            <option value="all">All years</option>
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: 14 }}>
+          Lead Source:
+          <select
+            value={selectedLeadSource}
+            onChange={(e) => setSelectedLeadSource(e.target.value)}
+            style={{ padding: '0.25rem 0.5rem', fontSize: 14 }}
+          >
+            <option value="all">All sources</option>
+            <option value="none">No lead source</option>
+            {leadSources.map((ls) => (
+              <option key={ls.id} value={ls.id}>
+                {ls.nick_name || ls.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: 13 }}>
+          <input
+            type="checkbox"
+            checked={groupByLeadSource}
+            onChange={(e) => setGroupByLeadSource(e.target.checked)}
+          />
+          Group closed by lead source
+        </label>
+      </div>
 
       {filteredJobs.length === 0 && (
-        <p style={{ marginTop: '1rem' }}>No jobs found for this year.</p>
+        <p style={{ marginTop: '1rem' }}>No jobs found for the selected filters.</p>
       )}
 
       {filteredJobs.length > 0 && (
-        <div
-          style={{
-            marginTop: '1rem',
-            display: 'flex',
-            gap: '1rem',
-            alignItems: 'flex-start',
-          }}
-        >
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {leftCol.map((job) => renderJobCard(job))}
-          </div>
+        <>
+          {/* Open Jobs Section */}
+          {openJobs.length > 0 && (
+            <>
+              <h3 style={{ marginTop: '0.5rem', marginBottom: '0.75rem', color: '#0a7a3c' }}>
+                Open Jobs ({openJobs.length})
+              </h3>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '1rem',
+                  alignItems: 'flex-start',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  {openCols.left.map((job) => renderJobCard(job))}
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  {openCols.right.map((job) => renderJobCard(job))}
+                </div>
+              </div>
+            </>
+          )}
 
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {rightCol.map((job) => renderJobCard(job))}
-          </div>
-        </div>
+          {/* Closed Jobs Section */}
+          {closedJobs.length > 0 && (
+            <>
+              {groupByLeadSource ? (
+                // Grouped by lead source
+                Array.from(closedByLeadSource.entries())
+                  .sort(([a], [b]) => {
+                    // "No Lead Source" goes last
+                    if (a === 'No Lead Source') return 1;
+                    if (b === 'No Lead Source') return -1;
+                    return a.localeCompare(b);
+                  })
+                  .map(([sourceName, sourceJobs]) => {
+                    const sourceCols = buildColumns(sourceJobs);
+                    return (
+                      <div key={sourceName}>
+                        <h3 style={{ marginTop: '1rem', marginBottom: '0.75rem', color: '#555' }}>
+                          {sourceName} ({sourceJobs.length})
+                        </h3>
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: '1rem',
+                            alignItems: 'flex-start',
+                            marginBottom: '1rem',
+                          }}
+                        >
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            {sourceCols.left.map((job) => renderJobCard(job))}
+                          </div>
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            {sourceCols.right.map((job) => renderJobCard(job))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+              ) : (
+                // Not grouped
+                <>
+                  <h3 style={{ marginTop: '1rem', marginBottom: '0.75rem', color: '#b00020' }}>
+                    Closed Jobs ({closedJobs.length})
+                  </h3>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '1rem',
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      {closedCols.left.map((job) => renderJobCard(job))}
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      {closedCols.right.map((job) => renderJobCard(job))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </>
       )}
     </div>
   );
