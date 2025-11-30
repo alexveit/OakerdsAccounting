@@ -118,15 +118,12 @@ export function Analytics() {
             amount,
             purpose,
             job_id,
-            vendor_id,
-            installer_id,
-            accounts!inner (
+            accounts (
+              name,
               code,
-              account_types!inner ( name )
+              account_types (name)
             ),
-            transactions!inner ( date ),
-            vendors ( nick_name ),
-            installers ( first_name, last_name )
+            transactions!inner (date)
           `)
           .eq('is_cleared', true)
           .gte('transactions.date', startDate)
@@ -134,55 +131,55 @@ export function Analytics() {
 
         if (expErr) throw expErr;
 
-        // Categorize expenses by type and aggregate by vendor/installer/account
-        const jobExpenses = new Map<string, number>();
-        const marketingExpenses = new Map<string, number>();
-        const overheadExpenses = new Map<string, number>();
-        const realEstateExpenses = new Map<string, number>();
-        const personalExpenses = new Map<string, number>();
+        // Categorize expenses by type and aggregate by account (matching ExpensesSummary logic)
+        const jobExpenses = new Map<number, { name: string; amount: number }>();
+        const marketingExpenses = new Map<number, { name: string; amount: number }>();
+        const overheadExpenses = new Map<number, { name: string; amount: number }>();
+        const realEstateExpenses = new Map<number, { name: string; amount: number }>();
+        const personalExpenses = new Map<number, { name: string; amount: number }>();
 
         for (const line of (expenseLines ?? []) as any[]) {
+          const accType = line.accounts?.account_types?.name;
+          if (accType !== 'expense') continue;
+
           const amount = Math.abs(Number(line.amount) || 0);
           const purpose: Purpose = line.purpose ?? 'business';
-          const accType = line.accounts?.account_types?.name;
           const code = line.accounts?.code ?? '';
 
           const isBusiness = purpose === 'business' || purpose === 'mixed';
           const isPersonal = purpose === 'personal';
 
-          if (accType !== 'expense') continue;
+          const accountId = line.account_id;
+          const accountName = line.accounts?.name ?? 'Unknown';
 
-          // Determine the name to group by
-          let groupName = 'Other';
-          if (line.vendors?.nick_name) {
-            groupName = line.vendors.nick_name;
-          } else if (line.installers) {
-            groupName = `${line.installers.first_name} ${line.installers.last_name}`;
+          // Categorize and aggregate by account (same logic as ExpensesSummary)
+          let targetMap: Map<number, { name: string; amount: number }> | null = null;
+
+          if (isPersonal) {
+            targetMap = personalExpenses;
+          } else if (isBusiness && isRealEstateExpenseCode(code)) {
+            targetMap = realEstateExpenses;
+          } else if (isBusiness && line.job_id !== null) {
+            targetMap = jobExpenses;
+          } else if (isBusiness && isMarketingExpenseCode(code)) {
+            targetMap = marketingExpenses;
+          } else if (isBusiness) {
+            targetMap = overheadExpenses;
           }
 
-          // Categorize and aggregate
-          if (isPersonal) {
-            const current = personalExpenses.get(groupName) || 0;
-            personalExpenses.set(groupName, current + amount);
-          } else if (isBusiness && isRealEstateExpenseCode(code)) {
-            const current = realEstateExpenses.get(groupName) || 0;
-            realEstateExpenses.set(groupName, current + amount);
-          } else if (isBusiness && line.job_id !== null) {
-            const current = jobExpenses.get(groupName) || 0;
-            jobExpenses.set(groupName, current + amount);
-          } else if (isBusiness && isMarketingExpenseCode(code)) {
-            const current = marketingExpenses.get(groupName) || 0;
-            marketingExpenses.set(groupName, current + amount);
-          } else if (isBusiness) {
-            const current = overheadExpenses.get(groupName) || 0;
-            overheadExpenses.set(groupName, current + amount);
+          if (targetMap) {
+            const existing = targetMap.get(accountId);
+            if (existing) {
+              existing.amount += amount;
+            } else {
+              targetMap.set(accountId, { name: accountName, amount });
+            }
           }
         }
 
         // Convert maps to arrays and sort by amount (high to low)
-        const sortAndLimit = (map: Map<string, number>, limit = 15) => {
-          return Array.from(map.entries())
-            .map(([name, amount]) => ({ name, amount }))
+        const sortAndLimit = (map: Map<number, { name: string; amount: number }>, limit = 15) => {
+          return Array.from(map.values())
             .sort((a, b) => b.amount - a.amount)
             .slice(0, limit);
         };
@@ -463,22 +460,57 @@ export function Analytics() {
         </h2>
 
         {/* Tab Navigation */}
-        <div className="pill-nav" style={{ marginBottom: '1rem' }}>
+        <div style={{
+          display: 'flex',
+          borderBottom: '2px solid #e0e0e0',
+          marginBottom: '1.5rem',
+          gap: '0.5rem'
+        }}>
           <button
             onClick={() => setActiveTab('balances')}
-            className={`pill-button ${activeTab === 'balances' ? 'pill-button--active' : ''}`}
+            style={{
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              background: 'transparent',
+              borderBottom: activeTab === 'balances' ? '3px solid #1565c0' : '3px solid transparent',
+              fontWeight: activeTab === 'balances' ? 600 : 400,
+              color: activeTab === 'balances' ? '#1565c0' : '#666',
+              cursor: 'pointer',
+              fontSize: '15px',
+              transition: 'all 0.2s',
+            }}
           >
             Balance History
           </button>
           <button
             onClick={() => setActiveTab('expenses')}
-            className={`pill-button ${activeTab === 'expenses' ? 'pill-button--active' : ''}`}
+            style={{
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              background: 'transparent',
+              borderBottom: activeTab === 'expenses' ? '3px solid #1565c0' : '3px solid transparent',
+              fontWeight: activeTab === 'expenses' ? 600 : 400,
+              color: activeTab === 'expenses' ? '#1565c0' : '#666',
+              cursor: 'pointer',
+              fontSize: '15px',
+              transition: 'all 0.2s',
+            }}
           >
             Expense Categories
           </button>
           <button
             onClick={() => setActiveTab('cashflow')}
-            className={`pill-button ${activeTab === 'cashflow' ? 'pill-button--active' : ''}`}
+            style={{
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              background: 'transparent',
+              borderBottom: activeTab === 'cashflow' ? '3px solid #1565c0' : '3px solid transparent',
+              fontWeight: activeTab === 'cashflow' ? 600 : 400,
+              color: activeTab === 'cashflow' ? '#1565c0' : '#666',
+              cursor: 'pointer',
+              fontSize: '15px',
+              transition: 'all 0.2s',
+            }}
           >
             Cash Flow
           </button>
