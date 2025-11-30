@@ -10,6 +10,7 @@ import { ExpenseCategoriesView } from './components/ExpensesView';
 import { NewEntryView } from './components/NewEntryView';
 import { TaxExportView } from './components/TaxExportView';
 import { REIView } from './components/REIView';
+import { Analytics } from './components/Analytics';
 
 type View =
   | 'dashboard'
@@ -22,10 +23,12 @@ type View =
   | 'ledger'
   | 'profitSummary'
   | 'taxExport'
-  | 'rei';
+  | 'rei'
+  | 'analytics';
 
 const NAV_ITEMS: { view: View; label: string }[] = [
   { view: 'dashboard', label: 'Dashboard' },
+  { view: 'analytics', label: 'Analytics' },
   { view: 'installers', label: 'Installers' },
   { view: 'vendors', label: 'Vendors' },
   { view: 'leadSources', label: 'Lead Sources' },
@@ -40,6 +43,7 @@ const NAV_ITEMS: { view: View; label: string }[] = [
 
 const VIEW_COMPONENTS: Record<View, React.ComponentType> = {
   dashboard: DashboardOverview,
+  analytics: Analytics,
   installers: InstallersView,
   vendors: VendorsView,
   leadSources: LeadSourcesView,
