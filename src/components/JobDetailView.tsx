@@ -80,7 +80,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
           .order('created_at', { ascending: false });
 
         if (jobsErr) throw jobsErr;
-        const jobs = (jobsData ?? []) as Job[];
+        const jobs = (jobsData ?? []) as unknown as Job[];
         setJobs(jobs);
 
         // Initialize end dates
