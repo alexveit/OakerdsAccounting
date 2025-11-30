@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { isBankCode } from '../utils/accounts';
+import {
+  isBankCode,
+  isMarketingExpenseCode,
+  isRealEstateExpenseCode,
+  type Purpose
+} from '../utils/accounts';
 import { formatCurrency } from '../utils/format';
 import {
   ComposedChart,
@@ -10,6 +15,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Bar,
+  BarChart,
 } from 'recharts';
 
 type AccountBalance = {
@@ -35,6 +41,19 @@ type CandlestickData = {
   low: number;
 };
 
+type ExpenseChartData = {
+  name: string;
+  amount: number;
+};
+
+type ExpenseData = {
+  job: ExpenseChartData[];
+  marketing: ExpenseChartData[];
+  overhead: ExpenseChartData[];
+  realEstate: ExpenseChartData[];
+  personal: ExpenseChartData[];
+};
+
 export function Analytics() {
   const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<number | 'all'>(
@@ -44,6 +63,13 @@ export function Analytics() {
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [dateRange, setDateRange] = useState<'90d' | 'ytd' | 'max'>('90d');
   const [activeTab, setActiveTab] = useState<'balances' | 'expenses' | 'cashflow'>('balances');
+  const [expenseData, setExpenseData] = useState<ExpenseData>({
+    job: [],
+    marketing: [],
+    overhead: [],
+    realEstate: [],
+    personal: [],
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +98,108 @@ export function Analytics() {
     }
 
     loadAccounts();
+  }, []);
+
+  // Load expense data for expense charts
+  useEffect(() => {
+    async function loadExpenseData() {
+      try {
+        // Get YTD date range
+        const currentYear = new Date().getFullYear();
+        const startDate = `${currentYear}-01-01`;
+        const endDate = `${currentYear}-12-31`;
+
+        // Fetch YTD expense transactions with related data
+        const { data: expenseLines, error: expErr } = await supabase
+          .from('transaction_lines')
+          .select(`
+            id,
+            account_id,
+            amount,
+            purpose,
+            job_id,
+            vendor_id,
+            installer_id,
+            accounts!inner (
+              code,
+              account_types!inner ( name )
+            ),
+            transactions!inner ( date ),
+            vendors ( nick_name ),
+            installers ( first_name, last_name )
+          `)
+          .eq('is_cleared', true)
+          .gte('transactions.date', startDate)
+          .lte('transactions.date', endDate);
+
+        if (expErr) throw expErr;
+
+        // Categorize expenses by type and aggregate by vendor/installer/account
+        const jobExpenses = new Map<string, number>();
+        const marketingExpenses = new Map<string, number>();
+        const overheadExpenses = new Map<string, number>();
+        const realEstateExpenses = new Map<string, number>();
+        const personalExpenses = new Map<string, number>();
+
+        for (const line of (expenseLines ?? []) as any[]) {
+          const amount = Math.abs(Number(line.amount) || 0);
+          const purpose: Purpose = line.purpose ?? 'business';
+          const accType = line.accounts?.account_types?.name;
+          const code = line.accounts?.code ?? '';
+
+          const isBusiness = purpose === 'business' || purpose === 'mixed';
+          const isPersonal = purpose === 'personal';
+
+          if (accType !== 'expense') continue;
+
+          // Determine the name to group by
+          let groupName = 'Other';
+          if (line.vendors?.nick_name) {
+            groupName = line.vendors.nick_name;
+          } else if (line.installers) {
+            groupName = `${line.installers.first_name} ${line.installers.last_name}`;
+          }
+
+          // Categorize and aggregate
+          if (isPersonal) {
+            const current = personalExpenses.get(groupName) || 0;
+            personalExpenses.set(groupName, current + amount);
+          } else if (isBusiness && isRealEstateExpenseCode(code)) {
+            const current = realEstateExpenses.get(groupName) || 0;
+            realEstateExpenses.set(groupName, current + amount);
+          } else if (isBusiness && line.job_id !== null) {
+            const current = jobExpenses.get(groupName) || 0;
+            jobExpenses.set(groupName, current + amount);
+          } else if (isBusiness && isMarketingExpenseCode(code)) {
+            const current = marketingExpenses.get(groupName) || 0;
+            marketingExpenses.set(groupName, current + amount);
+          } else if (isBusiness) {
+            const current = overheadExpenses.get(groupName) || 0;
+            overheadExpenses.set(groupName, current + amount);
+          }
+        }
+
+        // Convert maps to arrays and sort by amount (high to low)
+        const sortAndLimit = (map: Map<string, number>, limit = 15) => {
+          return Array.from(map.entries())
+            .map(([name, amount]) => ({ name, amount }))
+            .sort((a, b) => b.amount - a.amount)
+            .slice(0, limit);
+        };
+
+        setExpenseData({
+          job: sortAndLimit(jobExpenses),
+          marketing: sortAndLimit(marketingExpenses),
+          overhead: sortAndLimit(overheadExpenses),
+          realEstate: sortAndLimit(realEstateExpenses),
+          personal: sortAndLimit(personalExpenses),
+        });
+      } catch (err) {
+        console.error('Error loading expense data:', err);
+      }
+    }
+
+    loadExpenseData();
   }, []);
 
   // Load and process transaction data
@@ -582,11 +710,156 @@ export function Analytics() {
 
       {/* Expense Categories Tab Content */}
       {activeTab === 'expenses' && (
-        <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
-            Expense Categories
-          </h3>
-          <p>Expense category charts coming soon...</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '1rem' }}>
+          {/* Job Expenses Chart */}
+          <div className="card">
+            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Direct Job Expenses</h3>
+            {expenseData.job.length === 0 ? (
+              <p style={{ color: '#555' }}>No job expenses for this period</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={expenseData.job} margin={{ top: 20, right: 20, bottom: 80, left: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis
+                    tickFormatter={(value) => formatCurrency(value, 0)}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => formatCurrency(value, 2)}
+                    labelStyle={{ fontWeight: 600 }}
+                  />
+                  <Bar dataKey="amount" fill="#1565c0" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Marketing Expenses Chart */}
+          <div className="card">
+            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Marketing Expenses</h3>
+            {expenseData.marketing.length === 0 ? (
+              <p style={{ color: '#555' }}>No marketing expenses for this period</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={expenseData.marketing} margin={{ top: 20, right: 20, bottom: 80, left: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis
+                    tickFormatter={(value) => formatCurrency(value, 0)}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => formatCurrency(value, 2)}
+                    labelStyle={{ fontWeight: 600 }}
+                  />
+                  <Bar dataKey="amount" fill="#e65100" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Overhead Expenses Chart */}
+          <div className="card">
+            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Overhead Expenses</h3>
+            {expenseData.overhead.length === 0 ? (
+              <p style={{ color: '#555' }}>No overhead expenses for this period</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={expenseData.overhead} margin={{ top: 20, right: 20, bottom: 80, left: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis
+                    tickFormatter={(value) => formatCurrency(value, 0)}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => formatCurrency(value, 2)}
+                    labelStyle={{ fontWeight: 600 }}
+                  />
+                  <Bar dataKey="amount" fill="#7b1fa2" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Real Estate Expenses Chart */}
+          <div className="card">
+            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Real Estate Expenses</h3>
+            {expenseData.realEstate.length === 0 ? (
+              <p style={{ color: '#555' }}>No real estate expenses for this period</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={expenseData.realEstate} margin={{ top: 20, right: 20, bottom: 80, left: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis
+                    tickFormatter={(value) => formatCurrency(value, 0)}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => formatCurrency(value, 2)}
+                    labelStyle={{ fontWeight: 600 }}
+                  />
+                  <Bar dataKey="amount" fill="#0a7a3c" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Personal Expenses Chart */}
+          <div className="card">
+            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Personal/Other Expenses</h3>
+            {expenseData.personal.length === 0 ? (
+              <p style={{ color: '#555' }}>No personal expenses for this period</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={expenseData.personal} margin={{ top: 20, right: 20, bottom: 80, left: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis
+                    tickFormatter={(value) => formatCurrency(value, 0)}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => formatCurrency(value, 2)}
+                    labelStyle={{ fontWeight: 600 }}
+                  />
+                  <Bar dataKey="amount" fill="#b00020" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
       )}
 
