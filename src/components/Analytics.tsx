@@ -211,18 +211,18 @@ export function Analytics() {
 
     const sortedPeriods = Array.from(periodMap.keys()).sort();
 
-    sortedPeriods.forEach((periodKey) => {
+    sortedPeriods.forEach((periodKey, index) => {
       const periodTxs = periodMap.get(periodKey) ?? [];
 
-      // Opening balance = current running balance
-      const openBalance = Array.from(runningBalance.values()).reduce(
-        (sum, bal) => sum + bal,
-        0
-      );
+      // Opening balance = closing balance of previous period (for continuity)
+      // For first period, use the calculated starting balance
+      const openBalance =
+        index === 0
+          ? Array.from(runningBalance.values()).reduce((sum, bal) => sum + bal, 0)
+          : candlesticks[index - 1].close;
 
       let high = openBalance;
       let low = openBalance;
-      let currentPeriodBalance = openBalance;
 
       // Process each transaction in chronological order within the period
       periodTxs
@@ -237,17 +237,20 @@ export function Analytics() {
           runningBalance.set(tx.account_id, accBalance + tx.amount);
 
           // Recalculate total balance across all accounts
-          currentPeriodBalance = Array.from(runningBalance.values()).reduce(
+          const newBalance = Array.from(runningBalance.values()).reduce(
             (sum, bal) => sum + bal,
             0
           );
 
-          high = Math.max(high, currentPeriodBalance);
-          low = Math.min(low, currentPeriodBalance);
+          high = Math.max(high, newBalance);
+          low = Math.min(low, newBalance);
         });
 
-      // Closing balance = final balance after all transactions
-      const closeBalance = currentPeriodBalance;
+      // Closing balance = final balance after all transactions in this period
+      const closeBalance = Array.from(runningBalance.values()).reduce(
+        (sum, bal) => sum + bal,
+        0
+      );
 
       candlesticks.push({
         date: periodKey,
