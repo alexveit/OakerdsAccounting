@@ -4,8 +4,6 @@ import { isBankCode } from '../utils/accounts';
 import { formatCurrency } from '../utils/format';
 import {
   ComposedChart,
-  Line,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -45,6 +43,7 @@ export function Analytics() {
   const [chartData, setChartData] = useState<CandlestickData[]>([]);
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [dateRange, setDateRange] = useState<'90d' | 'ytd' | 'max'>('90d');
+  const [activeTab, setActiveTab] = useState<'balances' | 'expenses' | 'cashflow'>('balances');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -288,71 +287,6 @@ export function Analytics() {
     }
   }
 
-  // Custom candlestick rendering using recharts' coordinate system
-  const renderCandlestick = (props: any) => {
-    const { x, y, width, payload, index } = props;
-
-    if (!payload || !chartData[index]) {
-      return null;
-    }
-
-    const data = chartData[index];
-    const { open, close, high, low } = data;
-
-    // Find the Y scale from the chart area
-    const chartHeight = 400;
-    const yPadding = 40;
-    const availableHeight = chartHeight - yPadding * 2;
-
-    // Get min and max from all data for scaling
-    const allValues = chartData.flatMap((d) => [d.open, d.close, d.high, d.low]);
-    const minValue = Math.min(...allValues);
-    const maxValue = Math.max(...allValues);
-    const range = maxValue - minValue || 1;
-
-    // Calculate Y positions (inverted because SVG Y goes down)
-    const getY = (value: number) => {
-      return yPadding + ((maxValue - value) / range) * availableHeight;
-    };
-
-    const highY = getY(high);
-    const lowY = getY(low);
-    const openY = getY(open);
-    const closeY = getY(close);
-
-    const isPositive = close >= open;
-    const color = isPositive ? '#0a7a3c' : '#b00020';
-
-    const bodyTop = Math.min(openY, closeY);
-    const bodyHeight = Math.abs(closeY - openY) || 2;
-    const candleWidth = width * 0.6;
-    const candleX = x + (width - candleWidth) / 2;
-
-    return (
-      <g key={`candlestick-${index}`}>
-        {/* Wick (high-low line) */}
-        <line
-          x1={x + width / 2}
-          y1={highY}
-          x2={x + width / 2}
-          y2={lowY}
-          stroke={color}
-          strokeWidth={1.5}
-        />
-        {/* Body (open-close rectangle) */}
-        <rect
-          x={candleX}
-          y={bodyTop}
-          width={candleWidth}
-          height={bodyHeight}
-          fill={color}
-          stroke={color}
-          strokeWidth={1}
-        />
-      </g>
-    );
-  };
-
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -397,18 +331,43 @@ export function Analytics() {
     <div>
       <div className="card" style={{ marginBottom: '1rem' }}>
         <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>
-          Bank Account Analytics
+          Analytics
         </h2>
 
-        <div
-          style={{
-            display: 'flex',
-            gap: '1rem',
-            flexWrap: 'wrap',
-            marginBottom: '1rem',
-          }}
-        >
-          {/* Account selector */}
+        {/* Tab Navigation */}
+        <div className="pill-nav" style={{ marginBottom: '1rem' }}>
+          <button
+            onClick={() => setActiveTab('balances')}
+            className={`pill-button ${activeTab === 'balances' ? 'pill-button--active' : ''}`}
+          >
+            Balance History
+          </button>
+          <button
+            onClick={() => setActiveTab('expenses')}
+            className={`pill-button ${activeTab === 'expenses' ? 'pill-button--active' : ''}`}
+          >
+            Expense Categories
+          </button>
+          <button
+            onClick={() => setActiveTab('cashflow')}
+            className={`pill-button ${activeTab === 'cashflow' ? 'pill-button--active' : ''}`}
+          >
+            Cash Flow
+          </button>
+        </div>
+
+        {/* Balance History Tab Controls */}
+        {activeTab === 'balances' && (
+          <>
+            <div
+              style={{
+                display: 'flex',
+                gap: '1rem',
+                flexWrap: 'wrap',
+                marginBottom: '1rem',
+              }}
+            >
+              {/* Account selector */}
           <div>
             <label
               htmlFor="account-select"
@@ -490,17 +449,21 @@ export function Analytics() {
               <option value="max">All Time</option>
             </select>
           </div>
-        </div>
+            </div>
 
-        <p style={{ color: '#555', fontSize: '14px', marginTop: 0 }}>
-          Showing {dateRange === '90d' ? 'last 90 days' : dateRange === 'ytd' ? 'year to date' : 'all time'} balance history for: <strong>{selectedAccountName}</strong>
-        </p>
+            <p style={{ color: '#555', fontSize: '14px', marginTop: 0 }}>
+              Showing {dateRange === '90d' ? 'last 90 days' : dateRange === 'ytd' ? 'year to date' : 'all time'} balance history for: <strong>{selectedAccountName}</strong>
+            </p>
+          </>
+        )}
       </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
-          Balance Candlestick Chart
-        </h3>
+      {/* Balance History Tab Content */}
+      {activeTab === 'balances' && (
+        <div className="card">
+          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
+            Balance Candlestick Chart
+          </h3>
 
         {loading ? (
           <p>Loading chart data...</p>
@@ -524,7 +487,7 @@ export function Analytics() {
                 tick={{ fontSize: 12 }}
                 domain={[
                   0,
-                  (dataMax: number) => {
+                  () => {
                     // Find the highest value from all candlestick highs
                     const maxHigh = Math.max(...chartData.map((d) => d.high));
                     // Round up to nearest 5000
@@ -540,11 +503,11 @@ export function Analytics() {
                 fill="transparent"
                 isAnimationActive={false}
                 shape={(props: any) => {
-                  const { x, y, width, height, payload, value } = props;
-                  if (!payload || height <= 0) return null;
+                  const { x, y, width, height, payload } = props;
+                  if (!payload || height <= 0) return <></>;
 
                   const { open, close, high, low } = payload;
-                  if (high === undefined || low === undefined) return null;
+                  if (high === undefined || low === undefined) return <></>;
 
                   const isPositive = close >= open;
                   const color = isPositive ? '#0a7a3c' : '#b00020';
@@ -614,7 +577,28 @@ export function Analytics() {
             </li>
           </ul>
         </div>
-      </div>
+        </div>
+      )}
+
+      {/* Expense Categories Tab Content */}
+      {activeTab === 'expenses' && (
+        <div className="card">
+          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
+            Expense Categories
+          </h3>
+          <p>Expense category charts coming soon...</p>
+        </div>
+      )}
+
+      {/* Cash Flow Tab Content */}
+      {activeTab === 'cashflow' && (
+        <div className="card">
+          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
+            Cash Flow Analysis
+          </h3>
+          <p>Cash flow charts coming soon...</p>
+        </div>
+      )}
     </div>
   );
 }
