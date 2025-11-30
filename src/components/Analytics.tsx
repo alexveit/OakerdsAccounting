@@ -44,6 +44,7 @@ export function Analytics() {
   );
   const [chartData, setChartData] = useState<CandlestickData[]>([]);
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [dateRange, setDateRange] = useState<'90d' | 'ytd' | 'max'>('90d');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,10 +84,17 @@ export function Analytics() {
       setError(null);
 
       try {
-        // Get date range (last 90 days)
+        // Get date range based on selection
         const endDate = new Date();
         const startDate = new Date();
-        startDate.setDate(startDate.getDate() - 90);
+
+        if (dateRange === '90d') {
+          startDate.setDate(startDate.getDate() - 90);
+        } else if (dateRange === 'ytd') {
+          startDate.setMonth(0, 1); // January 1st of current year
+        } else if (dateRange === 'max') {
+          startDate.setFullYear(2000, 0, 1); // Go back to 2000 or earliest data
+        }
 
         const startDateStr = startDate.toISOString().split('T')[0];
         const endDateStr = endDate.toISOString().split('T')[0];
@@ -150,7 +158,7 @@ export function Analytics() {
     }
 
     loadChartData();
-  }, [accountBalances, selectedAccountId, period]);
+  }, [accountBalances, selectedAccountId, period, dateRange]);
 
   // Calculate balances for candlestick chart
   function calculateBalancesByPeriod(
@@ -456,10 +464,36 @@ export function Analytics() {
               <option value="monthly">Monthly</option>
             </select>
           </div>
+
+          {/* Date range selector */}
+          <div>
+            <label
+              htmlFor="range-select"
+              style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}
+            >
+              Time Range:
+            </label>
+            <select
+              id="range-select"
+              value={dateRange}
+              onChange={(e) =>
+                setDateRange(e.target.value as '90d' | 'ytd' | 'max')
+              }
+              style={{
+                padding: '0.5rem',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+              }}
+            >
+              <option value="90d">Last 90 Days</option>
+              <option value="ytd">Year to Date</option>
+              <option value="max">All Time</option>
+            </select>
+          </div>
         </div>
 
         <p style={{ color: '#555', fontSize: '14px', marginTop: 0 }}>
-          Showing last 90 days of balance history for: <strong>{selectedAccountName}</strong>
+          Showing {dateRange === '90d' ? 'last 90 days' : dateRange === 'ytd' ? 'year to date' : 'all time'} balance history for: <strong>{selectedAccountName}</strong>
         </p>
       </div>
 
@@ -488,6 +522,15 @@ export function Analytics() {
               <YAxis
                 tickFormatter={(value) => formatCurrency(value, 0)}
                 tick={{ fontSize: 12 }}
+                domain={[
+                  0,
+                  (dataMax: number) => {
+                    // Find the highest value from all candlestick highs
+                    const maxHigh = Math.max(...chartData.map((d) => d.high));
+                    // Round up to nearest 5000
+                    return Math.ceil(maxHigh / 5000) * 5000;
+                  }
+                ]}
               />
               <Tooltip content={<CustomTooltip />} />
 
