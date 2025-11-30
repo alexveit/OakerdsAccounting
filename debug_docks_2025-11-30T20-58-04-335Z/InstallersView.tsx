@@ -9,6 +9,7 @@ export function InstallersView() {
 
   return (
     <div>
+      {/* 
       <div
         style={{
           display: 'flex',
@@ -19,6 +20,7 @@ export function InstallersView() {
       >
         <h2 style={{ margin: 0 }}>Installers</h2>
       </div>
+      */}
       
       {/* Tabs */}
       <div className="tab-strip">

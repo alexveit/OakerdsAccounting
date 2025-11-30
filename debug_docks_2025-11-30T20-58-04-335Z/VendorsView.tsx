@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { InstallersOverview } from './InstallersOverview';
-import { InstallerManageView } from './InstallerManageView';
+import { VendorsOverview } from './VendorsOverview';
+import { VendorManageView } from './VendorManageView';
 
-type InstallersTab = 'overview' | 'manage';
+type VendorsTab = 'overview' | 'manage';
 
-export function InstallersView() {
-  const [tab, setTab] = useState<InstallersTab>('overview');
+export function VendorsView() {
+  const [tab, setTab] = useState<VendorsTab>('overview');
 
   return (
     <div>
@@ -17,9 +17,9 @@ export function InstallersView() {
           marginBottom: '0.75rem',
         }}
       >
-        <h2 style={{ margin: 0 }}>Installers</h2>
+        <h2 style={{ margin: 0 }}>Vendors</h2>
       </div>
-      
+
       {/* Tabs */}
       <div className="tab-strip">
         <button
@@ -41,8 +41,8 @@ export function InstallersView() {
 
       {/* Content */}
       <div style={{ marginTop: '0.75rem' }}>
-        {tab === 'overview' && <InstallersOverview />}
-        {tab === 'manage' && <InstallerManageView />}
+        {tab === 'overview' && <VendorsOverview />}
+        {tab === 'manage' && <VendorManageView />}
       </div>
     </div>
   );

@@ -1,0 +1,258 @@
+{
+  "generatedAt": "2025-11-30T20:58:04.392Z",
+  "projectRootName": "OakerdsAccountingClaudeAI",
+  "debugFolderName": "debug_docks_2025-11-30T20-58-04-335Z",
+  "includedDirectories": [
+    "src",
+    "scripts",
+    "db_debug"
+  ],
+  "files": [
+    {
+      "originalRelativePath": "src/App.tsx",
+      "debugFileName": "App.tsx",
+      "sizeBytes": 4474,
+      "lastModified": "2025-11-30T19:39:59.741Z"
+    },
+    {
+      "originalRelativePath": "src/assets/react.svg",
+      "debugFileName": "react.svg",
+      "sizeBytes": 4126,
+      "lastModified": "2025-11-17T19:50:09.237Z"
+    },
+    {
+      "originalRelativePath": "src/components/Analytics.tsx",
+      "debugFileName": "Analytics.tsx",
+      "sizeBytes": 32510,
+      "lastModified": "2025-11-30T20:54:52.885Z"
+    },
+    {
+      "originalRelativePath": "src/components/DashboardOverview.tsx",
+      "debugFileName": "DashboardOverview.tsx",
+      "sizeBytes": 12178,
+      "lastModified": "2025-11-30T16:19:32.253Z"
+    },
+    {
+      "originalRelativePath": "src/components/DealEditView.tsx",
+      "debugFileName": "DealEditView.tsx",
+      "sizeBytes": 32560,
+      "lastModified": "2025-11-30T15:53:49.429Z"
+    },
+    {
+      "originalRelativePath": "src/components/ExpensesDetail.tsx",
+      "debugFileName": "ExpensesDetail.tsx",
+      "sizeBytes": 21616,
+      "lastModified": "2025-11-30T06:59:19.278Z"
+    },
+    {
+      "originalRelativePath": "src/components/ExpensesSummary.tsx",
+      "debugFileName": "ExpensesSummary.tsx",
+      "sizeBytes": 12273,
+      "lastModified": "2025-11-30T06:04:39.044Z"
+    },
+    {
+      "originalRelativePath": "src/components/ExpensesView.tsx",
+      "debugFileName": "ExpensesView.tsx",
+      "sizeBytes": 1258,
+      "lastModified": "2025-11-22T20:19:04.343Z"
+    },
+    {
+      "originalRelativePath": "src/components/FlipOperationsView.tsx",
+      "debugFileName": "FlipOperationsView.tsx",
+      "sizeBytes": 10610,
+      "lastModified": "2025-11-25T03:21:25.292Z"
+    },
+    {
+      "originalRelativePath": "src/components/InstallerManageView.tsx",
+      "debugFileName": "InstallerManageView.tsx",
+      "sizeBytes": 16839,
+      "lastModified": "2025-11-30T16:02:41.699Z"
+    },
+    {
+      "originalRelativePath": "src/components/InstallersOverview.tsx",
+      "debugFileName": "InstallersOverview.tsx",
+      "sizeBytes": 5367,
+      "lastModified": "2025-11-30T16:30:47.812Z"
+    },
+    {
+      "originalRelativePath": "src/components/InstallersView.tsx",
+      "debugFileName": "InstallersView.tsx",
+      "sizeBytes": 1268,
+      "lastModified": "2025-11-30T16:11:54.472Z"
+    },
+    {
+      "originalRelativePath": "src/components/JobDetailView.tsx",
+      "debugFileName": "JobDetailView.tsx",
+      "sizeBytes": 25068,
+      "lastModified": "2025-11-30T16:53:32.866Z"
+    },
+    {
+      "originalRelativePath": "src/components/LeadSourceManageView.tsx",
+      "debugFileName": "LeadSourceManageView.tsx",
+      "sizeBytes": 14985,
+      "lastModified": "2025-11-30T16:37:34.543Z"
+    },
+    {
+      "originalRelativePath": "src/components/LeadSourcesOverview.tsx",
+      "debugFileName": "LeadSourcesOverview.tsx",
+      "sizeBytes": 7608,
+      "lastModified": "2025-11-30T16:40:50.192Z"
+    },
+    {
+      "originalRelativePath": "src/components/LeadSourcesView.tsx",
+      "debugFileName": "LeadSourcesView.tsx",
+      "sizeBytes": 1252,
+      "lastModified": "2025-11-30T16:37:38.395Z"
+    },
+    {
+      "originalRelativePath": "src/components/LedgerView.tsx",
+      "debugFileName": "LedgerView.tsx",
+      "sizeBytes": 55547,
+      "lastModified": "2025-11-30T06:40:41.475Z"
+    },
+    {
+      "originalRelativePath": "src/components/NewEntryView.tsx",
+      "debugFileName": "NewEntryView.tsx",
+      "sizeBytes": 8192,
+      "lastModified": "2025-11-30T06:45:20.663Z"
+    },
+    {
+      "originalRelativePath": "src/components/NewJobForm.tsx",
+      "debugFileName": "NewJobForm.tsx",
+      "sizeBytes": 4019,
+      "lastModified": "2025-11-21T03:13:31.261Z"
+    },
+    {
+      "originalRelativePath": "src/components/NewRealEstateDealForm.tsx",
+      "debugFileName": "NewRealEstateDealForm.tsx",
+      "sizeBytes": 20611,
+      "lastModified": "2025-11-29T23:54:22.222Z"
+    },
+    {
+      "originalRelativePath": "src/components/NewTransactionForm.tsx",
+      "debugFileName": "NewTransactionForm.tsx",
+      "sizeBytes": 56645,
+      "lastModified": "2025-11-30T06:59:23.834Z"
+    },
+    {
+      "originalRelativePath": "src/components/ProfitSummary.tsx",
+      "debugFileName": "ProfitSummary.tsx",
+      "sizeBytes": 15178,
+      "lastModified": "2025-11-30T16:19:32.252Z"
+    },
+    {
+      "originalRelativePath": "src/components/REIView.tsx",
+      "debugFileName": "REIView.tsx",
+      "sizeBytes": 3225,
+      "lastModified": "2025-11-30T15:54:05.010Z"
+    },
+    {
+      "originalRelativePath": "src/components/RentalOperationsView.tsx",
+      "debugFileName": "RentalOperationsView.tsx",
+      "sizeBytes": 27596,
+      "lastModified": "2025-11-30T01:37:54.489Z"
+    },
+    {
+      "originalRelativePath": "src/components/TaxExportView.tsx",
+      "debugFileName": "TaxExportView.tsx",
+      "sizeBytes": 31862,
+      "lastModified": "2025-11-30T06:06:24.584Z"
+    },
+    {
+      "originalRelativePath": "src/components/Transfers.tsx",
+      "debugFileName": "Transfers.tsx",
+      "sizeBytes": 15049,
+      "lastModified": "2025-11-30T06:03:56.888Z"
+    },
+    {
+      "originalRelativePath": "src/components/VendorManageView.tsx",
+      "debugFileName": "VendorManageView.tsx",
+      "sizeBytes": 16513,
+      "lastModified": "2025-11-30T16:22:57.767Z"
+    },
+    {
+      "originalRelativePath": "src/components/VendorsOverview.tsx",
+      "debugFileName": "VendorsOverview.tsx",
+      "sizeBytes": 6010,
+      "lastModified": "2025-11-30T16:26:59.751Z"
+    },
+    {
+      "originalRelativePath": "src/components/VendorsView.tsx",
+      "debugFileName": "VendorsView.tsx",
+      "sizeBytes": 1211,
+      "lastModified": "2025-11-30T16:27:19.707Z"
+    },
+    {
+      "originalRelativePath": "src/components/WholesaleOperationsView.tsx",
+      "debugFileName": "WholesaleOperationsView.tsx",
+      "sizeBytes": 9559,
+      "lastModified": "2025-11-25T03:19:56.671Z"
+    },
+    {
+      "originalRelativePath": "src/index.css",
+      "debugFileName": "index.css",
+      "sizeBytes": 14959,
+      "lastModified": "2025-11-30T06:32:42.318Z"
+    },
+    {
+      "originalRelativePath": "src/lib/supabaseClient.ts",
+      "debugFileName": "supabaseClient.ts",
+      "sizeBytes": 275,
+      "lastModified": "2025-11-17T20:09:49.283Z"
+    },
+    {
+      "originalRelativePath": "src/main.tsx",
+      "debugFileName": "main.tsx",
+      "sizeBytes": 230,
+      "lastModified": "2025-11-17T19:50:09.285Z"
+    },
+    {
+      "originalRelativePath": "src/utils/accounts.ts",
+      "debugFileName": "accounts.ts",
+      "sizeBytes": 4508,
+      "lastModified": "2025-11-30T05:56:35.591Z"
+    },
+    {
+      "originalRelativePath": "src/utils/date.ts",
+      "debugFileName": "date.ts",
+      "sizeBytes": 1506,
+      "lastModified": "2025-11-23T06:31:01.570Z"
+    },
+    {
+      "originalRelativePath": "src/utils/format.ts",
+      "debugFileName": "format.ts",
+      "sizeBytes": 1029,
+      "lastModified": "2025-11-30T05:56:06.687Z"
+    },
+    {
+      "originalRelativePath": "src/utils/mortgageAmortization.ts",
+      "debugFileName": "mortgageAmortization.ts",
+      "sizeBytes": 6006,
+      "lastModified": "2025-11-29T23:50:33.494Z"
+    },
+    {
+      "originalRelativePath": "scripts/createSnapshot.cjs",
+      "debugFileName": "createSnapshot.cjs",
+      "sizeBytes": 4347,
+      "lastModified": "2025-11-30T15:27:34.713Z"
+    },
+    {
+      "originalRelativePath": "db_debug/oakerds_dev_dump_20251130_100432/logic_app_public.sql",
+      "debugFileName": "logic_app_public.sql",
+      "sizeBytes": 122370,
+      "lastModified": "2025-11-30T15:04:37.954Z"
+    },
+    {
+      "originalRelativePath": "db_debug/oakerds_dev_dump_20251130_100432/sample_data.sql",
+      "debugFileName": "sample_data.sql",
+      "sizeBytes": 814534,
+      "lastModified": "2025-11-30T15:04:57.863Z"
+    },
+    {
+      "originalRelativePath": "db_debug/oakerds_dev_dump_20251130_100432/schema_core.sql",
+      "debugFileName": "schema_core.sql",
+      "sizeBytes": 51896,
+      "lastModified": "2025-11-30T15:04:35.086Z"
+    }
+  ]
+}

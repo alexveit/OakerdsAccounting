@@ -231,9 +231,7 @@ export function DashboardOverview() {
   };
 
   return (
-    
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1rem', alignItems: 'start' }}>
-      
       {/* YTD Snapshot Card */}
       <div className="card">
         <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>YTD Snapshot</h3>
