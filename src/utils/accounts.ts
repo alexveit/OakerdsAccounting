@@ -6,12 +6,25 @@
 export type Purpose = 'business' | 'personal' | 'mixed';
 
 /**
+ * Special account IDs - centralized to avoid magic numbers
+ * These are specific to your chart of accounts setup
+ */
+export const SPECIAL_ACCOUNTS = {
+  /** Primary checking account - always sorted first */
+  PRIMARY_CHECKING: 1,
+  /** Corporate credit card - sorted second */
+  CORPORATE_CARD: 4,
+} as const;
+
+/**
  * Account code ranges - single source of truth
  */
 export const ACCOUNT_CODE_RANGES = {
-  // Balance sheet
+  // Balance sheet - Assets
   BANK_MIN: 1000,
   BANK_MAX: 1999,
+  
+  // Balance sheet - Liabilities
   CREDIT_CARD_MIN: 2000,
   CREDIT_CARD_MAX: 2999,
 
@@ -50,9 +63,9 @@ export function isCodeInRange(code: string | null | undefined, min: number, max:
   return n !== null && n >= min && n <= max;
 }
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 // Account type checks by code range
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 
 export function isBankCode(code: string | null | undefined): boolean {
   return isCodeInRange(code, ACCOUNT_CODE_RANGES.BANK_MIN, ACCOUNT_CODE_RANGES.BANK_MAX);
@@ -82,15 +95,24 @@ export function isMortgageCode(code: string | null | undefined): boolean {
   return isCodeInRange(code, ACCOUNT_CODE_RANGES.RE_MORTGAGE_MIN, ACCOUNT_CODE_RANGES.RE_MORTGAGE_MAX);
 }
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
 // Compound checks for categorization
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Check if this is a cash-like account (bank or credit card)
+ * Used for transaction form cash account dropdowns
+ */
+export function isCashAccount(code: string | null | undefined): boolean {
+  return isBankCode(code) || isCreditCardCode(code);
+}
 
 /**
  * Check if this is a transferable account (bank or credit card)
+ * Alias for isCashAccount for semantic clarity
  */
 export function isTransferableCode(code: string | null | undefined): boolean {
-  return isBankCode(code) || isCreditCardCode(code);
+  return isCashAccount(code);
 }
 
 /**
@@ -120,4 +142,40 @@ export function categorizeExpense(
   if (isMarketingExpenseCode(code)) return 'marketing';
 
   return 'overhead';
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Sorting helpers
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Get sort priority for an account based on special account rules.
+ * Lower number = higher priority (sorted first).
+ * Returns 0 for PRIMARY_CHECKING, 1 for CORPORATE_CARD, 2 for everything else.
+ */
+export function getAccountSortPriority(accountId: number): number {
+  if (accountId === SPECIAL_ACCOUNTS.PRIMARY_CHECKING) return 0;
+  if (accountId === SPECIAL_ACCOUNTS.CORPORATE_CARD) return 1;
+  return 2;
+}
+
+/**
+ * Compare function for sorting accounts with special accounts first.
+ * Use with Array.sort(): accounts.sort(compareAccountsForSort)
+ */
+export function compareAccountsForSort(
+  a: { id: number; code?: string | null; name?: string },
+  b: { id: number; code?: string | null; name?: string }
+): number {
+  const priorityA = getAccountSortPriority(a.id);
+  const priorityB = getAccountSortPriority(b.id);
+
+  if (priorityA !== priorityB) {
+    return priorityA - priorityB;
+  }
+
+  // Same priority - sort by code or name
+  const codeA = a.code || a.name || '';
+  const codeB = b.code || b.name || '';
+  return codeA.localeCompare(codeB);
 }

@@ -9,6 +9,17 @@ export function ExpenseCategoriesView() {
 
   return (
     <div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '0.75rem',
+        }}
+      >
+        <h2 style={{ margin: 0 }}>Expenses by Category</h2>
+      </div>
+
       {/* Browser-style tab strip */}
       <div className="tab-strip">
         <button
@@ -30,10 +41,8 @@ export function ExpenseCategoriesView() {
       {/* Content */}
       <div style={{ marginTop: '0.75rem' }}>
         {tab === 'summary' ? (
-          // Summary: use full wide shell (same as Job Detail)
           <CategoriesSummaryView />
         ) : (
-          // Details: constrain to a narrower centered column
           <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
             <ExpenseByCategory />
           </div>

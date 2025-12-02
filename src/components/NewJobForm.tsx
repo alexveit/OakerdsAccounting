@@ -86,12 +86,12 @@ export function NewJobForm() {
     }
   }
 
-  if (loading) return <p>Loading lead sources…</p>;
+  if (loading) return <p>Loading lead sourcesâ€¦</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
 
   return (
     <div>
-      <h2>New Job</h2>
+      
       {success && <p style={{ color: 'green' }}>{success}</p>}
 
       <form
@@ -104,7 +104,7 @@ export function NewJobForm() {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Steward – Main Floor"
+            placeholder="e.g. Steward â€“ Main Floor"
           />
         </label>
 
@@ -124,7 +124,7 @@ export function NewJobForm() {
             value={leadSourceId}
             onChange={(e) => setLeadSourceId(e.target.value)}
           >
-            <option value="">(optional) Select lead source…</option>
+            <option value="">(optional) Select lead sourceâ€¦</option>
             {leadSources.map((ls) => (
               <option key={ls.id} value={ls.id}>
                 {ls.nick_name}
@@ -143,7 +143,7 @@ export function NewJobForm() {
         </label>
 
         <button type="submit" disabled={saving}>
-          {saving ? 'Saving…' : 'Save Job'}
+          {saving ? 'Savingâ€¦' : 'Save Job'}
         </button>
       </form>
     </div>

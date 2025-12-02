@@ -376,7 +376,7 @@ export function ExpenseByCategory() {
 
   return (
     <div className="card">
-      <h2>Expense by Category</h2>
+      
 
       <label style={{ display: 'block', marginBottom: '0.75rem' }}>
         Year:{' '}
@@ -404,7 +404,7 @@ export function ExpenseByCategory() {
         )}
         {viewMode !== 'year' && selectedAccountName && (
           <>
-            {'  ›  '}
+            {'  â€º  '}
             {viewMode === 'month' ? (
               <span>{selectedAccountName}</span>
             ) : (
@@ -416,7 +416,7 @@ export function ExpenseByCategory() {
         )}
         {(viewMode === 'day' || (viewMode === 'detail' && !showAllTransactions)) && selectedMonth && (
           <>
-            {'  ›  '}
+            {'  â€º  '}
             {viewMode === 'day' ? (
               <span>{formatMonthShort(selectedMonth)}</span>
             ) : (
@@ -427,14 +427,14 @@ export function ExpenseByCategory() {
           </>
         )}
         {viewMode === 'detail' && showAllTransactions && (
-          <>{'  ›  '}<span>All Transactions</span></>
+          <>{'  â€º  '}<span>All Transactions</span></>
         )}
         {viewMode === 'detail' && selectedDate && !showAllTransactions && (
-          <>{'  ›  '}<span>{formatLocalDate(selectedDate)}</span></>
+          <>{'  â€º  '}<span>{formatLocalDate(selectedDate)}</span></>
         )}
       </div>
 
-      {loading && <p>Loading…</p>}
+      {loading && <p>Loadingâ€¦</p>}
       {error && <p style={{ color: 'red' }}>Error: {error}</p>}
       {!loading && !error && viewMode === 'year' && rows.length === 0 && (
         <p>No data for {year}.</p>
@@ -462,7 +462,7 @@ export function ExpenseByCategory() {
                 style={{ fontSize: 12 }}
               >
                 <option value="total">Total (largest first)</option>
-                <option value="name">Category name (A → Z)</option>
+                <option value="name">Category name (A â†’ Z)</option>
               </select>
             </span>
           </div>
@@ -488,7 +488,7 @@ export function ExpenseByCategory() {
         <>
           <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button type="button" onClick={resetToYear} style={btnStyle}>
-              ← All categories
+              â† All categories
             </button>
             <button
               type="button"
@@ -523,10 +523,10 @@ export function ExpenseByCategory() {
         <>
           <div style={{ marginBottom: '0.75rem' }}>
             <button type="button" onClick={backToCategory} style={btnStyle}>
-              ← Months
+              â† Months
             </button>
             <button type="button" onClick={resetToYear} style={btnStyle}>
-              ← All categories
+              â† All categories
             </button>
           </div>
           {dayRows.length === 0 && <p>No expense lines for this month.</p>}
@@ -559,21 +559,21 @@ export function ExpenseByCategory() {
           <div style={{ marginBottom: '0.75rem' }}>
             {!showAllTransactions && selectedDate && (
               <button type="button" onClick={backToMonth} style={btnStyle}>
-                ← Days
+                â† Days
               </button>
             )}
             {!showAllTransactions && (
               <button type="button" onClick={backToCategory} style={btnStyle}>
-                ← Months
+                â† Months
               </button>
             )}
             {showAllTransactions && (
               <button type="button" onClick={backToCategory} style={btnStyle}>
-                ← Back to months
+                â† Back to months
               </button>
             )}
             <button type="button" onClick={resetToYear} style={btnStyle}>
-              ← All categories
+              â† All categories
             </button>
           </div>
           {detailLinesWithRunning.length === 0 && <p>No transactions found.</p>}

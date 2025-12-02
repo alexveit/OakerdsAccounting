@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { RentalOperationsView } from './RentalOperationsView';
-import { FlipOperationsView } from './FlipOperationsView';
+import { FlipDetailView } from './FlipDetailView';
 import { WholesaleOperationsView } from './WholesaleOperationsView';
 import { DealEditView } from './DealEditView';
 
@@ -24,7 +24,7 @@ export function REIView() {
   const yearOptions = getYearOptions();
 
   // Only show year selector for views that use it
-  const showYearSelector = tab === 'rentals' || tab === 'flips' || tab === 'wholesales';
+  const showYearSelector = tab === 'rentals' || tab === 'wholesales';
 
   return (
     <div>
@@ -102,7 +102,7 @@ export function REIView() {
       {/* Content */}
       <div style={{ marginTop: '0.75rem' }}>
         {tab === 'rentals' && <RentalOperationsView selectedYear={selectedYear} />}
-        {tab === 'flips' && <FlipOperationsView />}
+        {tab === 'flips' && <FlipDetailView />}
         {tab === 'wholesales' && <WholesaleOperationsView />}
         {tab === 'editDeal' && <DealEditView />}
       </div>

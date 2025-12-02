@@ -153,27 +153,33 @@ export function NewEntryView({ initialJobId }: { initialJobId?: number | null })
 
   return (
     <div>
+      <h2 style={{ margin: 0, marginBottom: '0.75rem' }}>New Entry</h2>
+
       {/* Tabs */}
       <div className="tab-strip">
         <button
+          type="button"
           className={`tab ${tab === 'transaction' ? 'tab--active' : ''}`}
           onClick={() => setTab('transaction')}
         >
-          New Transaction
+          Transaction
         </button>
         <button
+          type="button"
           className={`tab ${tab === 'job' ? 'tab--active' : ''}`}
           onClick={() => setTab('job')}
         >
-          New Job
+          Job
         </button>
         <button
+          type="button"
           className={`tab ${tab === 'deal' ? 'tab--active' : ''}`}
           onClick={() => setTab('deal')}
         >
-          New RE Deal
+          RE Deal
         </button>
         <button
+          type="button"
           className={`tab ${tab === 'transfer' ? 'tab--active' : ''}`}
           onClick={() => setTab('transfer')}
         >
@@ -188,6 +194,7 @@ export function NewEntryView({ initialJobId }: { initialJobId?: number | null })
           flexDirection: tab === 'transaction' ? 'row' : 'column',
           alignItems: 'flex-start',
           gap,
+          marginTop: '0.75rem',
         }}
       >
         {tab === 'transaction' && (

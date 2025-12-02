@@ -80,7 +80,10 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
           .order('created_at', { ascending: false });
 
         if (jobsErr) throw jobsErr;
-        const jobs = (jobsData ?? []) as unknown as Job[];
+        const jobs = (jobsData ?? []).map((j: any) => ({
+          ...j,
+          lead_sources: Array.isArray(j.lead_sources) ? j.lead_sources[0] ?? null : j.lead_sources,
+        })) as Job[];
         setJobs(jobs);
 
         // Initialize end dates
@@ -405,14 +408,14 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
           {/* START DATE */}
           <span>
             <strong>Start:</strong>{' '}
-            {job.start_date ? formatLocalDate(job.start_date) : 'â€”'}
+            {job.start_date ? formatLocalDate(job.start_date) : 'Ã¢â‚¬â€'}
           </span>
 
           {/* END DATE + CLOSE BUTTON */}
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <strong>End:</strong>{' '}
             {job.status === 'closed' ? (
-              job.end_date ? formatLocalDate(job.end_date) : 'â€”'
+              job.end_date ? formatLocalDate(job.end_date) : 'Ã¢â‚¬â€'
             ) : (
               <input
                 type="date"
@@ -510,7 +513,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
             fontSize: 15,
           }}
         >
-          <span>{isExpanded ? '▼' : '▸'}</span>
+          <span>{isExpanded ? '▾' : '▸'}</span>
           <span>Transactions</span>
         </h3>
 
@@ -553,7 +556,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
                           maximumFractionDigits: 2,
                         })}
                       </Td>
-                      <Td align="center">{row.cleared ? 'âœ“' : ''}</Td>
+                      <Td align="center">{row.cleared ? '✓' : ''}</Td>
                     </tr>
                   ))}
                 </tbody>
@@ -570,7 +573,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
   // ------------------------------------------------------------
   return (
     <div>
-      <h2>Job Detail</h2>
+      <h2 style={{ margin: 0, marginBottom: '0.75rem' }}>Jobs</h2>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 

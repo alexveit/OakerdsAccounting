@@ -79,9 +79,10 @@ export function TaxExportView() {
         const accountId = line.account_id;
         const accountName = line.accounts?.name ?? 'Unknown';
         const amount = Math.abs(Number(line.amount) || 0);
+        const signedAmount = Number(line.amount) || 0;
         const code = line.accounts?.code ?? '';
 
-        // INCOME
+        // INCOME - use absolute value (income lines are typically negative in double-entry)
         if (accType === 'income') {
           if (purpose === 'business' || purpose === 'mixed') {
             if (isRentalIncomeCode(code)) {
@@ -102,7 +103,7 @@ export function TaxExportView() {
           }
         }
 
-        // EXPENSES
+        // EXPENSES - use signed amount so credits offset debits
         else if (accType === 'expense') {
           if (purpose === 'business' || purpose === 'mixed') {
             if (isRealEstateExpenseCode(code)) {
@@ -111,14 +112,14 @@ export function TaxExportView() {
                 row = { category: 'Rental Expense', accountName, total: 0 };
                 schedEExpenseMap.set(accountId, row);
               }
-              row.total += amount;
+              row.total += signedAmount;
             } else {
               let row = schedCExpenseMap.get(accountId);
               if (!row) {
                 row = { category: 'Business Expense', accountName, total: 0 };
                 schedCExpenseMap.set(accountId, row);
               }
-              row.total += amount;
+              row.total += signedAmount;
             }
           } else if (purpose === 'personal') {
             let row = personalExpenseMap.get(accountId);
@@ -126,7 +127,7 @@ export function TaxExportView() {
               row = { category: 'Personal Expense', accountName, total: 0 };
               personalExpenseMap.set(accountId, row);
             }
-            row.total += amount;
+            row.total += signedAmount;
           }
         }
       }

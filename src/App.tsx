@@ -26,22 +26,46 @@ type View =
   | 'rei'
   | 'analytics';
 
-const NAV_ITEMS: { view: View; label: string }[] = [
-  { view: 'dashboard', label: 'Dashboard' },
-  { view: 'analytics', label: 'Analytics' },
-  { view: 'installers', label: 'Installers' },
-  { view: 'vendors', label: 'Vendors' },
-  { view: 'leadSources', label: 'Lead Sources' },
-  { view: 'expenses', label: 'Exp by Category' },
-  { view: 'profitSummary', label: 'Profit Summary' },
-  { view: 'rei', label: 'REI' },                // <â”€â”€ ADDED
-  { view: 'taxExport', label: 'Tax Exports' },
-  { view: 'entry', label: 'New Entry' },
-  { view: 'jobDetail', label: 'Job Detail' },
-  { view: 'ledger', label: 'Ledger' },
+type NavSection = {
+  title: string | null;
+  items: { view: View; label: string; icon: string }[];
+};
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: null,
+    items: [
+      { view: 'dashboard', label: 'Dashboard', icon: '📊' },
+      { view: 'analytics', label: 'Analytics', icon: '📈' },
+    ],
+  },
+  {
+    title: 'Operations',
+    items: [
+      { view: 'jobDetail', label: 'Jobs', icon: '🔧' },
+      { view: 'installers', label: 'Installers', icon: '👷' },
+      { view: 'vendors', label: 'Vendors', icon: '🪙' },
+      { view: 'leadSources', label: 'Lead Sources', icon: '📣' },
+    ],
+  },
+  {
+    title: 'Financials',
+    items: [
+      { view: 'ledger', label: 'Ledger', icon: '📒' },
+      { view: 'expenses', label: 'Expenses by Category', icon: '📋' },
+      { view: 'profitSummary', label: 'Profit Summary', icon: '💰' },
+      { view: 'taxExport', label: 'Tax Exports', icon: '📄' },
+    ],
+  },
+  {
+    title: 'Real Estate',
+    items: [
+      { view: 'rei', label: 'REI Dashboard', icon: '🏠' },
+    ],
+  },
 ];
 
-const VIEW_COMPONENTS: Record<View, React.ComponentType> = {
+const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   dashboard: DashboardOverview,
   analytics: Analytics,
   installers: InstallersView,
@@ -53,24 +77,30 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType> = {
   ledger: LedgerView,
   profitSummary: ProfitSummary,
   taxExport: TaxExportView,
-  rei: REIView,                                 // <â”€â”€ ADDED
+  rei: REIView,
 };
 
 function App() {
   const [view, setView] = useState<View>('dashboard');
   const [initialJobIdForEntry, setInitialJobIdForEntry] = useState<number | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Add shadow to header when scrolled
+  // Close mobile menu when view changes
   useEffect(() => {
-    const header = document.querySelector('.app-header-shell');
-    const handleScroll = () => {
-      header?.classList.toggle('scrolled', window.scrollY > 10);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    setMobileMenuOpen(false);
+  }, [view]);
 
-  const isWideView = view === 'jobDetail' || view === 'expenses';
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const renderView = () => {
     if (view === 'jobDetail') {
@@ -92,53 +122,113 @@ function App() {
     return <ViewComponent />;
   };
 
+  const handleNavClick = (navView: View) => {
+    setView(navView);
+    if (navView !== 'entry') {
+      setInitialJobIdForEntry(null);
+    }
+  };
+
   return (
-    <div>
-      {/* Header */}
-      <div className="app-header-shell">
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            marginBottom: '1rem',
-          }}
+    <div className="app-layout">
+      {/* Mobile Header */}
+      <div className="mobile-header">
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle menu"
         >
+          {mobileMenuOpen ? '✕' : '☰'}
+        </button>
+        <div className="mobile-header-title">
           <img
             src="/OakerdsLogo.svg"
             alt="Oakerds Logo"
-            style={{ width: '80px', height: '80px' }}
+            style={{ width: '32px', height: '32px' }}
           />
-          <div>
-            <h1 className="app-title">Oakerds Accounting</h1>
-            <div className="app-subtitle">Internal Financial Console</div>
-          </div>
+          <span>Oakerds Accounting</span>
+        </div>
+        <button
+          className="mobile-new-entry-btn"
+          onClick={() => setView('entry')}
+          aria-label="New Entry"
+        >
+          +
+        </button>
+      </div>
+
+      {/* Sidebar Overlay for Mobile */}
+      {mobileMenuOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''} ${mobileMenuOpen ? 'sidebar--mobile-open' : ''}`}
+      >
+        {/* Logo Section */}
+        <div className="sidebar-header">
+          <img
+            src="/OakerdsLogo.svg"
+            alt="Oakerds Logo"
+            className="sidebar-logo"
+          />
+          {!sidebarCollapsed && (
+            <div className="sidebar-brand">
+              <div className="sidebar-title">Oakerds</div>
+              <div className="sidebar-subtitle">Accounting</div>
+            </div>
+          )}
         </div>
 
-        {/* Nav */}
-        <div className="pill-nav">
-          {NAV_ITEMS.map(({ view: navView, label }) => (
-            <button
-              key={navView}
-              onClick={() => setView(navView)}
-              className={`pill-button ${
-                view === navView ? 'pill-button--active' : ''
-              }`}
-            >
-              {label}
-            </button>
+        {/* Collapse/Expand Button - Always visible */}
+        <button
+          className="sidebar-collapse-btn"
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {sidebarCollapsed ? '▶' : '◀'}
+        </button>
+
+        {/* New Entry Button */}
+        <button
+          className={`sidebar-new-entry ${view === 'entry' ? 'sidebar-new-entry--active' : ''}`}
+          onClick={() => handleNavClick('entry')}
+        >
+          <span className="sidebar-icon">➕</span>
+          {!sidebarCollapsed && <span>New Entry</span>}
+        </button>
+
+        {/* Navigation Sections */}
+        <nav className="sidebar-nav">
+          {NAV_SECTIONS.map((section, sectionIndex) => (
+            <div key={sectionIndex} className="sidebar-section">
+              {section.title && !sidebarCollapsed && (
+                <div className="sidebar-section-title">{section.title}</div>
+              )}
+              {section.items.map(({ view: navView, label, icon }) => (
+                <button
+                  key={navView}
+                  className={`sidebar-nav-item ${view === navView ? 'sidebar-nav-item--active' : ''}`}
+                  onClick={() => handleNavClick(navView)}
+                  title={sidebarCollapsed ? label : undefined}
+                >
+                  <span className="sidebar-icon">{icon}</span>
+                  {!sidebarCollapsed && <span className="sidebar-label">{label}</span>}
+                </button>
+              ))}
+            </div>
           ))}
-        </div>
-      </div>
+        </nav>
+      </aside>
 
       {/* Main Content */}
-      <div
-        className={
-          isWideView ? 'app-main-shell app-main-shell--wide' : 'app-main-shell'
-        }
-      >
+      <main className="main-content">
         {renderView()}
-      </div>
+      </main>
     </div>
   );
 }

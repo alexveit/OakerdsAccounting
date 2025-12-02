@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { formatCurrency } from '../utils/format';
 
 type Vendor = {
   id: number;
@@ -10,10 +11,14 @@ type Vendor = {
 };
 
 export function VendorsOverview() {
+  const currentYear = new Date().getFullYear();
+  
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [ytdSpend, setYtdSpend] = useState<Record<number, number>>({});
+  const [spend, setSpend] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [year, setYear] = useState<number | 'all'>(currentYear);
   const [sortMode, setSortMode] = useState<'name' | 'spendDesc'>('spendDesc');
   const [showInactive, setShowInactive] = useState(false);
 
@@ -33,12 +38,8 @@ export function VendorsOverview() {
 
         const vendorsTyped: Vendor[] = (vendorsData ?? []) as Vendor[];
 
-        // 2) Load YTD cleared spend grouped by vendor_id
-        const currentYear = new Date().getFullYear();
-        const startDate = `${currentYear}-01-01`;
-        const endDate = `${currentYear}-12-31`;
-
-        const { data: linesData, error: linesErr } = await supabase
+        // 2) Load cleared spend grouped by vendor_id for selected year (or all time)
+        let query = supabase
           .from('transaction_lines')
           .select(`
             vendor_id,
@@ -46,9 +47,17 @@ export function VendorsOverview() {
             transactions!inner ( date )
           `)
           .eq('is_cleared', true)
-          .not('vendor_id', 'is', null)
-          .gte('transactions.date', startDate)
-          .lte('transactions.date', endDate);
+          .not('vendor_id', 'is', null);
+
+        if (year !== 'all') {
+          const startDate = `${year}-01-01`;
+          const endDate = `${year}-12-31`;
+          query = query
+            .gte('transactions.date', startDate)
+            .lte('transactions.date', endDate);
+        }
+
+        const { data: linesData, error: linesErr } = await query;
 
         if (linesErr) throw linesErr;
 
@@ -61,7 +70,7 @@ export function VendorsOverview() {
         }
 
         setVendors(vendorsTyped);
-        setYtdSpend(spendMap);
+        setSpend(spendMap);
         setLoading(false);
       } catch (err: any) {
         console.error(err);
@@ -71,19 +80,11 @@ export function VendorsOverview() {
     }
 
     loadData();
-  }, []);
+  }, [year]);
 
   if (loading) return <p>Loading vendors...</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
   if (vendors.length === 0) return <p>No vendors found.</p>;
-
-  function formatMoney(value: number) {
-    return value.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    });
-  }
 
   // Filter and sort
   const filteredVendors = showInactive
@@ -93,8 +94,8 @@ export function VendorsOverview() {
   const sortedVendors = [...filteredVendors].sort((a, b) => {
     const nameA = a.name.toLowerCase();
     const nameB = b.name.toLowerCase();
-    const spendA = ytdSpend[a.id] ?? 0;
-    const spendB = ytdSpend[b.id] ?? 0;
+    const spendA = spend[a.id] ?? 0;
+    const spendB = spend[b.id] ?? 0;
 
     if (sortMode === 'name') {
       return nameA.localeCompare(nameB);
@@ -104,8 +105,16 @@ export function VendorsOverview() {
     return spendB - spendA;
   });
 
-  // Calculate total YTD spend
-  const totalYtdSpend = sortedVendors.reduce((sum, v) => sum + (ytdSpend[v.id] ?? 0), 0);
+  // Calculate total spend for filtered vendors
+  const totalSpend = sortedVendors.reduce((sum, v) => sum + (spend[v.id] ?? 0), 0);
+
+  // Generate year options (current year down to 2020)
+  const yearOptions = Array.from(
+    { length: currentYear - 2019 },
+    (_, i) => currentYear - i
+  );
+
+  const periodLabel = year === 'all' ? 'All Time' : year.toString();
 
   return (
     <div className="card">
@@ -120,14 +129,28 @@ export function VendorsOverview() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <label style={{ fontSize: 13 }}>Year:</label>
+          <select
+            value={year}
+            onChange={(e) => setYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            style={{ padding: '0.25rem 0.5rem', fontSize: 13, width: 'auto' }}
+          >
+            <option value="all">All Time</option>
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <label style={{ fontSize: 13 }}>Sort by:</label>
           <select
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value as 'name' | 'spendDesc')}
             style={{ padding: '0.25rem 0.5rem', fontSize: 13, width: 'auto' }}
           >
-            <option value="name">Name (A → Z)</option>
-            <option value="spendDesc">Spend (High → Low)</option>
+            <option value="name">Name (A to Z)</option>
+            <option value="spendDesc">Spend (High to Low)</option>
           </select>
         </div>
 
@@ -147,20 +170,20 @@ export function VendorsOverview() {
             <Th>Vendor</Th>
             <Th>Nickname</Th>
             <Th>Tax ID</Th>
-            <Th align="right">YTD Spend (Cleared)</Th>
+            <Th align="right">{periodLabel} Spend (Cleared)</Th>
           </tr>
         </thead>
 
         <tbody>
           {sortedVendors.map((v) => {
-            const ytd = ytdSpend[v.id] ?? 0;
+            const vendorSpend = spend[v.id] ?? 0;
 
             return (
               <tr key={v.id} style={{ opacity: v.is_active ? 1 : 0.5 }}>
                 <Td>{v.name}</Td>
                 <Td>{v.nick_name ?? ''}</Td>
                 <Td>{v.tax_id ?? ''}</Td>
-                <Td align="right">{formatMoney(ytd)}</Td>
+                <Td align="right">{formatCurrency(vendorSpend, 2)}</Td>
               </tr>
             );
           })}
@@ -171,7 +194,7 @@ export function VendorsOverview() {
             <Th>Total</Th>
             <Th></Th>
             <Th></Th>
-            <Th align="right">{formatMoney(totalYtdSpend)}</Th>
+            <Th align="right">{formatCurrency(totalSpend, 2)}</Th>
           </tr>
         </tfoot>
       </table>

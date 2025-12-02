@@ -175,7 +175,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
     if (fromAcc && toAcc) {
       const fromLabel = fromAcc.code ? fromAcc.code : fromAcc.name;
       const toLabel = toAcc.code ? toAcc.code : toAcc.name;
-      setDescription(`Transfer ${fromLabel} → ${toLabel}`);
+      setDescription(`Transfer ${fromLabel} â†’ ${toLabel}`);
     } else {
       setDescription('');
     }
@@ -230,8 +230,8 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
       const transactionId = tx.id as number;
 
       // Two lines that net to zero:
-      // - From: amount = -amt → money leaving
-      // - To:   amount = +amt → money arriving
+      // - From: amount = -amt â†’ money leaving
+      // - To:   amount = +amt â†’ money arriving
       const { error: lineError } = await supabase.from('transaction_lines').insert([
         {
           transaction_id: transactionId,
@@ -276,8 +276,8 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
 
   const renderAccountOption = (acc: AccountOption) => {
     const balanceText = formatCurrencyOptional(acc.balance);
-    const labelBase = acc.code ? `${acc.code} — ${acc.name}` : acc.name;
-    const label = balanceText ? `${labelBase} — ${balanceText}` : labelBase;
+    const labelBase = acc.code ? `${acc.code} â€” ${acc.name}` : acc.name;
+    const label = balanceText ? `${labelBase} â€” ${balanceText}` : labelBase;
     return (
       <option key={acc.id} value={acc.id}>
         {label}
@@ -287,7 +287,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
 
   return (
     <div>
-      <h2 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Transfer Between Accounts</h2>
+      
       <p style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: 13 }}>
         Move money between <strong>bank accounts</strong> and/or{' '}
         <strong>credit cards</strong> without affecting P&amp;L.
@@ -332,7 +332,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 13 }}>
             <span style={{ marginBottom: 2 }}>From</span>
             {loadingAccounts ? (
-              <span style={{ fontSize: 12 }}>Loading accounts…</span>
+              <span style={{ fontSize: 12 }}>Loading accountsâ€¦</span>
             ) : accountsError ? (
               <span style={{ fontSize: 12, color: 'red' }}>{accountsError}</span>
             ) : !hasAccounts ? (
@@ -343,7 +343,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
                 onChange={(e) => setFromAccountId(e.target.value)}
                 style={{ padding: '4px 6px' }}
               >
-                <option value="">Select account…</option>
+                <option value="">Select accountâ€¦</option>
                 {bankAccounts.length > 0 && (
                   <optgroup label="Bank Accounts">
                     {bankAccounts.map(renderAccountOption)}
@@ -362,7 +362,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 13 }}>
             <span style={{ marginBottom: 2 }}>To</span>
             {loadingAccounts ? (
-              <span style={{ fontSize: 12 }}>Loading accounts…</span>
+              <span style={{ fontSize: 12 }}>Loading accountsâ€¦</span>
             ) : accountsError ? (
               <span style={{ fontSize: 12, color: 'red' }}>{accountsError}</span>
             ) : !hasAccounts ? (
@@ -373,7 +373,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
                 onChange={(e) => setToAccountId(e.target.value)}
                 style={{ padding: '4px 6px' }}
               >
-                <option value="">Select account…</option>
+                <option value="">Select accountâ€¦</option>
                 {bankAccounts.length > 0 && (
                   <optgroup label="Bank Accounts">
                     {bankAccounts.map(renderAccountOption)}
@@ -422,7 +422,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
         )}
 
         <button type="submit" disabled={saving || !hasAccounts} style={{ padding: '6px 10px' }}>
-          {saving ? 'Saving…' : 'Save transfer'}
+          {saving ? 'Savingâ€¦' : 'Save transfer'}
         </button>
       </form>
     </div>

@@ -1,6 +1,33 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
+type DateRangePreset = 'last-12-months' | 'custom';
+
+type DateRange = {
+  start: string | null;
+  end: string | null;
+};
+
+function getDateRangeForPreset(preset: DateRangePreset): DateRange {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  
+  const toISO = (d: Date): string => {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  switch (preset) {
+    case 'last-12-months': {
+      const start = new Date(year - 1, month, today.getDate());
+      return { start: toISO(start), end: toISO(today) };
+    }
+    case 'custom':
+    default:
+      return { start: null, end: null };
+  }
+}
+
 type LedgerRow = {
   transaction_id: number;
   line_id: number;
@@ -15,6 +42,16 @@ type LedgerRow = {
   type_label: string | null;
   amount: number;
   is_cleared: boolean;
+  // All accounts touched by this transaction (for filtering)
+  all_account_ids: number[];
+  all_account_codes: (number | null)[];
+};
+
+type AccountOption = {
+  id: number;
+  name: string;
+  code: number | null;
+  label: string;
 };
 
 type SortField =
@@ -28,7 +65,36 @@ type SortField =
 
 type SortDir = 'asc' | 'desc';
 
-type AccountFilter = 'all' | number;
+// Account filter can be:
+// - 'all': show all transactions
+// - number: specific account ID
+// - 'banks': codes 1000-1999
+// - 'cards': codes 2000-2999
+// - 're-all': codes 63000-64999
+// - 're-assets': codes 63000-63999
+// - 're-liabilities': codes 64000-64999
+type AccountFilter = 'all' | 'banks' | 'cards' | 're-all' | 're-assets' | 're-liabilities' | number;
+
+// Helper to check if a code falls within a range
+function codeMatchesFilter(code: number | null, filter: AccountFilter): boolean {
+  if (filter === 'all') return true;
+  if (code === null) return false;
+  
+  switch (filter) {
+    case 'banks':
+      return code >= 1000 && code <= 1999;
+    case 'cards':
+      return code >= 2000 && code <= 2999;
+    case 're-all':
+      return code >= 63000 && code <= 64999;
+    case 're-assets':
+      return code >= 63000 && code <= 63999;
+    case 're-liabilities':
+      return code >= 64000 && code <= 64999;
+    default:
+      return false; // number filter handled separately
+  }
+}
 
 export function LedgerView() {
   const [allRows, setAllRows] = useState<LedgerRow[]>([]);
@@ -44,11 +110,6 @@ export function LedgerView() {
 
   const [rowActionError, setRowActionError] = useState<string | null>(null);
 
-  const [deepOpen, setDeepOpen] = useState(false);
-  const [deepTerm, setDeepTerm] = useState('');
-  const [deepLoading, setDeepLoading] = useState(false);
-  const [deepError, setDeepError] = useState<string | null>(null);
-  const [deepRows, setDeepRows] = useState<LedgerRow[]>([]);
 
   const [editingRow, setEditingRow] = useState<LedgerRow | null>(null);
   const [editDate, setEditDate] = useState('');
@@ -63,7 +124,15 @@ export function LedgerView() {
   const [cashAccountOptions, setCashAccountOptions] = useState<{ id: number; label: string }[]>([]);
   const [categoryAccountOptions, setCategoryAccountOptions] = useState<{ id: number; label: string }[]>([]);
 
+  // All accounts from DB for the tiered dropdown
+  const [allAccounts, setAllAccounts] = useState<AccountOption[]>([]);
+
   const [accountFilter, setAccountFilter] = useState<AccountFilter>('all');
+
+  // Date range filter
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('last-12-months');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
 
   // Clear-transaction modal state
   const [clearOpen, setClearOpen] = useState(false);
@@ -80,10 +149,11 @@ export function LedgerView() {
     setRowActionError(null);
 
     try {
+      // Fetch 10 years of data for responsive client-side filtering
       const now = new Date();
-      const oneYearAgo = new Date(now);
-      oneYearAgo.setFullYear(now.getFullYear() - 1);
-      const oneYearAgoISO = oneYearAgo.toISOString().slice(0, 10);
+      const tenYearsAgo = new Date(now);
+      tenYearsAgo.setFullYear(now.getFullYear() - 10);
+      const tenYearsAgoISO = tenYearsAgo.toISOString().slice(0, 10);
 
       const { data, error: lineErr } = await supabase
         .from('transaction_lines')
@@ -120,8 +190,8 @@ export function LedgerView() {
           )
         `
         )
-        .gte('transactions.date', oneYearAgoISO)
-        .limit(10000);
+        .gte('transactions.date', tenYearsAgoISO)
+        .limit(15000);
 
       if (lineErr) throw lineErr;
 
@@ -194,6 +264,18 @@ export function LedgerView() {
         const isCleared = lines.every((l: any) => !!l.is_cleared);
         const updatedAt: string = tx?.updated_at ?? createdAt;
 
+        // Collect all account IDs and codes from all lines
+        const allAccountIds: number[] = [];
+        const allAccountCodes: (number | null)[] = [];
+        for (const line of lines) {
+          if (typeof line.account_id === 'number') {
+            allAccountIds.push(line.account_id);
+            const codeStr = line.accounts?.code;
+            const codeNum = codeStr ? parseInt(codeStr, 10) : null;
+            allAccountCodes.push(isNaN(codeNum as number) ? null : codeNum);
+          }
+        }
+
         ledgerRows.push({
           transaction_id: txId,
           line_id: cashLineId,
@@ -208,6 +290,8 @@ export function LedgerView() {
           type_label: typeLabel,
           amount,
           is_cleared: isCleared,
+          all_account_ids: allAccountIds,
+          all_account_codes: allAccountCodes,
         });
       }
 
@@ -220,8 +304,34 @@ export function LedgerView() {
     }
   }
 
+  async function loadAccounts() {
+    try {
+      const { data, error: accErr } = await supabase
+        .from('accounts')
+        .select('id, name, code')
+        .order('code', { ascending: true });
+      
+      if (accErr) throw accErr;
+      
+      const accounts: AccountOption[] = (data ?? []).map((a: any) => {
+        const code = a.code ? parseInt(a.code, 10) : null;
+        return {
+          id: a.id,
+          name: a.name,
+          code: isNaN(code as number) ? null : code,
+          label: a.code ? `${a.name} - ${a.code}` : a.name,
+        };
+      });
+      
+      setAllAccounts(accounts);
+    } catch (err: any) {
+      console.error('Failed to load accounts:', err);
+    }
+  }
+
   useEffect(() => {
     void loadLedger();
+    void loadAccounts();
   }, []);
 
   // ---------- helpers ----------
@@ -302,7 +412,7 @@ export function LedgerView() {
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, accountFilter]);
+  }, [searchTerm, accountFilter, dateRangePreset, customStartDate, customEndDate]);
 
   const compareValues = (a: any, b: any, dir: SortDir) => {
     if (a == null && b == null) return 0;
@@ -327,25 +437,83 @@ export function LedgerView() {
   };
 
   // ---------- account list (for selector) ----------
-  const cashAccountsList = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const row of allRows) {
-      if (row.cash_account_id != null && row.cash_account) {
-        map.set(row.cash_account_id, row.cash_account);
+  // Separate accounts by category based on code ranges
+  const categorizedAccounts = useMemo(() => {
+    const banks: AccountOption[] = [];
+    const cards: AccountOption[] = [];
+    const reAssets: AccountOption[] = [];
+    const reLiabilities: AccountOption[] = [];
+    const other: AccountOption[] = [];
+
+    for (const acc of allAccounts) {
+      if (acc.code !== null) {
+        if (acc.code >= 1000 && acc.code <= 1999) {
+          banks.push(acc);
+        } else if (acc.code >= 2000 && acc.code <= 2999) {
+          cards.push(acc);
+        } else if (acc.code >= 63000 && acc.code <= 63999) {
+          reAssets.push(acc);
+        } else if (acc.code >= 64000 && acc.code <= 64999) {
+          reLiabilities.push(acc);
+        }
+        // Note: we don't add to 'other' for accounts with codes outside these ranges
+        // as they're likely income/expense accounts not relevant for this filter
       }
     }
-    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [allRows]);
+
+    // Sort each category by code
+    const sortByCode = (a: AccountOption, b: AccountOption) => {
+      if (a.code === null && b.code === null) return a.name.localeCompare(b.name);
+      if (a.code === null) return 1;
+      if (b.code === null) return -1;
+      return a.code - b.code;
+    };
+
+    banks.sort(sortByCode);
+    cards.sort(sortByCode);
+    reAssets.sort(sortByCode);
+    reLiabilities.sort(sortByCode);
+
+    return { banks, cards, reAssets, reLiabilities, other };
+  }, [allAccounts]);
 
   // ---------- filtered + sorted rows ----------
+  // Compute effective date range (from preset or custom)
+  const effectiveDateRange = useMemo((): DateRange => {
+    if (dateRangePreset === 'custom') {
+      return {
+        start: customStartDate || null,
+        end: customEndDate || null,
+      };
+    }
+    return getDateRangeForPreset(dateRangePreset);
+  }, [dateRangePreset, customStartDate, customEndDate]);
+
   const filteredRows = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
 
     let rows = allRows;
 
-    // account filter first
+    // Date range filter
+    if (effectiveDateRange.start || effectiveDateRange.end) {
+      rows = rows.filter((row) => {
+        if (!row.date) return false;
+        if (effectiveDateRange.start && row.date < effectiveDateRange.start) return false;
+        if (effectiveDateRange.end && row.date > effectiveDateRange.end) return false;
+        return true;
+      });
+    }
+
+    // account filter - check if ANY line in the transaction matches
     if (accountFilter !== 'all') {
-      rows = rows.filter((r) => r.cash_account_id === accountFilter);
+      rows = rows.filter((r) => {
+        // If it's a specific account ID (number)
+        if (typeof accountFilter === 'number') {
+          return r.all_account_ids.includes(accountFilter);
+        }
+        // Otherwise it's a range filter - check if any account code matches
+        return r.all_account_codes.some(code => codeMatchesFilter(code, accountFilter));
+      });
     }
 
     // text search (include job_name in search)
@@ -424,7 +592,7 @@ export function LedgerView() {
     });
 
     return sorted;
-  }, [allRows, searchTerm, sortField, sortDir, accountFilter]);
+  }, [allRows, searchTerm, sortField, sortDir, accountFilter, effectiveDateRange]);
 
   const totalCount = filteredRows.length;
   const totalPages = totalCount === 0 ? 1 : Math.ceil(totalCount / pageSize);
@@ -432,56 +600,6 @@ export function LedgerView() {
   const startIndex = (page - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const pageRows = filteredRows.slice(startIndex, endIndex);
-
-  // ---------- deep search ----------
-  async function runDeepSearch() {
-    const term = deepTerm.trim().toLowerCase();
-    if (!term) {
-      setDeepRows([]);
-      return;
-    }
-
-    try {
-      setDeepLoading(true);
-      setDeepError(null);
-
-      const baseRows =
-        accountFilter === 'all'
-          ? allRows
-          : allRows.filter((r) => r.cash_account_id === accountFilter);
-
-      const matches = baseRows.filter((row) => {
-        const haystacks: string[] = [
-          formatDate(row.date),
-          row.date ?? '',
-          row.description ?? '',
-          row.job_name ?? '',
-          row.vendor_installer ?? '',
-          row.cash_account ?? '',
-          row.type_label ?? '',
-          row.amount.toFixed(2),
-        ];
-        return haystacks.some((h) => h.toLowerCase().includes(term));
-      });
-
-      setDeepRows(matches.slice(0, 500));
-      setDeepLoading(false);
-    } catch (err: any) {
-      console.error('Deep search error:', err);
-      setDeepError(err.message ?? 'Failed to run deep search');
-      setDeepLoading(false);
-    }
-  }
-
-  const handleOpenDeep = () => {
-    setDeepOpen(true);
-    setDeepError(null);
-    setDeepRows([]);
-  };
-
-  const handleCloseDeep = () => {
-    setDeepOpen(false);
-  };
 
   // ---------- edit / delete ----------
   const openEditModal = async (row: LedgerRow) => {
@@ -815,35 +933,11 @@ export function LedgerView() {
 
   // ---------- JSX ----------
   return (
-    <div className="card">
-      {/* header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '0.75rem',
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Ledger</h2>
-        <button
-          type="button"
-          onClick={handleOpenDeep}
-          style={{
-            padding: '4px 10px',
-            fontSize: 12,
-            borderRadius: 4,
-            border: '1px solid #111',
-            background: '#111',
-            color: '#fff',
-            cursor: 'pointer',
-          }}
-        >
-          Deep search…
-        </button>
-      </div>
+    <div>
+      <h2 style={{ margin: 0, marginBottom: '0.75rem' }}>Ledger</h2>
 
-      {loading && <p>Loading transactions…</p>}
+      <div className="card">
+        {loading && <p>Loading transactions...</p>}
       {error && <p style={{ color: 'red' }}>Error: {error}</p>}
       {rowActionError && !loading && (
         <p style={{ color: 'red', fontSize: 12, marginTop: 0 }}>
@@ -879,27 +973,119 @@ export function LedgerView() {
               <span>rows</span>
             </div>
 
-            {/* account selector */}
+            {/* date range picker */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>Date:</span>
+              <select
+                value={dateRangePreset}
+                onChange={(e) => setDateRangePreset(e.target.value as DateRangePreset)}
+                style={{ padding: '4px 8px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc', width: 'auto' }}
+              >
+                <option value="last-12-months">Last 12 months</option>
+                <option value="custom">Custom range</option>
+              </select>
+              {dateRangePreset === 'custom' && (
+                <>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    style={{ padding: '4px 6px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc' }}
+                  />
+                  <span>-</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    style={{ padding: '4px 6px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc' }}
+                  />
+                </>
+              )}
+            </div>
+
+            {/* account selector - tiered dropdown */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span>Account:</span>
               <select
-                value={accountFilter === 'all' ? 'all' : String(accountFilter)}
+                value={typeof accountFilter === 'number' ? String(accountFilter) : accountFilter}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (val === 'all') {
-                    setAccountFilter('all');
+                  if (val === 'all' || val === 'banks' || val === 'cards' || val === 're-all' || val === 're-assets' || val === 're-liabilities') {
+                    setAccountFilter(val as AccountFilter);
                   } else {
                     setAccountFilter(Number(val));
                   }
                 }}
-                style={{ padding: '4px 8px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc', width: 'auto' }}
+                style={{ padding: '4px 8px', fontSize: 13, borderRadius: 4, border: '1px solid #ccc', minWidth: 220 }}
               >
-                <option value="all">All cash & card accounts</option>
-                {cashAccountsList.map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))}
+                <option value="all">All Accounts</option>
+                
+                {/* Banks group */}
+                {categorizedAccounts.banks.length > 0 && (
+                  <>
+                    <option value="banks">── All Banks (1000-1999)</option>
+                    {categorizedAccounts.banks.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        &nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
+                      </option>
+                    ))}
+                  </>
+                )}
+                
+                {/* Cards group */}
+                {categorizedAccounts.cards.length > 0 && (
+                  <>
+                    <option value="cards">── All Cards (2000-2999)</option>
+                    {categorizedAccounts.cards.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        &nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
+                      </option>
+                    ))}
+                  </>
+                )}
+                
+                {/* RE group */}
+                {(categorizedAccounts.reAssets.length > 0 || categorizedAccounts.reLiabilities.length > 0) && (
+                  <>
+                    <option value="re-all">── All RE (63000-64999)</option>
+                    
+                    {/* RE Assets subgroup */}
+                    {categorizedAccounts.reAssets.length > 0 && (
+                      <>
+                        <option value="re-assets">&nbsp;&nbsp;── All RE Assets (63000-63999)</option>
+                        {categorizedAccounts.reAssets.map((acc) => (
+                          <option key={acc.id} value={acc.id}>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                    
+                    {/* RE Liabilities subgroup */}
+                    {categorizedAccounts.reLiabilities.length > 0 && (
+                      <>
+                        <option value="re-liabilities">&nbsp;&nbsp;── All RE Liabilities (64000-64999)</option>
+                        {categorizedAccounts.reLiabilities.map((acc) => (
+                          <option key={acc.id} value={acc.id}>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </>
+                )}
+                
+                {/* Other accounts */}
+                {categorizedAccounts.other.length > 0 && (
+                  <>
+                    <option disabled>──────────</option>
+                    {categorizedAccounts.other.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.label}
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
 
@@ -918,7 +1104,7 @@ export function LedgerView() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search: date, description, job, vendor, account, type, amount…"
+                placeholder="Search: date, description, job, vendor, account, type, amount..."
                 style={{
                   flex: 1,
                   minWidth: 0,
@@ -955,7 +1141,7 @@ export function LedgerView() {
                 fontSize: 12,
               }}
             >
-              Showing {totalCount === 0 ? 0 : startIndex + 1}–
+              Showing {totalCount === 0 ? 0 : startIndex + 1}-
               {Math.min(endIndex, totalCount)} of {totalCount}{' '}
               {accountFilter !== 'all' ? '(filtered)' : ''}
             </div>
@@ -1101,194 +1287,6 @@ export function LedgerView() {
             </>
           )}
         </>
-      )}
-
-      {/* deep search modal */}
-      {deepOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-          onClick={handleCloseDeep}
-        >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 8,
-              padding: '1rem',
-              width: '90%',
-              maxWidth: 1000,
-              maxHeight: '80vh',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <h3 style={{ margin: 0, fontSize: 16 }}>
-                Deep search (current ledger window)
-              </h3>
-              <button
-                type="button"
-                onClick={handleCloseDeep}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  fontSize: 18,
-                  cursor: 'pointer',
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                gap: '0.5rem',
-                alignItems: 'center',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  flex: 1,
-                }}
-              >
-                <input
-                  type="text"
-                  value={deepTerm}
-                  onChange={(e) => setDeepTerm(e.target.value)}
-                  placeholder="Search by keyword, job, vendor, account, type, amount…"
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    padding: '4px 8px',
-                    fontSize: 13,
-                    borderRadius: 4,
-                    border: '1px solid #ccc',
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      void runDeepSearch();
-                    }
-                  }}
-                />
-                {deepTerm && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDeepTerm('');
-                      setDeepRows([]);
-                      setDeepError(null);
-                    }}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      lineHeight: 1,
-                      padding: '0 4px',
-                    }}
-                    aria-label="Clear deep search"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => void runDeepSearch()}
-                disabled={deepLoading || !deepTerm.trim()}
-                style={{
-                  padding: '4px 10px',
-                  fontSize: 13,
-                  borderRadius: 4,
-                  border: '1px solid #111',
-                  background: deepLoading ? '#888' : '#111',
-                  color: '#fff',
-                  cursor:
-                    deepLoading || !deepTerm.trim() ? 'default' : 'pointer',
-                }}
-              >
-                {deepLoading ? 'Searching…' : 'Search'}
-              </button>
-            </div>
-
-            {deepError && (
-              <p style={{ color: 'red', fontSize: 13, marginBottom: '0.5rem' }}>
-                {deepError}
-              </p>
-            )}
-
-            <div style={{ fontSize: 12, color: '#555', marginBottom: '0.5rem' }}>
-              {deepRows.length > 0
-                ? `Showing ${deepRows.length} result(s) (limited to 500).`
-                : deepLoading
-                ? 'Searching…'
-                : deepTerm.trim()
-                ? 'No matches found for this term in the current selection.'
-                : 'Type a term and press Enter or click Search.'}
-            </div>
-
-            <div style={{ overflow: 'auto', flex: 1 }}>
-              {deepRows.length > 0 && (
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th style={thStyleBase}>Date</th>
-                      <th style={thStyleBase}>Description</th>
-                      <th style={thStyleBase}>Vendor / Installer</th>
-                      <th style={thStyleBase}>Account</th>
-                      <th style={thStyleBase}>Category</th>
-                      <th style={{ ...thStyleBase, textAlign: 'right' }}>
-                        Amount
-                      </th>
-                      <th style={{ ...thStyleBase, textAlign: 'center' }}>
-                        Cleared
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {deepRows.map((row) => (
-                      <tr key={`deep-${row.transaction_id}-${row.date}`}>
-                        <td style={tdStyle}>{formatDate(row.date)}</td>
-                        <td style={tdStyle}>{getDisplayDescription(row)}</td>
-                        <td style={tdStyle}>{row.vendor_installer}</td>
-                        <td style={tdStyle}>{row.cash_account}</td>
-                        <td style={tdStyle}>{row.type_label}</td>
-                        <td style={{ ...tdStyle, textAlign: 'right' }}>
-                          {formatMoney(row.amount)}
-                        </td>
-                        <td style={{ ...tdStyle, textAlign: 'center' }}>
-                          {row.is_cleared ? '✓' : ''}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
       )}
 
       {/* edit modal */}
@@ -1479,7 +1477,7 @@ export function LedgerView() {
                   cursor: editSaving ? 'default' : 'pointer',
                 }}
               >
-                {editSaving ? 'Saving…' : 'Save changes'}
+                {editSaving ? 'Saving...' : 'Save changes'}
               </button>
             </div>
           </div>
@@ -1678,6 +1676,7 @@ export function LedgerView() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

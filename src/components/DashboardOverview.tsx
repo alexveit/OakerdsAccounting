@@ -231,9 +231,9 @@ export function DashboardOverview() {
   };
 
   return (
-    
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1rem', alignItems: 'start' }}>
-      
+    <div>
+      <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>Dashboard</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1rem', alignItems: 'start' }}>
       {/* YTD Snapshot Card */}
       <div className="card">
         <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>YTD Snapshot</h3>
@@ -361,6 +361,7 @@ export function DashboardOverview() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
