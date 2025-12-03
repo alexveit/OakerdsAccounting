@@ -45,3 +45,4 @@ yarn.lock
 #*.sql
 #*.gz
 
+pg_password.txt

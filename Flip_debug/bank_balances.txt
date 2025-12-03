@@ -1,0 +1,9 @@
+these are the current balances retrieved from the bank website as of right now
+
+Bank 4112 $3,937.73
+Card 9271 $20,570.37
+Card 6370 $12,781.26
+Card 2908 $52,969.54
+Card 3946 $20,677.17
+Card 4441 $0.00
+Card 2989 $3,183.16
