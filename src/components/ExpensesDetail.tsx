@@ -404,7 +404,7 @@ export function ExpenseByCategory() {
         )}
         {viewMode !== 'year' && selectedAccountName && (
           <>
-            {'  â€º  '}
+            {'  >  '}
             {viewMode === 'month' ? (
               <span>{selectedAccountName}</span>
             ) : (
@@ -416,7 +416,7 @@ export function ExpenseByCategory() {
         )}
         {(viewMode === 'day' || (viewMode === 'detail' && !showAllTransactions)) && selectedMonth && (
           <>
-            {'  â€º  '}
+            {'  >  '}
             {viewMode === 'day' ? (
               <span>{formatMonthShort(selectedMonth)}</span>
             ) : (
@@ -427,14 +427,14 @@ export function ExpenseByCategory() {
           </>
         )}
         {viewMode === 'detail' && showAllTransactions && (
-          <>{'  â€º  '}<span>All Transactions</span></>
+          <>{'  >  '}<span>All Transactions</span></>
         )}
         {viewMode === 'detail' && selectedDate && !showAllTransactions && (
-          <>{'  â€º  '}<span>{formatLocalDate(selectedDate)}</span></>
+          <>{'  >  '}<span>{formatLocalDate(selectedDate)}</span></>
         )}
       </div>
 
-      {loading && <p>Loadingâ€¦</p>}
+      {loading && <p>Loading...</p>}
       {error && <p style={{ color: 'red' }}>Error: {error}</p>}
       {!loading && !error && viewMode === 'year' && rows.length === 0 && (
         <p>No data for {year}.</p>

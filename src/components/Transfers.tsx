@@ -276,8 +276,8 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
 
   const renderAccountOption = (acc: AccountOption) => {
     const balanceText = formatCurrencyOptional(acc.balance);
-    const labelBase = acc.code ? `${acc.code} â€” ${acc.name}` : acc.name;
-    const label = balanceText ? `${labelBase} â€” ${balanceText}` : labelBase;
+    const labelBase = acc.code ? `${acc.code} - ${acc.name}` : acc.name;
+    const label = balanceText ? `${labelBase} - ${balanceText}` : labelBase;
     return (
       <option key={acc.id} value={acc.id}>
         {label}
@@ -332,7 +332,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 13 }}>
             <span style={{ marginBottom: 2 }}>From</span>
             {loadingAccounts ? (
-              <span style={{ fontSize: 12 }}>Loading accountsâ€¦</span>
+              <span style={{ fontSize: 12 }}>Loading accounts...</span>
             ) : accountsError ? (
               <span style={{ fontSize: 12, color: 'red' }}>{accountsError}</span>
             ) : !hasAccounts ? (
@@ -343,7 +343,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
                 onChange={(e) => setFromAccountId(e.target.value)}
                 style={{ padding: '4px 6px' }}
               >
-                <option value="">Select accountâ€¦</option>
+                <option value="">Select account...</option>
                 {bankAccounts.length > 0 && (
                   <optgroup label="Bank Accounts">
                     {bankAccounts.map(renderAccountOption)}
@@ -362,7 +362,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 13 }}>
             <span style={{ marginBottom: 2 }}>To</span>
             {loadingAccounts ? (
-              <span style={{ fontSize: 12 }}>Loading accountsâ€¦</span>
+              <span style={{ fontSize: 12 }}>Loading accounts...</span>
             ) : accountsError ? (
               <span style={{ fontSize: 12, color: 'red' }}>{accountsError}</span>
             ) : !hasAccounts ? (
@@ -373,7 +373,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
                 onChange={(e) => setToAccountId(e.target.value)}
                 style={{ padding: '4px 6px' }}
               >
-                <option value="">Select accountâ€¦</option>
+                <option value="">Select account...</option>
                 {bankAccounts.length > 0 && (
                   <optgroup label="Bank Accounts">
                     {bankAccounts.map(renderAccountOption)}
@@ -422,7 +422,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
         )}
 
         <button type="submit" disabled={saving || !hasAccounts} style={{ padding: '6px 10px' }}>
-          {saving ? 'Savingâ€¦' : 'Save transfer'}
+          {saving ? 'Saving...' : 'Save transfer'}
         </button>
       </form>
     </div>

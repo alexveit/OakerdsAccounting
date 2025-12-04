@@ -86,7 +86,7 @@ export function NewJobForm() {
     }
   }
 
-  if (loading) return <p>Loading lead sourcesâ€¦</p>;
+  if (loading) return <p>Loading lead sources...</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
 
   return (
@@ -143,7 +143,7 @@ export function NewJobForm() {
         </label>
 
         <button type="submit" disabled={saving}>
-          {saving ? 'Savingâ€¦' : 'Save Job'}
+          {saving ? 'Saving...' : 'Save Job'}
         </button>
       </form>
     </div>

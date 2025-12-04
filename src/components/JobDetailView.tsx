@@ -408,14 +408,14 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
           {/* START DATE */}
           <span>
             <strong>Start:</strong>{' '}
-            {job.start_date ? formatLocalDate(job.start_date) : 'Ã¢â‚¬â€'}
+            {job.start_date ? formatLocalDate(job.start_date) : '-'}
           </span>
 
           {/* END DATE + CLOSE BUTTON */}
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <strong>End:</strong>{' '}
             {job.status === 'closed' ? (
-              job.end_date ? formatLocalDate(job.end_date) : 'Ã¢â‚¬â€'
+              job.end_date ? formatLocalDate(job.end_date) : '-'
             ) : (
               <input
                 type="date"

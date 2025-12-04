@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { supabase } from './lib/supabaseClient';
+import type { Session } from '@supabase/supabase-js';
+import { Login } from './components/Login';
 import { JobDetailView } from './components/JobDetailView';
 import { DashboardOverview } from './components/DashboardOverview';
 import { InstallersView } from './components/InstallersView';
@@ -12,8 +15,7 @@ import { TaxExportView } from './components/TaxExportView';
 import { REIView } from './components/REIView';
 import { Analytics } from './components/AnalyticsView';
 import { PriceListView } from './components/PriceListView';
-import { MobileContainer } from './components/mobile'; // Mobile view for quick job lookups
-
+import { MobileContainer } from './components/mobile';
 
 type View =
   | 'dashboard'
@@ -64,9 +66,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Real Estate',
-    items: [
-      { view: 'rei', label: 'REI Dashboard', icon: '🏠' },
-    ],
+    items: [{ view: 'rei', label: 'REI Dashboard', icon: '🏠' }],
   },
 ];
 
@@ -86,35 +86,74 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   priceList: PriceListView,
 };
 
-// ============================================================
-// MOBILE VIEW DETECTION
-// Access via ?m=1 or ?mobile=1 in URL
-// ============================================================
 function shouldShowMobileView(): boolean {
   const params = new URLSearchParams(window.location.search);
   return params.get('m') === '1' || params.get('mobile') === '1';
 }
 
 function App() {
-  // Check for mobile view first - renders standalone mobile UI
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isMobileView] = useState(shouldShowMobileView);
-  
-  if (isMobileView) {
-    return <MobileContainer  />;
+
+  // Check for existing session on mount
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <p>Loading...</p>
+      </div>
+    );
   }
 
-  // Normal app state
+  // Show login if not authenticated
+  if (!session) {
+    return <Login onLogin={() => {}} />;
+  }
+
+  // Mobile view (authenticated)
+  if (isMobileView) {
+    return <MobileContainer />;
+  }
+
+  // Main app (authenticated)
+  return <AuthenticatedApp onLogout={() => supabase.auth.signOut()} />;
+}
+
+// Separate component for the authenticated app to avoid hooks issues
+function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<View>('dashboard');
   const [initialJobIdForEntry, setInitialJobIdForEntry] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Close mobile menu when view changes
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [view]);
 
-  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth > 768) {
@@ -182,10 +221,7 @@ function App() {
 
       {/* Sidebar Overlay for Mobile */}
       {mobileMenuOpen && (
-        <div
-          className="sidebar-overlay"
-          onClick={() => setMobileMenuOpen(false)}
-        />
+        <div className="sidebar-overlay" onClick={() => setMobileMenuOpen(false)} />
       )}
 
       {/* Sidebar */}
@@ -194,11 +230,7 @@ function App() {
       >
         {/* Logo Section */}
         <div className="sidebar-header">
-          <img
-            src="/OakerdsLogo.svg"
-            alt="Oakerds Logo"
-            className="sidebar-logo"
-          />
+          <img src="/OakerdsLogo.svg" alt="Oakerds Logo" className="sidebar-logo" />
           {!sidebarCollapsed && (
             <div className="sidebar-brand">
               <div className="sidebar-title">Oakerds</div>
@@ -207,7 +239,7 @@ function App() {
           )}
         </div>
 
-        {/* Collapse/Expand Button - Always visible */}
+        {/* Collapse/Expand Button */}
         <button
           className="sidebar-collapse-btn"
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -246,12 +278,21 @@ function App() {
             </div>
           ))}
         </nav>
+
+        {/* Logout Button */}
+        <button
+          className="sidebar-nav-item"
+          onClick={onLogout}
+          style={{ marginTop: 'auto', marginBottom: '1rem' }}
+          title={sidebarCollapsed ? 'Logout' : undefined}
+        >
+          <span className="sidebar-icon">🚪</span>
+          {!sidebarCollapsed && <span className="sidebar-label">Logout</span>}
+        </button>
       </aside>
 
       {/* Main Content */}
-      <main className="main-content">
-        {renderView()}
-      </main>
+      <main className="main-content">{renderView()}</main>
     </div>
   );
 }

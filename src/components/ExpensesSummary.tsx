@@ -115,7 +115,7 @@ export function CategoriesSummaryView() {
       if (!dateStr) continue;
       const d = new Date(dateStr + 'T00:00:00');
       if (Number.isNaN(d.getTime())) continue;
-      const monthIndex = d.getMonth(); // 0â€“11
+      const monthIndex = d.getMonth();
 
       const amt = Number(line.amount) || 0;
 
@@ -372,7 +372,7 @@ export function CategoriesSummaryView() {
     );
   }
 
-  if (loading) return <p>Loading category summaryâ€¦</p>;
+  if (loading) return <p>Loading category summary...</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
 
   return (
