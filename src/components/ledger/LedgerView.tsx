@@ -1,0 +1,954 @@
+// src/components/ledger/LedgerView.tsx
+
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../../lib/supabaseClient';
+import {
+  type LedgerRow,
+  type AccountOption,
+  type SortField,
+  type SortDir,
+  type DateRangePreset,
+  type DateRange,
+  type AccountFilter,
+  type CategorizedAccounts,
+} from './types';
+import {
+  getDateRangeForPreset,
+  codeMatchesFilter,
+  formatDate,
+  formatMoney,
+  compareValues,
+  getDefaultSortDir,
+} from './utils';
+import { LedgerEditModal, type EditModalResult } from './LedgerEditModal';
+import { LedgerClearModal } from './LedgerClearModal';
+
+export function LedgerView() {
+  const [allRows, setAllRows] = useState<LedgerRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [pageSize, setPageSize] = useState<number>(25);
+  const [page, setPage] = useState<number>(1);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const [rowActionError, setRowActionError] = useState<string | null>(null);
+
+  // Edit modal state
+  const [editingRow, setEditingRow] = useState<LedgerRow | null>(null);
+
+  // All accounts from DB for the tiered dropdown
+  const [allAccounts, setAllAccounts] = useState<AccountOption[]>([]);
+
+  const [accountFilter, setAccountFilter] = useState<AccountFilter>('all');
+
+  // Date range filter
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('last-12-months');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+
+  // Clear-transaction modal state
+  const [clearTarget, setClearTarget] = useState<LedgerRow | null>(null);
+
+  // ---------- load ledger ----------
+  async function loadLedger() {
+    setLoading(true);
+    setError(null);
+    setRowActionError(null);
+
+    try {
+      // Fetch 10 years of data for responsive client-side filtering
+      const now = new Date();
+      const tenYearsAgo = new Date(now);
+      tenYearsAgo.setFullYear(now.getFullYear() - 10);
+      const tenYearsAgoISO = tenYearsAgo.toISOString().slice(0, 10);
+
+      const { data, error: lineErr } = await supabase
+        .from('transaction_lines')
+        .select(
+          `
+          id,
+          transaction_id,
+          amount,
+          is_cleared,
+          created_at,
+          account_id,
+          job_id,
+          accounts (
+            name,
+            code,
+            account_types ( name )
+          ),
+          transactions!inner (
+            date,
+            description,
+            created_at,
+            updated_at
+          ),
+          jobs (
+            name
+          ),
+          vendors (
+            name
+          ),
+          installers (
+            first_name,
+            last_name,
+            company_name
+          )
+        `
+        )
+        .gte('transactions.date', tenYearsAgoISO)
+        .limit(15000);
+
+      if (lineErr) throw lineErr;
+
+      const rawLines = (data ?? []) as any[];
+
+      const txMap = new Map<number, any[]>();
+      for (const line of rawLines) {
+        const txId: number = line.transaction_id;
+        if (!txMap.has(txId)) txMap.set(txId, []);
+        txMap.get(txId)!.push(line);
+      }
+
+      const ledgerRows: LedgerRow[] = [];
+
+      for (const [txId, lines] of txMap.entries()) {
+        if (!lines.length) continue;
+        const first = lines[0];
+        const tx = first.transactions;
+
+        const date: string = tx?.date ?? '';
+        const createdAt: string = tx?.created_at ?? first.created_at;
+
+        // Job name from any line that has a job_id
+        const lineWithJob = lines.find((l: any) => l.jobs?.name);
+        const jobName: string | null = lineWithJob?.jobs?.name ?? null;
+
+        // Vendor / installer label
+        let vendorInstaller = '';
+        const withVendor = lines.find(
+          (l: any) => l.vendors && l.vendors.name && l.vendors.name.trim() !== ''
+        );
+        if (withVendor?.vendors?.name) {
+          vendorInstaller = withVendor.vendors.name;
+        } else {
+          const withInstaller = lines.find((l: any) => l.installers != null);
+          if (withInstaller?.installers) {
+            const inst = withInstaller.installers;
+            const fullName = [inst.first_name, inst.last_name]
+              .filter(Boolean)
+              .join(' ')
+              .trim();
+            vendorInstaller = inst.company_name || fullName;
+          }
+        }
+
+        // Cash side (asset/liability)
+        const cashLine =
+          lines.find((l: any) => {
+            const t = l.accounts?.account_types?.name;
+            return t === 'asset' || t === 'liability';
+          }) ?? lines[0];
+
+        const cashAccount: string | null =
+          cashLine.accounts != null
+            ? cashLine.accounts.code
+              ? `${cashLine.accounts.name} - ${cashLine.accounts.code}`
+              : cashLine.accounts.name
+            : null;
+
+        const cashAccountId: number | null =
+          typeof cashLine.account_id === 'number' ? cashLine.account_id : null;
+
+        const cashLineId: number = cashLine.id;
+
+        // Type / category side (other account)
+        const typeLine = lines.find((l: any) => l !== cashLine) ?? lines[0];
+        const typeLabel: string | null = typeLine.accounts?.name ?? null;
+
+        const amount = Number(cashLine.amount);
+        const isCleared = lines.every((l: any) => !!l.is_cleared);
+        const updatedAt: string = tx?.updated_at ?? createdAt;
+
+        // Collect all account IDs and codes from all lines
+        const allAccountIds: number[] = [];
+        const allAccountCodes: (number | null)[] = [];
+        for (const line of lines) {
+          if (typeof line.account_id === 'number') {
+            allAccountIds.push(line.account_id);
+            const codeStr = line.accounts?.code;
+            const codeNum = codeStr ? parseInt(codeStr, 10) : null;
+            allAccountCodes.push(isNaN(codeNum as number) ? null : codeNum);
+          }
+        }
+
+        ledgerRows.push({
+          transaction_id: txId,
+          line_id: cashLineId,
+          date,
+          created_at: createdAt,
+          updated_at: updatedAt,
+          description: tx?.description ?? null,
+          job_name: jobName,
+          vendor_installer: vendorInstaller || '',
+          cash_account: cashAccount,
+          cash_account_id: cashAccountId,
+          type_label: typeLabel,
+          amount,
+          is_cleared: isCleared,
+          all_account_ids: allAccountIds,
+          all_account_codes: allAccountCodes,
+        });
+      }
+
+      setAllRows(ledgerRows);
+      setLoading(false);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message ?? 'Failed to load ledger');
+      setLoading(false);
+    }
+  }
+
+  async function loadAccounts() {
+    try {
+      const { data, error: accErr } = await supabase
+        .from('accounts')
+        .select('id, name, code')
+        .order('code', { ascending: true });
+
+      if (accErr) throw accErr;
+
+      const accounts: AccountOption[] = (data ?? []).map((a: any) => {
+        const code = a.code ? parseInt(a.code, 10) : null;
+        return {
+          id: a.id,
+          name: a.name,
+          code: isNaN(code as number) ? null : code,
+          label: a.code ? `${a.name} - ${a.code}` : a.name,
+        };
+      });
+
+      setAllAccounts(accounts);
+    } catch (err: any) {
+      console.error('Failed to load accounts:', err);
+    }
+  }
+
+  useEffect(() => {
+    void loadLedger();
+    void loadAccounts();
+  }, []);
+
+  // ---------- helpers ----------
+  // Combine job name and description for display
+  const getDisplayDescription = (row: LedgerRow): string => {
+    if (row.job_name && row.description) {
+      return `${row.job_name} / ${row.description}`;
+    }
+    return row.job_name || row.description || '';
+  };
+
+  const thStyleBase = {
+    textAlign: 'left' as const,
+    borderBottom: '1px solid #ccc',
+    padding: '4px 4px',
+  };
+  const tdStyle = {
+    padding: '6px 4px',
+    borderBottom: '1px solid #eee',
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      // New field: default direction based on field type
+      setSortField(field);
+      setSortDir(getDefaultSortDir(field));
+    }
+  };
+
+  const sortableTh = (field: SortField, label: string, align: 'left' | 'right' | 'center' = 'left') => {
+    const isActive = sortField === field;
+    const arrow = isActive ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+
+    return (
+      <th
+        style={{
+          ...thStyleBase,
+          textAlign: align,
+          cursor: 'pointer',
+          userSelect: 'none' as const,
+          whiteSpace: 'nowrap' as const,
+          background: isActive ? '#f5f5f5' : 'transparent',
+        }}
+        onClick={() => handleSort(field)}
+      >
+        {label}
+        {arrow}
+      </th>
+    );
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSize = Number(e.target.value) || 25;
+    setPageSize(newSize);
+    setPage(1);
+  };
+
+  const handlePrev = () => setPage((p) => Math.max(1, p - 1));
+  const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, accountFilter, dateRangePreset, customStartDate, customEndDate]);
+
+  // ---------- account list (for selector) ----------
+  // Separate accounts by category based on code ranges
+  const categorizedAccounts = useMemo((): CategorizedAccounts => {
+    const banks: AccountOption[] = [];
+    const cards: AccountOption[] = [];
+    const reAssets: AccountOption[] = [];
+    const reLiabilities: AccountOption[] = [];
+    const other: AccountOption[] = [];
+
+    for (const acc of allAccounts) {
+      if (acc.code !== null) {
+        if (acc.code >= 1000 && acc.code <= 1999) {
+          banks.push(acc);
+        } else if (acc.code >= 2000 && acc.code <= 2999) {
+          cards.push(acc);
+        } else if (acc.code >= 63000 && acc.code <= 63999) {
+          reAssets.push(acc);
+        } else if (acc.code >= 64000 && acc.code <= 64999) {
+          reLiabilities.push(acc);
+        }
+      }
+    }
+
+    // Sort each category by code
+    const sortByCode = (a: AccountOption, b: AccountOption) => {
+      if (a.code === null && b.code === null) return a.name.localeCompare(b.name);
+      if (a.code === null) return 1;
+      if (b.code === null) return -1;
+      return a.code - b.code;
+    };
+
+    banks.sort(sortByCode);
+    cards.sort(sortByCode);
+    reAssets.sort(sortByCode);
+    reLiabilities.sort(sortByCode);
+
+    return { banks, cards, reAssets, reLiabilities, other };
+  }, [allAccounts]);
+
+  // ---------- filtered + sorted rows ----------
+  // Compute effective date range (from preset or custom)
+  const effectiveDateRange = useMemo((): DateRange => {
+    if (dateRangePreset === 'custom') {
+      return {
+        start: customStartDate || null,
+        end: customEndDate || null,
+      };
+    }
+    return getDateRangeForPreset(dateRangePreset);
+  }, [dateRangePreset, customStartDate, customEndDate]);
+
+  const filteredRows = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+
+    let rows = allRows;
+
+    // Date range filter
+    if (effectiveDateRange.start || effectiveDateRange.end) {
+      rows = rows.filter((row) => {
+        if (!row.date) return false;
+        if (effectiveDateRange.start && row.date < effectiveDateRange.start) return false;
+        if (effectiveDateRange.end && row.date > effectiveDateRange.end) return false;
+        return true;
+      });
+    }
+
+    // account filter - check if ANY line in the transaction matches
+    if (accountFilter !== 'all') {
+      rows = rows.filter((r) => {
+        // If it's a specific account ID (number)
+        if (typeof accountFilter === 'number') {
+          return r.all_account_ids.includes(accountFilter);
+        }
+        // Otherwise it's a range filter - check if any account code matches
+        return r.all_account_codes.some((code) => codeMatchesFilter(code, accountFilter));
+      });
+    }
+
+    // text search (include job_name in search)
+    if (term) {
+      rows = rows.filter((row) => {
+        const haystacks: string[] = [
+          formatDate(row.date),
+          row.date ?? '',
+          row.description ?? '',
+          row.job_name ?? '',
+          row.vendor_installer ?? '',
+          row.cash_account ?? '',
+          row.type_label ?? '',
+          row.amount.toFixed(2),
+        ];
+        return haystacks.some((h) => h.toLowerCase().includes(term));
+      });
+    }
+
+    // Always sort - pending first, then user's chosen sort within each group
+    const sorted = [...rows].sort((a, b) => {
+      // Pending always on top
+      if (a.is_cleared !== b.is_cleared) {
+        return a.is_cleared ? 1 : -1;
+      }
+
+      // Within same cleared status, apply user's sort
+      let result = 0;
+
+      switch (sortField) {
+        case 'date':
+          result = compareValues(a.date, b.date, sortDir);
+          // Secondary: updated_at in same direction as date
+          if (result === 0) {
+            result = compareValues(a.updated_at, b.updated_at, sortDir);
+          }
+          break;
+        case 'description':
+          result = compareValues(
+            getDisplayDescription(a),
+            getDisplayDescription(b),
+            sortDir
+          );
+          break;
+        case 'vendor_installer':
+          result = compareValues(a.vendor_installer, b.vendor_installer, sortDir);
+          break;
+        case 'cash_account':
+          result = compareValues(a.cash_account, b.cash_account, sortDir);
+          break;
+        case 'type_label':
+          result = compareValues(a.type_label, b.type_label, sortDir);
+          break;
+        case 'amount':
+          result = compareValues(a.amount, b.amount, sortDir);
+          break;
+        case 'is_cleared':
+          result = compareValues(a.is_cleared, b.is_cleared, sortDir);
+          break;
+      }
+
+      // If still tied on the chosen field, fall back to date desc
+      if (result === 0 && sortField !== 'date') {
+        result = compareValues(a.date, b.date, 'desc');
+      }
+
+      return result;
+    });
+
+    return sorted;
+  }, [allRows, searchTerm, accountFilter, effectiveDateRange, sortField, sortDir]);
+
+  const totalCount = filteredRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const pageRows = filteredRows.slice(startIndex, endIndex);
+
+  // ---------- edit / delete ----------
+  const openEditModal = (row: LedgerRow) => {
+    setEditingRow(row);
+    setRowActionError(null);
+  };
+
+  const handleEditSave = (txId: number, result: EditModalResult) => {
+    setAllRows((prev) =>
+      prev.map((r) =>
+        r.transaction_id === txId
+          ? {
+              ...r,
+              date: result.date,
+              description: result.description,
+              amount: result.amount,
+              cash_account: result.cashAccountLabel,
+              cash_account_id: result.cashAccountId,
+              type_label: result.categoryAccountLabel,
+              updated_at: new Date().toISOString(),
+            }
+          : r
+      )
+    );
+    setEditingRow(null);
+  };
+
+  const handleEditError = (message: string) => {
+    setRowActionError(message);
+  };
+
+  async function handleDelete(row: LedgerRow) {
+    const confirmed = window.confirm(
+      `Delete this transaction?\n\n` +
+        `Date: ${formatDate(row.date)}\n` +
+        `Amount: ${formatMoney(row.amount)}\n` +
+        `Description: ${getDisplayDescription(row) || '(no description)'}\n\n` +
+        `This will delete ALL lines for this transaction. This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setRowActionError(null);
+
+    try {
+      const { error: linesErr } = await supabase
+        .from('transaction_lines')
+        .delete()
+        .eq('transaction_id', row.transaction_id);
+      if (linesErr) throw linesErr;
+
+      const { error: txErr } = await supabase.from('transactions').delete().eq('id', row.transaction_id);
+      if (txErr) throw txErr;
+
+      setAllRows((prev) => prev.filter((r) => r.transaction_id !== row.transaction_id));
+    } catch (err: any) {
+      console.error('Delete failed:', err);
+      setRowActionError(err.message ?? 'Failed to delete transaction.');
+    }
+  }
+
+  // ---------- clear from ledger ----------
+  function handleMarkClearedFromLedger(row: LedgerRow) {
+    if (row.is_cleared) return;
+    setRowActionError(null);
+    setClearTarget(row);
+  }
+
+  async function handleClearSuccess() {
+    setClearTarget(null);
+    await loadLedger();
+  }
+
+  function handleClearError(message: string) {
+    setRowActionError(message);
+  }
+
+  // ---------- JSX ----------
+  return (
+    <div>
+      <h2 style={{ margin: 0, marginBottom: '0.75rem' }}>Ledger</h2>
+
+      <div className="card">
+        {loading && <p>Loading transactions...</p>}
+        {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+        {rowActionError && !loading && (
+          <p style={{ color: 'red', fontSize: 12, marginTop: 0 }}>{rowActionError}</p>
+        )}
+
+        {!loading && !error && (
+          <>
+            {/* controls row */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                marginBottom: '0.5rem',
+                fontSize: 13,
+                gap: '0.75rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              {/* page size */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>Show</span>
+                <select
+                  value={pageSize}
+                  onChange={handlePageSizeChange}
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: 13,
+                    borderRadius: 4,
+                    border: '1px solid #ccc',
+                    width: 'auto',
+                  }}
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <span>rows</span>
+              </div>
+
+              {/* date range picker */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>Date:</span>
+                <select
+                  value={dateRangePreset}
+                  onChange={(e) => setDateRangePreset(e.target.value as DateRangePreset)}
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: 13,
+                    borderRadius: 4,
+                    border: '1px solid #ccc',
+                    width: 'auto',
+                  }}
+                >
+                  <option value="last-12-months">Last 12 months</option>
+                  <option value="custom">Custom range</option>
+                </select>
+                {dateRangePreset === 'custom' && (
+                  <>
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      style={{
+                        padding: '4px 6px',
+                        fontSize: 13,
+                        borderRadius: 4,
+                        border: '1px solid #ccc',
+                      }}
+                    />
+                    <span>-</span>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      style={{
+                        padding: '4px 6px',
+                        fontSize: 13,
+                        borderRadius: 4,
+                        border: '1px solid #ccc',
+                      }}
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* account selector - tiered dropdown */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>Account:</span>
+                <select
+                  value={typeof accountFilter === 'number' ? String(accountFilter) : accountFilter}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (
+                      val === 'all' ||
+                      val === 'banks' ||
+                      val === 'cards' ||
+                      val === 're-all' ||
+                      val === 're-assets' ||
+                      val === 're-liabilities'
+                    ) {
+                      setAccountFilter(val as AccountFilter);
+                    } else {
+                      setAccountFilter(Number(val));
+                    }
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: 13,
+                    borderRadius: 4,
+                    border: '1px solid #ccc',
+                    minWidth: 220,
+                  }}
+                >
+                  <option value="all">All Accounts</option>
+
+                  {/* Banks group */}
+                  {categorizedAccounts.banks.length > 0 && (
+                    <>
+                      <option value="banks">── All Banks (1000-1999)</option>
+                      {categorizedAccounts.banks.map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          &nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
+                        </option>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Cards group */}
+                  {categorizedAccounts.cards.length > 0 && (
+                    <>
+                      <option value="cards">── All Cards (2000-2999)</option>
+                      {categorizedAccounts.cards.map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          &nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
+                        </option>
+                      ))}
+                    </>
+                  )}
+
+                  {/* RE group */}
+                  {(categorizedAccounts.reAssets.length > 0 ||
+                    categorizedAccounts.reLiabilities.length > 0) && (
+                    <>
+                      <option value="re-all">── All RE (63000-64999)</option>
+
+                      {/* RE Assets subgroup */}
+                      {categorizedAccounts.reAssets.length > 0 && (
+                        <>
+                          <option value="re-assets">
+                            &nbsp;&nbsp;── All RE Assets (63000-63999)
+                          </option>
+                          {categorizedAccounts.reAssets.map((acc) => (
+                            <option key={acc.id} value={acc.id}>
+                              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
+                            </option>
+                          ))}
+                        </>
+                      )}
+
+                      {/* RE Liabilities subgroup */}
+                      {categorizedAccounts.reLiabilities.length > 0 && (
+                        <>
+                          <option value="re-liabilities">
+                            &nbsp;&nbsp;── All RE Liabilities (64000-64999)
+                          </option>
+                          {categorizedAccounts.reLiabilities.map((acc) => (
+                            <option key={acc.id} value={acc.id}>
+                              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
+                            </option>
+                          ))}
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {/* Other accounts */}
+                  {categorizedAccounts.other.length > 0 && (
+                    <>
+                      <option disabled>──────────</option>
+                      {categorizedAccounts.other.map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.label}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+
+              {/* fast search */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  flex: 1,
+                  maxWidth: 560,
+                  minWidth: 220,
+                }}
+              >
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search: date, description, job, vendor, account, type, amount..."
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    padding: '4px 8px',
+                    fontSize: 13,
+                    borderRadius: 4,
+                    border: '1px solid #ccc',
+                  }}
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      lineHeight: 1,
+                      padding: '0 4px',
+                    }}
+                    aria-label="Clear fast search"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              {/* summary */}
+              <div
+                style={{
+                  marginLeft: 'auto',
+                  whiteSpace: 'nowrap',
+                  fontSize: 12,
+                }}
+              >
+                Showing {totalCount === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, totalCount)} of{' '}
+                {totalCount} {accountFilter !== 'all' ? '(filtered)' : ''}
+              </div>
+            </div>
+
+            {totalCount === 0 && (
+              <p style={{ fontSize: 13, color: '#777' }}>No transactions found for this selection.</p>
+            )}
+
+            {totalCount > 0 && (
+              <>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      {sortableTh('date', 'Date')}
+                      {sortableTh('description', 'Description')}
+                      {sortableTh('vendor_installer', 'Vendor / Installer')}
+                      {sortableTh('cash_account', 'Account')}
+                      {sortableTh('type_label', 'Category')}
+                      {sortableTh('amount', 'Amount', 'right')}
+                      {sortableTh('is_cleared', 'Cleared', 'center')}
+                      <th
+                        style={{
+                          ...thStyleBase,
+                          textAlign: 'right',
+                          cursor: 'default',
+                        }}
+                      >
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRows.map((row) => (
+                      <tr
+                        key={row.transaction_id}
+                        style={{
+                          background: row.is_cleared ? 'transparent' : '#fffbe6',
+                        }}
+                      >
+                        <td style={tdStyle}>{formatDate(row.date)}</td>
+                        <td style={tdStyle}>{getDisplayDescription(row)}</td>
+                        <td style={tdStyle}>{row.vendor_installer}</td>
+                        <td style={tdStyle}>{row.cash_account}</td>
+                        <td style={tdStyle}>{row.type_label}</td>
+                        <td style={{ ...tdStyle, textAlign: 'right' }}>{formatMoney(row.amount)}</td>
+                        <td style={{ ...tdStyle, textAlign: 'center' }}>{row.is_cleared ? '✓' : ''}</td>
+                        <td
+                          style={{
+                            ...tdStyle,
+                            textAlign: 'right',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {!row.is_cleared && (
+                            <button
+                              type="button"
+                              onClick={() => handleMarkClearedFromLedger(row)}
+                              style={{
+                                border: '1px solid #0a7a3c',
+                                background: '#e8f5e9',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                                padding: '2px 6px',
+                                fontSize: 13,
+                                color: '#0a7a3c',
+                                marginRight: 4,
+                                lineHeight: 1,
+                              }}
+                              title="Mark cleared"
+                            >
+                              ✓
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(row)}
+                            style={{
+                              border: 'none',
+                              background: 'transparent',
+                              cursor: 'pointer',
+                              padding: '0 4px',
+                              fontSize: 14,
+                            }}
+                            title="Edit"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(row)}
+                            style={{
+                              border: 'none',
+                              background: 'transparent',
+                              cursor: 'pointer',
+                              padding: '0 4px',
+                              fontSize: 14,
+                              color: '#b00020',
+                            }}
+                            title="Delete"
+                          >
+                            ×
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: '0.5rem',
+                    fontSize: 13,
+                  }}
+                >
+                  <button
+                    onClick={handlePrev}
+                    disabled={page === 1}
+                    style={{ padding: '0.2rem 0.6rem', fontSize: 13 }}
+                  >
+                    Prev
+                  </button>
+                  <span>
+                    Page {page} of {totalPages}
+                  </span>
+                  <button
+                    onClick={handleNext}
+                    disabled={page === totalPages}
+                    style={{ padding: '0.2rem 0.6rem', fontSize: 13 }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* edit modal */}
+        {editingRow && (
+          <LedgerEditModal
+            row={editingRow}
+            onClose={() => setEditingRow(null)}
+            onSave={handleEditSave}
+            onError={handleEditError}
+          />
+        )}
+
+        {/* clear-from-ledger modal */}
+        {clearTarget && (
+          <LedgerClearModal
+            row={clearTarget}
+            onClose={() => setClearTarget(null)}
+            onSuccess={() => void handleClearSuccess()}
+            onError={handleClearError}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
