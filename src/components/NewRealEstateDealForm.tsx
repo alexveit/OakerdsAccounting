@@ -288,7 +288,6 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         }
       }
 
-      console.log('Created real estate deal', data);
       setSuccess('Deal saved.');
 
       // Reset form (keep type & status)

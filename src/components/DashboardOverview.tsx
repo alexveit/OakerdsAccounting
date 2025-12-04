@@ -361,7 +361,7 @@ export function DashboardOverview() {
             <span style={{ color: green }}>{currency(jobIncomeYtd)}</span>
           </div>
           <div style={rowStyle}>
-            <span>Expenses</span>
+            <span>Job Expenses</span>
             <span style={{ color: red }}>-{currency(jobExpenseYtd)}</span>
           </div>
           <div style={rowStyle}>

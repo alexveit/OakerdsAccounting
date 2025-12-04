@@ -914,7 +914,6 @@ export function LedgerView() {
       );
 
       if (rpcErr) throw rpcErr;
-      console.log('Transaction marked cleared from ledger:', data);
 
       setClearOpen(false);
       setClearTarget(null);
