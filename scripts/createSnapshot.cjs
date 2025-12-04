@@ -9,7 +9,7 @@ const path = require('path');
 const projectRoot = process.cwd();
 
 // ---- CONFIG ----
-const DIRS_TO_INCLUDE = ['src', 'scripts', 'db_debug'];
+const DIRS_TO_INCLUDE = ['src', 'scripts', 'db_tools'];
 
 // ---- HELPERS ----
 
@@ -93,7 +93,7 @@ function collectAndCopyFilesFlat(srcDir, baseRelative, debugRootPath, filesMeta)
 
 function createDebugDocs() {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const debugFolderName = `debug_docks_${timestamp}`;
+  const debugFolderName = `debug_docs_${timestamp}`;
   const debugFolderPath = path.join(projectRoot, debugFolderName);
 
   ensureDir(debugFolderPath);

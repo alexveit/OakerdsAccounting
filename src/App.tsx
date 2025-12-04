@@ -11,6 +11,7 @@ import { NewEntryView } from './components/NewEntryView';
 import { TaxExportView } from './components/TaxExportView';
 import { REIView } from './components/REIView';
 import { Analytics } from './components/AnalyticsView';
+import { JobsMobileView } from './components/JobsMobileView'; // Mobile view for quick job lookups
 
 type View =
   | 'dashboard'
@@ -80,7 +81,24 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   rei: REIView,
 };
 
+// ============================================================
+// MOBILE VIEW DETECTION
+// Access via ?m=1 or ?mobile=1 in URL
+// ============================================================
+function shouldShowMobileView(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('m') === '1' || params.get('mobile') === '1';
+}
+
 function App() {
+  // Check for mobile view first - renders standalone mobile UI
+  const [isMobileView] = useState(shouldShowMobileView);
+  
+  if (isMobileView) {
+    return <JobsMobileView />;
+  }
+
+  // Normal app state
   const [view, setView] = useState<View>('dashboard');
   const [initialJobIdForEntry, setInitialJobIdForEntry] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
