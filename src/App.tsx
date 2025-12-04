@@ -11,7 +11,9 @@ import { NewEntryView } from './components/NewEntryView';
 import { TaxExportView } from './components/TaxExportView';
 import { REIView } from './components/REIView';
 import { Analytics } from './components/AnalyticsView';
-import { JobsMobileView } from './components/JobsMobileView'; // Mobile view for quick job lookups
+import { PriceListView } from './components/PriceListView';
+import { MobileContainer } from './components/mobile'; // Mobile view for quick job lookups
+
 
 type View =
   | 'dashboard'
@@ -25,7 +27,8 @@ type View =
   | 'profitSummary'
   | 'taxExport'
   | 'rei'
-  | 'analytics';
+  | 'analytics'
+  | 'priceList';
 
 type NavSection = {
   title: string | null;
@@ -47,6 +50,7 @@ const NAV_SECTIONS: NavSection[] = [
       { view: 'installers', label: 'Installers', icon: '👷' },
       { view: 'vendors', label: 'Vendors', icon: '🪙' },
       { view: 'leadSources', label: 'Lead Sources', icon: '📣' },
+      { view: 'priceList', label: 'Price List', icon: '💲' },
     ],
   },
   {
@@ -79,6 +83,7 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   profitSummary: ProfitSummary,
   taxExport: TaxExportView,
   rei: REIView,
+  priceList: PriceListView,
 };
 
 // ============================================================
@@ -95,7 +100,7 @@ function App() {
   const [isMobileView] = useState(shouldShowMobileView);
   
   if (isMobileView) {
-    return <JobsMobileView />;
+    return <MobileContainer  />;
   }
 
   // Normal app state
