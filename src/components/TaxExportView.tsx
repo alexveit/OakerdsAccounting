@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatCurrency } from '../utils/format';
-import { isRentalIncomeCode, isRealEstateExpenseCode } from '../utils/accounts';
+import { isRentalIncomeCode, isRentalExpenseCode, isFlipExpenseCode } from '../utils/accounts';
 import * as XLSX from 'xlsx';
 
 type TaxYear = number;
@@ -32,6 +32,7 @@ export function TaxExportView() {
   const [scheduleCExpenses, setScheduleCExpenses] = useState<ScheduleCRow[]>([]);
   const [scheduleEIncome, setScheduleEIncome] = useState<ScheduleCRow[]>([]);
   const [scheduleEExpenses, setScheduleEExpenses] = useState<ScheduleCRow[]>([]);
+  const [flipExpenses, setFlipExpenses] = useState<ScheduleCRow[]>([]);
   const [contractors, setContractors] = useState<ContractorPayment[]>([]);
   const [personalExpenses, setPersonalExpenses] = useState<ScheduleCRow[]>([]);
 
@@ -71,6 +72,7 @@ export function TaxExportView() {
       const schedCExpenseMap = new Map<number, ScheduleCRow>();
       const schedEIncomeMap = new Map<number, ScheduleCRow>();
       const schedEExpenseMap = new Map<number, ScheduleCRow>();
+      const flipExpenseMap = new Map<number, ScheduleCRow>();
       const personalExpenseMap = new Map<number, ScheduleCRow>();
 
       for (const line of lines) {
@@ -106,7 +108,16 @@ export function TaxExportView() {
         // EXPENSES - use signed amount so credits offset debits
         else if (accType === 'expense') {
           if (purpose === 'business' || purpose === 'mixed') {
-            if (isRealEstateExpenseCode(code)) {
+            if (isFlipExpenseCode(code)) {
+              // Flip expenses - capital costs, not deductible until sale
+              let row = flipExpenseMap.get(accountId);
+              if (!row) {
+                row = { category: 'Flip Expense', accountName, total: 0 };
+                flipExpenseMap.set(accountId, row);
+              }
+              row.total += signedAmount;
+            } else if (isRentalExpenseCode(code)) {
+              // Rental expenses - Schedule E deductible
               let row = schedEExpenseMap.get(accountId);
               if (!row) {
                 row = { category: 'Rental Expense', accountName, total: 0 };
@@ -114,6 +125,7 @@ export function TaxExportView() {
               }
               row.total += signedAmount;
             } else {
+              // All other business expenses - Schedule C
               let row = schedCExpenseMap.get(accountId);
               if (!row) {
                 row = { category: 'Business Expense', accountName, total: 0 };
@@ -138,6 +150,7 @@ export function TaxExportView() {
       setScheduleCExpenses(Array.from(schedCExpenseMap.values()).sort(sortByTotal));
       setScheduleEIncome(Array.from(schedEIncomeMap.values()).sort(sortByTotal));
       setScheduleEExpenses(Array.from(schedEExpenseMap.values()).sort(sortByTotal));
+      setFlipExpenses(Array.from(flipExpenseMap.values()).sort(sortByTotal));
       setPersonalExpenses(Array.from(personalExpenseMap.values()).sort(sortByTotal));
 
       await loadContractorPayments();
@@ -218,6 +231,7 @@ export function TaxExportView() {
       schedEIncomeTotal: '',
       schedEExpenseTotal: '',
       schedENet: '',
+      flipTotal: '',
       personalTotal: '',
       contractorTotal: '',
       schedCIncomeStart: 0,
@@ -228,6 +242,8 @@ export function TaxExportView() {
       schedEIncomeEnd: 0,
       schedEExpenseStart: 0,
       schedEExpenseEnd: 0,
+      flipStart: 0,
+      flipEnd: 0,
       personalStart: 0,
       personalEnd: 0,
       contractorStart: 0,
@@ -241,6 +257,7 @@ export function TaxExportView() {
       schedEIncome: 0,
       schedEExpense: 0,
       schedENet: 0,
+      flip: 0,
       personal: 0,
       contractor: 0,
     };
@@ -291,6 +308,9 @@ export function TaxExportView() {
     data.push([]);
     row++;
 
+    summaryRows.flip = row;
+    data.push(['Flip Property (Not Sold)', '', null]);
+    row++;
     summaryRows.personal = row;
     data.push(['Personal Expenses', '', null]);
     row++;
@@ -442,6 +462,42 @@ export function TaxExportView() {
     data.push([]);
     row++;
 
+    // FLIP PROPERTY EXPENSES (NOT SOLD)
+    if (flipExpenses.length > 0) {
+      data.push(['═══════════════════════════════════════════════════════════════']);
+      row++;
+      data.push(['FLIP PROPERTY EXPENSES (NOT YET SOLD)']);
+      row++;
+      data.push(['═══════════════════════════════════════════════════════════════']);
+      row++;
+      data.push([]);
+      row++;
+      data.push(['NOTE: These costs are NOT deductible until the property is sold.']);
+      row++;
+      data.push(['They will offset the sale price as either COGS (dealer) or cost basis (investor).']);
+      row++;
+      data.push([]);
+      row++;
+
+      data.push(['Account', '', 'Amount']);
+      row++;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.flipStart = row;
+      for (const item of flipExpenses) {
+        data.push([item.accountName, '', item.total]);
+        row++;
+      }
+      refs.flipEnd = row - 1;
+      data.push(['───────────────────────────────────────────────────────────────']);
+      row++;
+      refs.flipTotal = `C${row}`;
+      data.push(['TOTAL FLIP COSTS (NOT DEDUCTIBLE UNTIL SALE)', '', null]);
+      row++;
+      data.push([]);
+      row++;
+    }
+
     // PERSONAL EXPENSES
     data.push(['═══════════════════════════════════════════════════════════════']);
     row++;
@@ -533,6 +589,9 @@ export function TaxExportView() {
     if (refs.personalTotal && refs.personalStart) {
       ws[refs.personalTotal] = { t: 's', f: `SUM(C${refs.personalStart}:C${refs.personalEnd})` };
     }
+    if (refs.flipTotal && refs.flipStart) {
+      ws[refs.flipTotal] = { t: 's', f: `SUM(C${refs.flipStart}:C${refs.flipEnd})` };
+    }
     if (refs.contractorTotal && refs.contractorStart) {
       ws[refs.contractorTotal] = { t: 's', f: `SUM(E${refs.contractorStart}:E${refs.contractorEnd})` };
     }
@@ -558,6 +617,9 @@ export function TaxExportView() {
     }
     if (refs.personalTotal) {
       ws[`C${summaryRows.personal}`] = { t: 's', f: refs.personalTotal };
+    }
+    if (refs.flipTotal) {
+      ws[`C${summaryRows.flip}`] = { t: 's', f: refs.flipTotal };
     }
     if (refs.contractorTotal) {
       ws[`C${summaryRows.contractor}`] = { t: 's', f: refs.contractorTotal };
@@ -718,6 +780,23 @@ export function TaxExportView() {
             </span>
           </div>
         </div>
+
+        {/* Flip Expenses - Not Sold */}
+        {flipExpenses.length > 0 && (
+          <div className="card" style={{ background: '#fffbeb', border: '1px solid #f59e0b' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#92400e' }}>
+              Flip Property Expenses (Not Yet Sold)
+            </h3>
+            <p style={{ fontSize: 13, color: '#92400e', marginBottom: '1rem' }}>
+              These costs are <strong>not deductible</strong> until the property is sold. 
+              They will be used to calculate cost basis and reduce capital gains at sale.
+            </p>
+            <p style={{ fontSize: 14, color: '#92400e', marginBottom: '0.5rem', fontWeight: 600 }}>
+              Total Flip Costs: {currency(flipExpenses.reduce((s, r) => s + r.total, 0))}
+            </p>
+            <ReportTable rows={flipExpenses} />
+          </div>
+        )}
 
         {/* Personal Expenses */}
         <div className="card">

@@ -46,3 +46,6 @@ yarn.lock
 #*.gz
 
 pg_password.txt
+
+.vercel
+.env*.local

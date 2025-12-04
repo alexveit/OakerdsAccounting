@@ -63,10 +63,10 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   }
 
   /**
-   * Queries the accounts table for the highest code in the 63xxx range,
+   * Queries the accounts table for the highest code in the 63xxx range (assets),
    * then returns the next available code as a string.
    */
-  async function getNextAccountCode(): Promise<string> {
+  async function getNextAssetCode(): Promise<string> {
     const { data, error } = await supabase
       .from('accounts')
       .select('code')
@@ -78,8 +78,30 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     if (error) throw error;
 
     if (!data || data.length === 0) {
-      // No accounts in range yet, start at 63001
       return '63001';
+    }
+
+    const maxCode = parseInt(data[0].code, 10);
+    return String(maxCode + 1);
+  }
+
+  /**
+   * Queries the accounts table for the highest code in the 64xxx range (loan liabilities),
+   * then returns the next available code as a string.
+   */
+  async function getNextLoanCode(): Promise<string> {
+    const { data, error } = await supabase
+      .from('accounts')
+      .select('code')
+      .gte('code', '64000')
+      .lt('code', '65000')
+      .order('code', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      return '64001';
     }
 
     const maxCode = parseInt(data[0].code, 10);
@@ -94,11 +116,10 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     assetAccountId: number;
     loanAccountId: number;
   }> {
-    const nextCode = await getNextAccountCode();
-    const assetCode = nextCode;
-    const loanCode = String(parseInt(nextCode, 10) + 1);
+    const assetCode = await getNextAssetCode();
+    const loanCode = await getNextLoanCode();
 
-    // Create asset account
+    // Create asset account (63xxx range)
     const { data: assetData, error: assetError } = await supabase
       .from('accounts')
       .insert({
@@ -113,7 +134,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
 
     if (assetError) throw assetError;
 
-    // Create loan/mortgage liability account
+    // Create loan/mortgage liability account (64xxx range)
     const { data: loanData, error: loanError } = await supabase
       .from('accounts')
       .insert({
@@ -175,6 +196,10 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         setError('Close date is required for financed deals (used as loan start date).');
         return;
       }
+      if (!firstPaymentDate) {
+        setError('First payment date is required for financed deals (used for amortization calculations).');
+        return;
+      }
     }
 
     setSaving(true);
@@ -227,6 +252,41 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         .single();
 
       if (error) throw error;
+
+      // Create opening loan balance transaction if financed
+      if (isFinanced && loanAccountId) {
+        const loanAmount = parseNumber(originalLoanAmount);
+        if (loanAmount && loanAmount > 0) {
+          // Use close date as the loan origination date, or today if not set
+          const balanceDate = closeDate || new Date().toISOString().slice(0, 10);
+
+          // Create the transaction
+          const { data: txData, error: txError } = await supabase
+            .from('transactions')
+            .insert({
+              date: balanceDate,
+              description: `Opening Balance - Loan ${nickname.trim()}`,
+            })
+            .select('id')
+            .single();
+
+          if (txError) throw txError;
+
+          // Create the transaction line (negative = liability owed)
+          const { error: lineError } = await supabase
+            .from('transaction_lines')
+            .insert({
+              transaction_id: txData.id,
+              account_id: loanAccountId,
+              amount: -loanAmount, // Negative = amount owed
+              purpose: 'business',
+              is_cleared: true,
+              real_estate_deal_id: data.id,
+            });
+
+          if (lineError) throw lineError;
+        }
+      }
 
       console.log('Created real estate deal', data);
       setSuccess('Deal saved.');
@@ -357,15 +417,6 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         <div style={sectionStyle}>Dates</div>
 
         <label style={labelStyle}>
-          Start date (underwriting)
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </label>
-
-        <label style={labelStyle}>
           Close date
           <input
             type="date"
@@ -485,7 +536,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
             </label>
 
             <label style={labelStyle}>
-              First payment date
+              First payment date *
               <input
                 type="date"
                 value={firstPaymentDate}
@@ -494,7 +545,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
             </label>
 
             <p style={{ fontSize: 12, color: '#888', margin: 0, gridColumn: '1 / span 2' }}>
-              Asset and loan accounts will be auto-created on save. First payment date is used for accurate mortgage amortization calculations.
+              Asset and loan accounts will be auto-created on save. Opening loan balance will be recorded as of close date. First payment date is required for accurate mortgage amortization calculations.
             </p>
           </>
         )}

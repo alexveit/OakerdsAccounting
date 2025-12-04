@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatCurrency } from '../utils/format';
 import { getDayOfYearForYear } from '../utils/date';
-import { isMarketingExpenseCode, isRealEstateExpenseCode } from '../utils/accounts';
+import { isMarketingExpenseCode, isRentalExpenseCode, isFlipExpenseCode } from '../utils/accounts';
 
 type RawLine = {
   id: number;
@@ -19,7 +19,7 @@ type RawLine = {
   transactions: { date: string } | null;
 };
 
-type GroupKey = 'job' | 'marketing' | 'realEstate' | 'overhead' | 'other';
+type GroupKey = 'job' | 'marketing' | 'rental' | 'flip' | 'overhead' | 'other';
 
 type CategoryTotals = {
   accountId: number;
@@ -93,14 +93,16 @@ export function CategoriesSummaryView() {
   const grouped = useMemo<{
     job: CategoryTotals[];
     marketing: CategoryTotals[];
-    realEstate: CategoryTotals[];
+    rental: CategoryTotals[];
+    flip: CategoryTotals[];
     overhead: CategoryTotals[];
     other: CategoryTotals[];
   }>(() => {
     const maps: Record<GroupKey, Map<number, CategoryTotals>> = {
       job: new Map(),
       marketing: new Map(),
-      realEstate: new Map(),
+      rental: new Map(),
+      flip: new Map(),
       overhead: new Map(),
       other: new Map(),
     };
@@ -127,8 +129,10 @@ export function CategoriesSummaryView() {
 
       if (isPersonal) {
         group = 'other';
-      } else if (isBusiness && isRealEstateExpenseCode(code)) {
-        group = 'realEstate';
+      } else if (isBusiness && isFlipExpenseCode(code)) {
+        group = 'flip';
+      } else if (isBusiness && isRentalExpenseCode(code)) {
+        group = 'rental';
       } else if (isBusiness && line.job_id !== null) {
         group = 'job';
       } else if (isBusiness && isMarketingExpenseCode(code)) {
@@ -178,7 +182,8 @@ export function CategoriesSummaryView() {
     return {
       job: finalizeGroup(maps.job),
       marketing: finalizeGroup(maps.marketing),
-      realEstate: finalizeGroup(maps.realEstate),
+      rental: finalizeGroup(maps.rental),
+      flip: finalizeGroup(maps.flip),
       overhead: finalizeGroup(maps.overhead),
       other: finalizeGroup(maps.other),
     };
@@ -393,7 +398,8 @@ export function CategoriesSummaryView() {
       {renderGroupTable('Job Expenses', grouped.job)}
       {renderGroupTable('Marketing Expenses', grouped.marketing)}
       {renderGroupTable('Overhead Expenses', grouped.overhead)}
-      {renderGroupTable('Real Estate Expenses', grouped.realEstate)}
+      {renderGroupTable('Rental Expenses', grouped.rental)}
+      {renderGroupTable('Flip Expenses', grouped.flip)}
       {renderGroupTable('Other / Personal Expenses', grouped.other)}
     </div>
   );

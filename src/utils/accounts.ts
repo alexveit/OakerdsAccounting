@@ -37,6 +37,14 @@ export const ACCOUNT_CODE_RANGES = {
   MARKETING_MAX: 55999,
   REAL_ESTATE_EXPENSE_MIN: 62000,
   REAL_ESTATE_EXPENSE_MAX: 62999,
+  
+  // Rental expenses (subset of RE expenses)
+  RENTAL_EXPENSE_MIN: 62005,
+  RENTAL_EXPENSE_MAX: 62012,
+  
+  // Flip expenses (subset of RE expenses)
+  FLIP_EXPENSE_MIN: 62100,
+  FLIP_EXPENSE_MAX: 62199,
 
   // Real estate assets/liabilities
   RE_ASSET_MIN: 63000,
@@ -63,9 +71,9 @@ export function isCodeInRange(code: string | null | undefined, min: number, max:
   return n !== null && n >= min && n <= max;
 }
 
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Account type checks by code range
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function isBankCode(code: string | null | undefined): boolean {
   return isCodeInRange(code, ACCOUNT_CODE_RANGES.BANK_MIN, ACCOUNT_CODE_RANGES.BANK_MAX);
@@ -87,6 +95,14 @@ export function isRealEstateExpenseCode(code: string | null | undefined): boolea
   return isCodeInRange(code, ACCOUNT_CODE_RANGES.REAL_ESTATE_EXPENSE_MIN, ACCOUNT_CODE_RANGES.REAL_ESTATE_EXPENSE_MAX);
 }
 
+export function isRentalExpenseCode(code: string | null | undefined): boolean {
+  return isCodeInRange(code, ACCOUNT_CODE_RANGES.RENTAL_EXPENSE_MIN, ACCOUNT_CODE_RANGES.RENTAL_EXPENSE_MAX);
+}
+
+export function isFlipExpenseCode(code: string | null | undefined): boolean {
+  return isCodeInRange(code, ACCOUNT_CODE_RANGES.FLIP_EXPENSE_MIN, ACCOUNT_CODE_RANGES.FLIP_EXPENSE_MAX);
+}
+
 export function isRealEstateAssetCode(code: string | null | undefined): boolean {
   return isCodeInRange(code, ACCOUNT_CODE_RANGES.RE_ASSET_MIN, ACCOUNT_CODE_RANGES.RE_ASSET_MAX);
 }
@@ -95,9 +111,9 @@ export function isMortgageCode(code: string | null | undefined): boolean {
   return isCodeInRange(code, ACCOUNT_CODE_RANGES.RE_MORTGAGE_MIN, ACCOUNT_CODE_RANGES.RE_MORTGAGE_MAX);
 }
 
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Compound checks for categorization
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Check if this is a cash-like account (bank or credit card)
@@ -144,9 +160,9 @@ export function categorizeExpense(
   return 'overhead';
 }
 
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Sorting helpers
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Get sort priority for an account based on special account rules.

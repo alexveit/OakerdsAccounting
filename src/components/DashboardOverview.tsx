@@ -43,13 +43,8 @@ type Job = {
 //   2100-2199  Personal Cards
 //   2200-2299  Personal Debt
 //   2300-2399  Lines of Credit (HELOC)
-//   62005-62011 Rental expenses
-//   62012-62013 RE Interest (mortgage, flip)
-//   62014      Flip Rehab Materials
-//   62015      Flip Rehab Labor
-//   62016      Flip Closing Costs
-//   62017      Flip Services
-//   62018      Flip Holding Costs
+//   62005-62012 Rental expenses
+//   62100-62199 Flip expenses
 //   64xxx      RE Mortgages (not shown in liquid balances)
 // ─────────────────────────────────────────────────────────────
 
@@ -73,37 +68,16 @@ function isHelocCode(code: string | null | undefined): boolean {
   return n !== null && n >= 2300 && n <= 2399;
 }
 
-// Flip expense codes
-function isFlipRehabMaterialCode(code: string | null | undefined): boolean {
-  return parseAccountCode(code) === 62014;
-}
-
-function isFlipRehabLaborCode(code: string | null | undefined): boolean {
-  return parseAccountCode(code) === 62015;
-}
-
-function isFlipClosingCostsCode(code: string | null | undefined): boolean {
-  return parseAccountCode(code) === 62016;
-}
-
-function isFlipServicesCode(code: string | null | undefined): boolean {
-  return parseAccountCode(code) === 62017;
-}
-
-function isFlipHoldingCostsCode(code: string | null | undefined): boolean {
-  return parseAccountCode(code) === 62018;
-}
-
-function isFlipInterestCode(code: string | null | undefined): boolean {
-  const n = parseAccountCode(code);
-  return n === 62012 || n === 62013;
-}
-
+// Rental expense codes (62005-62012)
 function isRentalExpenseCode(code: string | null | undefined): boolean {
   const n = parseAccountCode(code);
-  if (n === null) return false;
-  // Rental expenses: 62005-62011 (repairs, mgmt, utilities, warranty, supplies, HOA, taxes)
-  return n >= 62005 && n <= 62011;
+  return n !== null && n >= 62005 && n <= 62012;
+}
+
+// Flip expense codes (621xx range) - not displayed separately, but excluded from overhead
+function isFlipExpenseCode(code: string | null | undefined): boolean {
+  const n = parseAccountCode(code);
+  return n !== null && n >= 62100 && n <= 62199;
 }
 
 export function DashboardOverview() {
@@ -120,16 +94,6 @@ export function DashboardOverview() {
   const [marketingExpenseYtd, setMarketingExpenseYtd] = useState(0);
   const [overheadExpenseYtd, setOverheadExpenseYtd] = useState(0);
   const [personalExpenseYtd, setPersonalExpenseYtd] = useState(0);
-  
-  // Flip expenses breakdown
-  const [flipRehabMaterialsYtd, setFlipRehabMaterialsYtd] = useState(0);
-  const [flipRehabLaborYtd, setFlipRehabLaborYtd] = useState(0);
-  const [flipServicesYtd, setFlipServicesYtd] = useState(0);
-  const [flipHoldingCostsYtd, setFlipHoldingCostsYtd] = useState(0);
-  const [flipClosingCostsYtd, setFlipClosingCostsYtd] = useState(0);
-  const [flipInterestYtd, setFlipInterestYtd] = useState(0);
-  
-  // Rental expenses
   const [rentalExpenseYtd, setRentalExpenseYtd] = useState(0);
 
   const [loading, setLoading] = useState(true);
@@ -189,20 +153,11 @@ export function DashboardOverview() {
       let marketingExp = 0;
       let overheadExp = 0;
       let personalExp = 0;
-      
-      // Flip breakdown
-      let flipMaterials = 0;
-      let flipLabor = 0;
-      let flipServices = 0;
-      let flipHolding = 0;
-      let flipClosing = 0;
-      let flipInterest = 0;
-      
-      // Rental
       let rentalExp = 0;
 
       for (const line of (allLines ?? []) as any[]) {
-        const amount = Math.abs(Number(line.amount) || 0);
+        const amount = Number(line.amount) || 0;
+        const absAmount = Math.abs(amount);
         const purpose: Purpose = line.purpose ?? 'business';
         const accType = line.accounts?.account_types?.name;
         const code = line.accounts?.code ?? '';
@@ -210,37 +165,27 @@ export function DashboardOverview() {
         const isBusiness = purpose === 'business' || purpose === 'mixed';
         const isPersonal = purpose === 'personal';
 
-        // INCOME
+        // INCOME (stored as negative/credits, so use absolute value)
         if (accType === 'income') {
           if (isBusiness) {
             if (isRentalIncomeCode(code)) {
-              rentalInc += amount;
+              rentalInc += absAmount;
             } else {
-              jobInc += amount;
+              jobInc += absAmount;
             }
           }
         }
 
-        // EXPENSES
+        // EXPENSES (stored as positive/debits, use raw amount to allow refunds to subtract)
         else if (accType === 'expense') {
           if (isPersonal) {
             personalExp += amount;
           } else if (isBusiness) {
-            // Flip expenses - check specific codes first
-            if (isFlipRehabMaterialCode(code)) {
-              flipMaterials += amount;
-            } else if (isFlipRehabLaborCode(code)) {
-              flipLabor += amount;
-            } else if (isFlipServicesCode(code)) {
-              flipServices += amount;
-            } else if (isFlipHoldingCostsCode(code)) {
-              flipHolding += amount;
-            } else if (isFlipClosingCostsCode(code)) {
-              flipClosing += amount;
-            } else if (isFlipInterestCode(code)) {
-              flipInterest += amount;
-            } else if (isRentalExpenseCode(code)) {
+            if (isRentalExpenseCode(code)) {
               rentalExp += amount;
+            } else if (isFlipExpenseCode(code)) {
+              // Flip expenses tracked separately, not shown in dashboard YTD
+              // (they'll appear in ExpensesSummary view)
             } else if (line.job_id !== null) {
               jobExp += amount;
             } else if (isMarketingExpenseCode(code)) {
@@ -258,13 +203,6 @@ export function DashboardOverview() {
       setMarketingExpenseYtd(marketingExp);
       setOverheadExpenseYtd(overheadExp);
       setPersonalExpenseYtd(personalExp);
-      
-      setFlipRehabMaterialsYtd(flipMaterials);
-      setFlipRehabLaborYtd(flipLabor);
-      setFlipServicesYtd(flipServices);
-      setFlipHoldingCostsYtd(flipHolding);
-      setFlipClosingCostsYtd(flipClosing);
-      setFlipInterestYtd(flipInterest);
       setRentalExpenseYtd(rentalExp);
 
       // Real estate deals
@@ -315,15 +253,12 @@ export function DashboardOverview() {
   const totalAllCards = totalBizCards + totalPersonalCards;
 
   // RE portfolio calculations
+  // Loan balances are NEGATIVE (amount owed)
   const rePortfolio = realEstateDeals.map((deal) => {
     const loanAccount = accountBalances.find((a) => a.account_id === deal.loan_account_id);
-    // Mortgage account balance is POSITIVE (principal paid down)
-    // Remaining owed = original_loan - principal_paid
-    const principalPaid = loanAccount ? Number(loanAccount.balance) : 0;
-    const originalLoan = deal.original_loan_amount ?? 0;
-    const remainingOwed = originalLoan - principalPaid;
+    const amountOwed = loanAccount ? Math.abs(Number(loanAccount.balance)) : 0;
     const propertyValue = deal.arv ?? deal.purchase_price ?? 0;
-    const equity = propertyValue - remainingOwed;
+    const equity = propertyValue - amountOwed;
     return { 
       id: deal.id, 
       nickname: deal.nickname, 
@@ -342,7 +277,7 @@ export function DashboardOverview() {
   const jobCount = jobs.length;
   
   // YTD calculations
-  const jobProfit = jobIncomeYtd - jobExpenseYtd;
+  const jobProfit = jobIncomeYtd - jobExpenseYtd - marketingExpenseYtd - overheadExpenseYtd;
   const jobMargin = jobIncomeYtd > 0 ? (jobProfit / jobIncomeYtd) * 100 : 0;
   const avgJobSize = jobCount > 0 ? jobIncomeYtd / jobCount : 0;
   const rentalNoi = rentalIncomeYtd - rentalExpenseYtd;
@@ -429,6 +364,14 @@ export function DashboardOverview() {
             <span>Expenses</span>
             <span style={{ color: red }}>-{currency(jobExpenseYtd)}</span>
           </div>
+          <div style={rowStyle}>
+            <span>Marketing</span>
+            <span style={{ color: red }}>-{currency(marketingExpenseYtd)}</span>
+          </div>
+          <div style={rowStyle}>
+            <span>Overhead</span>
+            <span style={{ color: red }}>-{currency(overheadExpenseYtd)}</span>
+          </div>
           <div style={subtotalStyle}>
             <span>Job Profit</span>
             <span style={{ color: jobProfit >= 0 ? green : red }}>{currency(jobProfit)}</span>
@@ -458,14 +401,6 @@ export function DashboardOverview() {
           
           {/* Other Expenses */}
           <div style={sectionLabelStyle}><span>Other</span></div>
-          <div style={rowStyle}>
-            <span>Marketing</span>
-            <span style={{ color: red }}>-{currency(marketingExpenseYtd)}</span>
-          </div>
-          <div style={rowStyle}>
-            <span>Overhead</span>
-            <span style={{ color: red }}>-{currency(overheadExpenseYtd)}</span>
-          </div>
           <div style={rowStyle}>
             <span>Personal</span>
             <span style={{ color: red }}>-{currency(personalExpenseYtd)}</span>

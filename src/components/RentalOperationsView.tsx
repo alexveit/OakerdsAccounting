@@ -18,6 +18,9 @@ type PropertyData = {
   avgMonthlyExpenses: number;
   avgMonthlyNet: number;
   transactions: PropertyTransaction[];
+  // Loan & equity
+  loanBalance: number;
+  equity: number;
 };
 
 type MortgageDetail = {
@@ -171,7 +174,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
       // First, load all rental deals
       const { data: dealsData, error: dealsErr } = await supabase
         .from('real_estate_deals')
-        .select('id, nickname, address, type, status')
+        .select('id, nickname, address, type, status, loan_account_id, arv, purchase_price, original_loan_amount')
         .eq('type', 'rental');
 
       if (dealsErr) throw dealsErr;
@@ -182,6 +185,10 @@ export function RentalOperationsView({ selectedYear }: Props) {
         address: string;
         type: string;
         status: string;
+        loan_account_id: number | null;
+        arv: number | null;
+        purchase_price: number | null;
+        original_loan_amount: number | null;
       }>;
 
       if (rentalDeals.length === 0) {
@@ -229,10 +236,35 @@ export function RentalOperationsView({ selectedYear }: Props) {
 
       const lines = (linesData ?? []) as any[] as RawLine[];
 
+      // Fetch loan account balances for equity calculations
+      const loanAccountIds = rentalDeals
+        .map((d) => d.loan_account_id)
+        .filter((id): id is number => id !== null);
+
+      let loanBalances = new Map<number, number>();
+      if (loanAccountIds.length > 0) {
+        const { data: balancesData, error: balancesErr } = await supabase
+          .from('account_balances_v')
+          .select('account_id, balance')
+          .in('account_id', loanAccountIds);
+
+        if (balancesErr) throw balancesErr;
+
+        for (const row of balancesData ?? []) {
+          loanBalances.set(row.account_id, Number(row.balance) || 0);
+        }
+      }
+
       // Initialize property map from deals
       const propertyMap = new Map<number, PropertyData>();
 
       for (const deal of rentalDeals) {
+        // Loan balance is negative (amount owed), so take absolute value
+        const rawLoanBalance = deal.loan_account_id ? (loanBalances.get(deal.loan_account_id) ?? 0) : 0;
+        const loanBalance = Math.abs(rawLoanBalance);
+        const propertyValue = deal.arv ?? deal.purchase_price ?? 0;
+        const equity = propertyValue - loanBalance;
+
         propertyMap.set(deal.id, {
           dealId: deal.id,
           nickname: deal.nickname,
@@ -249,6 +281,8 @@ export function RentalOperationsView({ selectedYear }: Props) {
           avgMonthlyExpenses: 0,
           avgMonthlyNet: 0,
           transactions: [],
+          loanBalance,
+          equity,
         });
       }
 
@@ -414,6 +448,8 @@ export function RentalOperationsView({ selectedYear }: Props) {
   );
   const portfolioNetProfit = propertyList.reduce((sum, p) => sum + p.totalNetProfit, 0);
   const portfolioAvgMonthlyNet = propertyList.reduce((sum, p) => sum + p.avgMonthlyNet, 0);
+  const portfolioTotalLoanBalance = propertyList.reduce((sum, p) => sum + p.loanBalance, 0);
+  const portfolioTotalEquity = propertyList.reduce((sum, p) => sum + p.equity, 0);
 
   const periodLabel = selectedYear === 'all' ? 'Total' : selectedYear;
 
@@ -451,6 +487,16 @@ export function RentalOperationsView({ selectedYear }: Props) {
               value={portfolioAvgMonthlyNet}
               highlight={portfolioAvgMonthlyNet >= 0 ? 'positive' : 'negative'}
             />
+            <SummaryCard
+              label="Total Loan Balance"
+              value={portfolioTotalLoanBalance}
+              highlight="negative"
+            />
+            <SummaryCard
+              label="Total Equity"
+              value={portfolioTotalEquity}
+              highlight={portfolioTotalEquity >= 0 ? 'positive' : 'negative'}
+            />
           </div>
 
           {/* Property Cards */}
@@ -484,6 +530,29 @@ export function RentalOperationsView({ selectedYear }: Props) {
                       {property.address}
                     </span>
                   </h3>
+
+                  {/* Loan Balance & Equity */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '1.5rem',
+                      fontSize: 13,
+                      color: '#555',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    <span>
+                      <strong>Loan Balance:</strong>{' '}
+                      <span style={{ color: '#b00020' }}>{currency(property.loanBalance)}</span>
+                    </span>
+                    <span>
+                      <strong>Equity:</strong>{' '}
+                      <span style={{ color: property.equity >= 0 ? '#0a7a3c' : '#b00020' }}>
+                        {currency(property.equity)}
+                      </span>
+                    </span>
+                  </div>
 
                   <div
                     style={{

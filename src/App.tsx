@@ -10,7 +10,7 @@ import { ExpenseCategoriesView } from './components/ExpensesView';
 import { NewEntryView } from './components/NewEntryView';
 import { TaxExportView } from './components/TaxExportView';
 import { REIView } from './components/REIView';
-import { Analytics } from './components/Analytics';
+import { Analytics } from './components/AnalyticsView';
 
 type View =
   | 'dashboard'
