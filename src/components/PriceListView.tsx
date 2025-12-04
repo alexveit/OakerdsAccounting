@@ -337,21 +337,6 @@ export function PriceListView() {
                   placeholder="0.00"
                 />
               </div>
-              <div className="form-group">
-                <label>Unit</label>
-                <select
-                  value={newItem.unit ?? 'each'}
-                  onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
-                >
-                  <option value="each">each</option>
-                  <option value="lf">lf (linear ft)</option>
-                  <option value="sf">sf (sq ft)</option>
-                  <option value="gal">gal</option>
-                  <option value="5gal">5gal</option>
-                  <option value="roll">roll</option>
-                  <option value="case">case</option>
-                </select>
-              </div>
             </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowAddForm(false)}>
@@ -390,9 +375,8 @@ export function PriceListView() {
           <table className="data-table" style={{ width: '100%' }}>
             <thead>
               <tr>
-                <th style={{ width: '40%' }}>Item</th>
+                <th style={{ width: '50%' }}>Item</th>
                 <th style={{ width: '15%', textAlign: 'right' }}>Price</th>
-                <th style={{ width: '10%' }}>Unit</th>
                 <th style={{ width: '10%' }}>Type</th>
                 <th style={{ width: '25%' }}>Actions</th>
               </tr>
@@ -421,21 +405,6 @@ export function PriceListView() {
                       </td>
                       <td>
                         <select
-                          value={editForm.unit ?? 'each'}
-                          onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
-                          style={{ width: '100%' }}
-                        >
-                          <option value="each">each</option>
-                          <option value="lf">lf</option>
-                          <option value="sf">sf</option>
-                          <option value="gal">gal</option>
-                          <option value="5gal">5gal</option>
-                          <option value="roll">roll</option>
-                          <option value="case">case</option>
-                        </select>
-                      </td>
-                      <td>
-                        <select
                           value={editForm.type ?? 'wood'}
                           onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
                           style={{ width: '100%' }}
@@ -455,7 +424,6 @@ export function PriceListView() {
                       <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
                         {item.price != null ? `$${item.price.toFixed(2)}` : '—'}
                       </td>
-                      <td style={{ color: '#6b7280', fontSize: '0.875rem' }}>{item.unit}</td>
                       <td>
                         <span style={{
                           fontSize: '0.75rem',
