@@ -462,7 +462,7 @@ export function ExpenseByCategory() {
                 style={{ fontSize: 12 }}
               >
                 <option value="total">Total (largest first)</option>
-                <option value="name">Category name (A â†’ Z)</option>
+                <option value="name">Category name (A-Z)</option>
               </select>
             </span>
           </div>
@@ -487,9 +487,7 @@ export function ExpenseByCategory() {
       {viewMode === 'month' && selectedAccountId && (
         <>
           <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button type="button" onClick={resetToYear} style={btnStyle}>
-              â† All categories
-            </button>
+            <button type="button" onClick={resetToYear} style={btnStyle}>← All categories</button>
             <button
               type="button"
               onClick={handleShowAllTransactions}
@@ -523,10 +521,10 @@ export function ExpenseByCategory() {
         <>
           <div style={{ marginBottom: '0.75rem' }}>
             <button type="button" onClick={backToCategory} style={btnStyle}>
-              â† Months
+              ← Months
             </button>
             <button type="button" onClick={resetToYear} style={btnStyle}>
-              â† All categories
+              ← All categories
             </button>
           </div>
           {dayRows.length === 0 && <p>No expense lines for this month.</p>}
