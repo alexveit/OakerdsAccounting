@@ -188,7 +188,7 @@ export function TaxExportView() {
 
       for (const payment of payments) {
         const installerId = payment.installer_id;
-        const amount = Math.abs(Number(payment.amount) || 0);
+        const amount = Number(payment.amount) || 0;
 
         let contractor = contractorMap.get(installerId);
         if (!contractor) {

@@ -8,6 +8,7 @@ type Vendor = {
   nick_name: string | null;
   tax_id: string | null;
   is_active: boolean;
+  is_lender: boolean;
 };
 
 export function VendorsOverview() {
@@ -28,15 +29,18 @@ export function VendorsOverview() {
       setError(null);
 
       try {
-        // 1) Load vendors
+        // 1) Load vendors including is_lender flag
         const { data: vendorsData, error: vendErr } = await supabase
           .from('vendors')
-          .select('id, name, nick_name, tax_id, is_active')
+          .select('id, name, nick_name, tax_id, is_active, is_lender')
           .order('name', { ascending: true });
 
         if (vendErr) throw vendErr;
 
-        const vendorsTyped: Vendor[] = (vendorsData ?? []) as Vendor[];
+        const vendorsTyped: Vendor[] = (vendorsData ?? []).map((v: any) => ({
+          ...v,
+          is_lender: v.is_lender ?? false,
+        }));
 
         // 2) Load cleared spend grouped by vendor_id for selected year (or all time)
         let query = supabase
@@ -61,11 +65,11 @@ export function VendorsOverview() {
 
         if (linesErr) throw linesErr;
 
-        // Sum by vendor_id (amounts are typically negative for expenses, so we use abs)
+        // Sum by vendor_id - use signed amounts to allow credits to reduce totals
         const spendMap: Record<number, number> = {};
         for (const line of linesData ?? []) {
           const vendorId = line.vendor_id as number;
-          const amount = Math.abs(Number(line.amount) || 0);
+          const amount = Number(line.amount) || 0;
           spendMap[vendorId] = (spendMap[vendorId] || 0) + amount;
         }
 
@@ -86,12 +90,21 @@ export function VendorsOverview() {
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
   if (vendors.length === 0) return <p>No vendors found.</p>;
 
-  // Filter and sort
-  const filteredVendors = showInactive
-    ? vendors
-    : vendors.filter((v) => v.is_active);
+  // Separate lenders from vendors
+  const allVendors = vendors.filter((v) => !v.is_lender);
+  const allLenders = vendors.filter((v) => v.is_lender);
 
-  const sortedVendors = [...filteredVendors].sort((a, b) => {
+  // Filter by active status
+  const filteredVendors = showInactive
+    ? allVendors
+    : allVendors.filter((v) => v.is_active);
+
+  const filteredLenders = showInactive
+    ? allLenders
+    : allLenders.filter((v) => v.is_active);
+
+  // Sort function
+  const sortFn = (a: Vendor, b: Vendor) => {
     const nameA = a.name.toLowerCase();
     const nameB = b.name.toLowerCase();
     const spendA = spend[a.id] ?? 0;
@@ -100,13 +113,15 @@ export function VendorsOverview() {
     if (sortMode === 'name') {
       return nameA.localeCompare(nameB);
     }
-
-    // spendDesc
     return spendB - spendA;
-  });
+  };
 
-  // Calculate total spend for filtered vendors
-  const totalSpend = sortedVendors.reduce((sum, v) => sum + (spend[v.id] ?? 0), 0);
+  const sortedVendors = [...filteredVendors].sort(sortFn);
+  const sortedLenders = [...filteredLenders].sort(sortFn);
+
+  // Calculate totals
+  const totalVendorSpend = sortedVendors.reduce((sum, v) => sum + (spend[v.id] ?? 0), 0);
+  const totalLenderSpend = sortedLenders.reduce((sum, v) => sum + (spend[v.id] ?? 0), 0);
 
   // Generate year options (current year down to 2020)
   const yearOptions = Array.from(
@@ -117,7 +132,7 @@ export function VendorsOverview() {
   const periodLabel = year === 'all' ? 'All Time' : year.toString();
 
   return (
-    <div className="card">
+    <div>
       {/* Controls row */}
       <div
         style={{
@@ -164,40 +179,85 @@ export function VendorsOverview() {
         </label>
       </div>
 
-      <table className="table">
-        <thead>
-          <tr>
-            <Th>Vendor</Th>
-            <Th>Nickname</Th>
-            <Th>Tax ID</Th>
-            <Th align="right">{periodLabel} Spend (Cleared)</Th>
-          </tr>
-        </thead>
+      {/* Vendors Table */}
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Vendors</h3>
+        <table className="table">
+          <thead>
+            <tr>
+              <Th>Vendor</Th>
+              <Th>Nickname</Th>
+              <Th>Tax ID</Th>
+              <Th align="right">{periodLabel} Spend</Th>
+            </tr>
+          </thead>
 
-        <tbody>
-          {sortedVendors.map((v) => {
-            const vendorSpend = spend[v.id] ?? 0;
+          <tbody>
+            {sortedVendors.map((v) => {
+              const vendorSpend = spend[v.id] ?? 0;
 
-            return (
-              <tr key={v.id} style={{ opacity: v.is_active ? 1 : 0.5 }}>
-                <Td>{v.name}</Td>
-                <Td>{v.nick_name ?? ''}</Td>
-                <Td>{v.tax_id ?? ''}</Td>
-                <Td align="right">{formatCurrency(vendorSpend, 2)}</Td>
+              return (
+                <tr key={v.id} style={{ opacity: v.is_active ? 1 : 0.5 }}>
+                  <Td>{v.name}</Td>
+                  <Td>{v.nick_name ?? ''}</Td>
+                  <Td>{v.tax_id ?? ''}</Td>
+                  <Td align="right">{formatCurrency(vendorSpend, 2)}</Td>
+                </tr>
+              );
+            })}
+          </tbody>
+
+          <tfoot>
+            <tr>
+              <Th>Total Vendor Spend</Th>
+              <Th></Th>
+              <Th></Th>
+              <Th align="right">{formatCurrency(totalVendorSpend, 2)}</Th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* Lenders Table */}
+      {sortedLenders.length > 0 && (
+        <div className="card">
+          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Lenders</h3>
+          <table className="table">
+            <thead>
+              <tr>
+                <Th>Lender</Th>
+                <Th>Nickname</Th>
+                <Th>Tax ID</Th>
+                <Th align="right">{periodLabel} Paid</Th>
               </tr>
-            );
-          })}
-        </tbody>
+            </thead>
 
-        <tfoot>
-          <tr>
-            <Th>Total</Th>
-            <Th></Th>
-            <Th></Th>
-            <Th align="right">{formatCurrency(totalSpend, 2)}</Th>
-          </tr>
-        </tfoot>
-      </table>
+            <tbody>
+              {sortedLenders.map((v) => {
+                const lenderSpend = spend[v.id] ?? 0;
+
+                return (
+                  <tr key={v.id} style={{ opacity: v.is_active ? 1 : 0.5 }}>
+                    <Td>{v.name}</Td>
+                    <Td>{v.nick_name ?? ''}</Td>
+                    <Td>{v.tax_id ?? ''}</Td>
+                    <Td align="right">{formatCurrency(lenderSpend, 2)}</Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+
+            <tfoot>
+              <tr>
+                <Th>Total Lender Payments</Th>
+                <Th></Th>
+                <Th></Th>
+                <Th align="right">{formatCurrency(totalLenderSpend, 2)}</Th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

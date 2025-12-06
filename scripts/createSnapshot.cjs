@@ -3,6 +3,8 @@
 // from src/, scripts/, db_debug/ and a folder_file_architecture.json
 // describing the original folder/file structure.
 
+// Run: npm run debug-docs
+
 const fs = require('fs');
 const path = require('path');
 
@@ -10,6 +12,7 @@ const projectRoot = process.cwd();
 
 // ---- CONFIG ----
 const DIRS_TO_INCLUDE = ['src', 'scripts', 'db_tools'];
+const FILES_TO_INCLUDE = ['CODING_RULES.txt'];
 
 // ---- HELPERS ----
 
@@ -107,6 +110,26 @@ function createDebugDocs() {
     const absSrcDir = path.join(projectRoot, dir);
     console.log(`Including directory: ${dir}`);
     collectAndCopyFilesFlat(absSrcDir, dir, debugFolderPath, filesMeta);
+  }
+
+  // Copy individual files 
+  for (const file of FILES_TO_INCLUDE) {
+    const srcPath = path.join(projectRoot, file);
+    if (fs.existsSync(srcPath)) {
+      const uniqueName = getUniqueName(path.basename(file));
+      const destPath = path.join(debugFolderPath, uniqueName);
+      fs.copyFileSync(srcPath, destPath);
+      const stats = fs.statSync(srcPath);
+      filesMeta.push({
+        originalRelativePath: file,
+        debugFileName: uniqueName,
+        sizeBytes: stats.size,
+        lastModified: stats.mtime.toISOString(),
+      });
+      console.log(`Including file: ${file}`);
+    } else {
+      console.warn(`Skipping missing file: ${file}`);
+    }
   }
 
   // Build folder/file architecture description

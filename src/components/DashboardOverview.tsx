@@ -5,7 +5,12 @@ import {
   isBankCode,
   isRentalIncomeCode,
   isMarketingExpenseCode,
-  parseAccountCode,
+  isRentalExpenseCode,
+  isFlipExpenseCode,
+  isBusinessCardCode,
+  isPersonalCardCode,
+  isPersonalDebtCode,
+  isHelocCode,
   type Purpose,
 } from '../utils/accounts';
 
@@ -47,38 +52,6 @@ type Job = {
 //   62100-62199 Flip expenses
 //   64xxx      RE Mortgages (not shown in liquid balances)
 // ─────────────────────────────────────────────────────────────
-
-function isBusinessCardCode(code: string | null | undefined): boolean {
-  const n = parseAccountCode(code);
-  return n !== null && n >= 2000 && n <= 2099;
-}
-
-function isPersonalCardCode(code: string | null | undefined): boolean {
-  const n = parseAccountCode(code);
-  return n !== null && n >= 2100 && n <= 2199;
-}
-
-function isPersonalDebtCode(code: string | null | undefined): boolean {
-  const n = parseAccountCode(code);
-  return n !== null && n >= 2200 && n <= 2299;
-}
-
-function isHelocCode(code: string | null | undefined): boolean {
-  const n = parseAccountCode(code);
-  return n !== null && n >= 2300 && n <= 2399;
-}
-
-// Rental expense codes (62005-62012)
-function isRentalExpenseCode(code: string | null | undefined): boolean {
-  const n = parseAccountCode(code);
-  return n !== null && n >= 62005 && n <= 62012;
-}
-
-// Flip expense codes (621xx range) - not displayed separately, but excluded from overhead
-function isFlipExpenseCode(code: string | null | undefined): boolean {
-  const n = parseAccountCode(code);
-  return n !== null && n >= 62100 && n <= 62199;
-}
 
 export function DashboardOverview() {
   const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
@@ -140,7 +113,7 @@ export function DashboardOverview() {
           ),
           transactions!inner ( date )
         `)
-        .eq('is_cleared', true)
+        //.eq('is_cleared', true)
         .gte('transactions.date', startDate)
         .lte('transactions.date', endDate);
 

@@ -66,7 +66,7 @@ export function InstallersOverview() {
         const paidMap: Record<number, number> = {};
         for (const line of linesData ?? []) {
           const installerId = line.installer_id as number;
-          const amount = Math.abs(Number(line.amount) || 0);
+          const amount = Number(line.amount) || 0;
           paidMap[installerId] = (paidMap[installerId] || 0) + amount;
         }
 

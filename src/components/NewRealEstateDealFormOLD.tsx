@@ -3,8 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { ACCOUNT_CODE_RANGES, ACCOUNT_TYPE_IDS } from '../utils/accounts';
 
 type DealType = 'rental' | 'flip' | 'wholesale';
-type DealStatus = 'active' | 'in_contract' | 'rehab' | 'listed' | 'under_contract' | 'stabilized' | 'sold' | 'failed';
-type LoanType = 'hard_money' | 'conventional' | 'heloc' | 'private' | 'other';
+type DealStatus = 'active' | 'in_contract' | 'rehab' | 'stabilized' | 'sold' | 'failed';
 
 type Props = {
   onCreated?: () => void;
@@ -12,8 +11,8 @@ type Props = {
 
 export function NewRealEstateDealForm({ onCreated }: Props) {
   // Core deal info
-  const [type, setType] = useState<DealType>('flip');
-  const [status, setStatus] = useState<DealStatus>('rehab');
+  const [type, setType] = useState<DealType>('rental');
+  const [status, setStatus] = useState<DealStatus>('active');
   const [nickname, setNickname] = useState('');
   const [address, setAddress] = useState('');
 
@@ -22,24 +21,18 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   const [closeDate, setCloseDate] = useState('');
   const [sellDate, setSellDate] = useState('');
 
-  // Economics - Acquisition
+  // Economics
   const [purchasePrice, setPurchasePrice] = useState('');
-  const [assignmentFeePaid, setAssignmentFeePaid] = useState(''); // NEW: Fee paid TO wholesaler
   const [arv, setArv] = useState('');
   const [rehabBudget, setRehabBudget] = useState('');
   const [closingCostsEstimate, setClosingCostsEstimate] = useState('');
-  const [holdingCostsEstimate, setHoldingCostsEstimate] = useState('');
 
   // Financing (conditionally shown)
   const [isFinanced, setIsFinanced] = useState(false);
-  const [loanType, setLoanType] = useState<LoanType>('hard_money');
-  const [lenderName, setLenderName] = useState(''); // NEW: Who is the lender
   const [originalLoanAmount, setOriginalLoanAmount] = useState('');
-  const [rehabHoldback, setRehabHoldback] = useState(''); // NEW: Amount held in escrow for draws
   const [interestRate, setInterestRate] = useState('');
   const [loanTermMonths, setLoanTermMonths] = useState('');
   const [firstPaymentDate, setFirstPaymentDate] = useState('');
-  const [isInterestOnly, setIsInterestOnly] = useState(true); // Most hard money is interest-only
 
   // Rental operations
   const [rentalMonthlyRent, setRentalMonthlyRent] = useState('');
@@ -48,7 +41,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   const [rentalMonthlyInsurance, setRentalMonthlyInsurance] = useState('');
   const [rentalMonthlyHoa, setRentalMonthlyHoa] = useState('');
 
-  // Wholesale / assignment (when YOU are the wholesaler)
+  // Wholesale / assignment
   const [expectedAssignmentFee, setExpectedAssignmentFee] = useState('');
   const [actualAssignmentFee, setActualAssignmentFee] = useState('');
 
@@ -61,36 +54,6 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   const [success, setSuccess] = useState<string | null>(null);
 
   // ─────────────────────────────────────────────────────────────────
-  // Computed values for display
-  // ─────────────────────────────────────────────────────────────────
-
-  const purchasePriceNum = parseNumber(purchasePrice) ?? 0;
-  const assignmentFeeNum = parseNumber(assignmentFeePaid) ?? 0;
-  const totalAcquisitionCost = purchasePriceNum + assignmentFeeNum;
-
-  const loanAmountNum = parseNumber(originalLoanAmount) ?? 0;
-  const rehabHoldbackNum = parseNumber(rehabHoldback) ?? 0;
-  const loanToClosingTable = loanAmountNum - rehabHoldbackNum;
-
-  const arvNum = parseNumber(arv) ?? 0;
-  const rehabBudgetNum = parseNumber(rehabBudget) ?? 0;
-  const closingCostsNum = parseNumber(closingCostsEstimate) ?? 0;
-  const holdingCostsNum = parseNumber(holdingCostsEstimate) ?? 0;
-
-  // Estimated total cost basis
-  const estimatedCostBasis = totalAcquisitionCost + rehabBudgetNum + closingCostsNum + holdingCostsNum;
-  
-  // Estimated selling costs (default 8% = 6% commission + 2% closing)
-  const estimatedSellingCosts = arvNum * 0.08;
-  
-  // Estimated profit
-  const estimatedProfit = arvNum - estimatedCostBasis - estimatedSellingCosts;
-  const estimatedMargin = arvNum > 0 ? (estimatedProfit / arvNum) * 100 : 0;
-
-  // Cash to close estimate
-  const estimatedCashToClose = totalAcquisitionCost + closingCostsNum - loanToClosingTable;
-
-  // ─────────────────────────────────────────────────────────────────
   // Helpers
   // ─────────────────────────────────────────────────────────────────
 
@@ -100,17 +63,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     return Number.isNaN(n) ? null : n;
   }
 
-  function formatCurrency(val: number): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(val);
-  }
-
   /**
    * Get the next available account code in a given range.
+   * Uses constants from accounts.ts for range boundaries.
    */
   async function getNextCodeInRange(min: number, max: number): Promise<string> {
     const { data, error } = await supabase
@@ -124,6 +79,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     if (error) throw error;
 
     if (!data || data.length === 0) {
+      // No accounts in range yet, start at min + 1 (e.g., 63001)
       return String(min + 1);
     }
 
@@ -137,6 +93,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     return String(nextCode);
   }
 
+  /**
+   * Get the next available RE asset account code (63xxx range)
+   */
   async function getNextAssetCode(): Promise<string> {
     return getNextCodeInRange(
       ACCOUNT_CODE_RANGES.RE_ASSET_MIN,
@@ -144,6 +103,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     );
   }
 
+  /**
+   * Get the next available RE mortgage/loan account code (64xxx range)
+   */
   async function getNextLoanCode(): Promise<string> {
     return getNextCodeInRange(
       ACCOUNT_CODE_RANGES.RE_MORTGAGE_MIN,
@@ -151,22 +113,16 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     );
   }
 
+  /**
+   * Creates the RE asset and loan accounts for this deal.
+   * Returns { assetAccountId, loanAccountId }.
+   */
   async function createDealAccounts(dealNickname: string): Promise<{
     assetAccountId: number;
     loanAccountId: number;
   }> {
     const assetCode = await getNextAssetCode();
     const loanCode = await getNextLoanCode();
-
-    // Determine loan account name based on loan type
-    const loanTypeLabels: Record<LoanType, string> = {
-      hard_money: 'Hard Money',
-      conventional: 'Mortgage',
-      heloc: 'HELOC',
-      private: 'Private Loan',
-      other: 'Loan',
-    };
-    const loanLabel = loanTypeLabels[loanType];
 
     // Create asset account (63xxx range)
     const { data: assetData, error: assetError } = await supabase
@@ -187,7 +143,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     const { data: loanData, error: loanError } = await supabase
       .from('accounts')
       .insert({
-        name: `RE – ${loanLabel} ${dealNickname}`,
+        name: `RE – Mortgage ${dealNickname}`,
         code: loanCode,
         account_type_id: ACCOUNT_TYPE_IDS.LIABILITY,
         is_active: true,
@@ -260,13 +216,6 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         loanAccountId = accounts.loanAccountId;
       }
 
-      // Build notes with structured info
-      let fullNotes = notes.trim();
-      if (isFinanced && lenderName.trim()) {
-        const lenderInfo = `Lender: ${lenderName.trim()}`;
-        fullNotes = fullNotes ? `${lenderInfo}. ${fullNotes}` : lenderInfo;
-      }
-
       // Build payload
       const payload: Record<string, any> = {
         type,
@@ -277,7 +226,6 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         arv: parseNumber(arv),
         rehab_budget: parseNumber(rehabBudget),
         closing_costs_estimate: parseNumber(closingCostsEstimate),
-        holding_costs_estimate: parseNumber(holdingCostsEstimate),
         rental_monthly_rent: parseNumber(rentalMonthlyRent),
         rental_monthly_mortgage: parseNumber(rentalMonthlyMortgage),
         rental_monthly_taxes: parseNumber(rentalMonthlyTaxes),
@@ -288,7 +236,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         start_date: startDate || null,
         close_date: closeDate || null,
         sell_date: sellDate || null,
-        notes: fullNotes || null,
+        notes: notes.trim() || null,
         // Financing fields
         original_loan_amount: isFinanced ? parseNumber(originalLoanAmount) : null,
         interest_rate: isFinanced ? parseNumber(interestRate) : null,
@@ -307,25 +255,15 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
       if (error) throw error;
 
       console.log('Created real estate deal', data);
-      setSuccess(`Deal "${nickname}" saved successfully! Asset and loan accounts created.`);
+      setSuccess('Deal saved.');
 
-      // Reset form
+      // Reset form (keep type & status)
       setNickname('');
       setAddress('');
       setPurchasePrice('');
-      setAssignmentFeePaid('');
       setArv('');
       setRehabBudget('');
       setClosingCostsEstimate('');
-      setHoldingCostsEstimate('');
-      setOriginalLoanAmount('');
-      setRehabHoldback('');
-      setInterestRate('');
-      setLoanTermMonths('');
-      setFirstPaymentDate('');
-      setLenderName('');
-      setCloseDate('');
-      setSellDate('');
       setRentalMonthlyRent('');
       setRentalMonthlyMortgage('');
       setRentalMonthlyTaxes('');
@@ -333,13 +271,19 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
       setRentalMonthlyHoa('');
       setExpectedAssignmentFee('');
       setActualAssignmentFee('');
+      setCloseDate('');
+      setSellDate('');
       setNotes('');
       setIsFinanced(false);
+      setOriginalLoanAmount('');
+      setInterestRate('');
+      setLoanTermMonths('');
+      setFirstPaymentDate('');
 
-      onCreated?.();
-    } catch (err: unknown) {
-      console.error('Error saving deal:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save deal.');
+      if (onCreated) onCreated();
+    } catch (err: any) {
+      console.error('Error creating real estate deal', err);
+      setError(err.message ?? 'Failed to create real estate deal.');
     } finally {
       setSaving(false);
     }
@@ -352,34 +296,20 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   const labelStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.25rem',
-    fontSize: 14,
+    fontSize: 13,
   };
 
   const sectionStyle: React.CSSProperties = {
     gridColumn: '1 / span 2',
+    fontSize: 12,
     fontWeight: 600,
-    fontSize: 14,
-    color: '#555',
-    borderBottom: '1px solid #ddd',
-    paddingBottom: '0.25rem',
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
     marginTop: '0.75rem',
-  };
-
-  const summaryCardStyle: React.CSSProperties = {
-    gridColumn: '1 / span 2',
-    background: '#f8f9fa',
-    border: '1px solid #dee2e6',
-    borderRadius: 8,
-    padding: '1rem',
-    marginTop: '0.5rem',
-  };
-
-  const summaryRowStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: 13,
-    padding: '0.25rem 0',
+    marginBottom: '-0.25rem',
+    borderBottom: '1px solid #e0e0e0',
+    paddingBottom: '0.25rem',
   };
 
   // ─────────────────────────────────────────────────────────────────
@@ -387,18 +317,16 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   // ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="card">
-      <h2 style={{ marginTop: 0 }}>New Real Estate Deal</h2>
+    <div className="card" style={{ marginBottom: '1.5rem' }}>
+      <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>
+        New Property Purchase / Deal
+      </h3>
 
       {error && (
-        <p style={{ color: '#c00', background: '#fee', padding: '0.5rem', borderRadius: 4 }}>
-          {error}
-        </p>
+        <p style={{ color: 'red', fontSize: 13, marginTop: 0 }}>{error}</p>
       )}
       {success && (
-        <p style={{ color: '#060', background: '#efe', padding: '0.5rem', borderRadius: 4 }}>
-          {success}
-        </p>
+        <p style={{ color: 'green', fontSize: 13, marginTop: 0 }}>{success}</p>
       )}
 
       <form
@@ -406,15 +334,15 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
-          gap: '0.75rem 1rem',
+          gap: '0.75rem',
         }}
       >
-        {/* ───────────── CORE INFO ───────────── */}
+        {/* ───────────── BASICS ───────────── */}
         <label style={labelStyle}>
           Deal type
           <select value={type} onChange={(e) => setType(e.target.value as DealType)}>
-            <option value="flip">Flip</option>
             <option value="rental">Rental</option>
+            <option value="flip">Flip</option>
             <option value="wholesale">Wholesale</option>
           </select>
         </label>
@@ -422,28 +350,26 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         <label style={labelStyle}>
           Status
           <select value={status} onChange={(e) => setStatus(e.target.value as DealStatus)}>
-            <option value="active">Active (Underwriting)</option>
+            <option value="active">Active</option>
             <option value="in_contract">In Contract</option>
             <option value="rehab">Rehab</option>
-            <option value="listed">Listed</option>
-            <option value="under_contract">Under Contract (Sale)</option>
             <option value="stabilized">Stabilized</option>
             <option value="sold">Sold</option>
-            <option value="failed">Failed / Dead</option>
+            <option value="failed">Failed</option>
           </select>
         </label>
 
-        <label style={labelStyle}>
+        <label style={{ ...labelStyle, gridColumn: '1 / span 2' }}>
           Nickname
           <input
             type="text"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            placeholder="e.g. 1437 Stoneleigh"
+            placeholder="3441 Antioch Rental, Lithonia Flip, etc."
           />
         </label>
 
-        <label style={labelStyle}>
+        <label style={{ ...labelStyle, gridColumn: '1 / span 2' }}>
           Address
           <input
             type="text"
@@ -466,7 +392,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         </label>
 
         <label style={labelStyle}>
-          Close date (acquisition)
+          Close date
           <input
             type="date"
             value={closeDate}
@@ -474,94 +400,57 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           />
         </label>
 
-        {type === 'flip' && (
-          <label style={labelStyle}>
-            Sell date (if sold)
-            <input
-              type="date"
-              value={sellDate}
-              onChange={(e) => setSellDate(e.target.value)}
-            />
-          </label>
-        )}
+        <label style={labelStyle}>
+          Sell date (for flips)
+          <input
+            type="date"
+            value={sellDate}
+            onChange={(e) => setSellDate(e.target.value)}
+          />
+        </label>
 
-        {/* ───────────── ACQUISITION COSTS ───────────── */}
-        <div style={sectionStyle}>Acquisition</div>
+        {/* ───────────── ECONOMICS ───────────── */}
+        <div style={sectionStyle}>Economics</div>
 
         <label style={labelStyle}>
-          Purchase price (to seller)
+          Purchase price
           <input
             type="number"
             step="0.01"
             value={purchasePrice}
             onChange={(e) => setPurchasePrice(e.target.value)}
-            placeholder="e.g. 146000"
           />
         </label>
 
-        {type === 'flip' && (
-          <label style={labelStyle}>
-            Assignment fee paid (to wholesaler)
-            <input
-              type="number"
-              step="0.01"
-              value={assignmentFeePaid}
-              onChange={(e) => setAssignmentFeePaid(e.target.value)}
-              placeholder="e.g. 16000"
-            />
-            <span style={{ fontSize: 11, color: '#888' }}>
-              If buying from wholesaler, enter their fee here
-            </span>
-          </label>
-        )}
-
         <label style={labelStyle}>
-          ARV (After Repair Value)
+          ARV (optional)
           <input
             type="number"
             step="0.01"
             value={arv}
             onChange={(e) => setArv(e.target.value)}
-            placeholder="e.g. 350000"
           />
         </label>
 
-        {(type === 'flip' || type === 'rental') && (
-          <>
-            <label style={labelStyle}>
-              Rehab budget
-              <input
-                type="number"
-                step="0.01"
-                value={rehabBudget}
-                onChange={(e) => setRehabBudget(e.target.value)}
-                placeholder="e.g. 88200"
-              />
-            </label>
+        <label style={labelStyle}>
+          Rehab budget (optional)
+          <input
+            type="number"
+            step="0.01"
+            value={rehabBudget}
+            onChange={(e) => setRehabBudget(e.target.value)}
+          />
+        </label>
 
-            <label style={labelStyle}>
-              Closing costs estimate
-              <input
-                type="number"
-                step="0.01"
-                value={closingCostsEstimate}
-                onChange={(e) => setClosingCostsEstimate(e.target.value)}
-                placeholder="e.g. 20000"
-              />
-            </label>
-
-            <label style={labelStyle}>
-              Holding costs estimate (monthly × months)
-              <input
-                type="number"
-                step="0.01"
-                value={holdingCostsEstimate}
-                onChange={(e) => setHoldingCostsEstimate(e.target.value)}
-                placeholder="e.g. 25000"
-              />
-            </label>
-          </>
-        )}
+        <label style={labelStyle}>
+          Closing costs estimate (optional)
+          <input
+            type="number"
+            step="0.01"
+            value={closingCostsEstimate}
+            onChange={(e) => setClosingCostsEstimate(e.target.value)}
+          />
+        </label>
 
         {/* ───────────── FINANCING ───────────── */}
         <div style={sectionStyle}>Financing</div>
@@ -580,58 +469,21 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
             checked={isFinanced}
             onChange={(e) => setIsFinanced(e.target.checked)}
           />
-          This deal is financed (mortgage / hard money / HELOC)
+          This deal is financed (mortgage / hard money)
         </label>
 
         {isFinanced && (
           <>
             <label style={labelStyle}>
-              Loan type
-              <select value={loanType} onChange={(e) => setLoanType(e.target.value as LoanType)}>
-                <option value="hard_money">Hard Money</option>
-                <option value="conventional">Conventional Mortgage</option>
-                <option value="heloc">HELOC</option>
-                <option value="private">Private Lender</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-
-            <label style={labelStyle}>
-              Lender name
-              <input
-                type="text"
-                value={lenderName}
-                onChange={(e) => setLenderName(e.target.value)}
-                placeholder="e.g. Silliman Private Lending LLC"
-              />
-            </label>
-
-            <label style={labelStyle}>
-              Total loan amount
+              Original loan amount
               <input
                 type="number"
                 step="0.01"
                 value={originalLoanAmount}
                 onChange={(e) => setOriginalLoanAmount(e.target.value)}
-                placeholder="e.g. 216423"
+                placeholder="e.g. 180000"
               />
             </label>
-
-            {(loanType === 'hard_money' || loanType === 'private') && (
-              <label style={labelStyle}>
-                Rehab holdback (in escrow)
-                <input
-                  type="number"
-                  step="0.01"
-                  value={rehabHoldback}
-                  onChange={(e) => setRehabHoldback(e.target.value)}
-                  placeholder="e.g. 88200"
-                />
-                <span style={{ fontSize: 11, color: '#888' }}>
-                  Amount held by lender for rehab draws
-                </span>
-              </label>
-            )}
 
             <label style={labelStyle}>
               Interest rate (%)
@@ -642,7 +494,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
                 max="30"
                 value={interestRate}
                 onChange={(e) => setInterestRate(e.target.value)}
-                placeholder="e.g. 11.0"
+                placeholder="e.g. 7.5"
               />
             </label>
 
@@ -654,7 +506,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
                 min="1"
                 value={loanTermMonths}
                 onChange={(e) => setLoanTermMonths(e.target.value)}
-                placeholder="e.g. 12"
+                placeholder="e.g. 360"
               />
             </label>
 
@@ -667,46 +519,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label
-              style={{
-                ...labelStyle,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isInterestOnly}
-                onChange={(e) => setIsInterestOnly(e.target.checked)}
-              />
-              Interest-only payments
-            </label>
-
-            {/* Loan summary */}
-            {loanAmountNum > 0 && (
-              <div style={{ ...summaryCardStyle, background: '#e3f2fd', borderColor: '#90caf9' }}>
-                <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1565c0' }}>
-                  Loan Breakdown
-                </div>
-                <div style={summaryRowStyle}>
-                  <span>Total Loan Amount:</span>
-                  <span>{formatCurrency(loanAmountNum)}</span>
-                </div>
-                {rehabHoldbackNum > 0 && (
-                  <>
-                    <div style={summaryRowStyle}>
-                      <span>Less: Rehab Holdback:</span>
-                      <span>({formatCurrency(rehabHoldbackNum)})</span>
-                    </div>
-                    <div style={{ ...summaryRowStyle, fontWeight: 600, borderTop: '1px solid #90caf9', paddingTop: '0.5rem' }}>
-                      <span>Loan to Closing Table:</span>
-                      <span>{formatCurrency(loanToClosingTable)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+            <p style={{ fontSize: 12, color: '#888', margin: 0, gridColumn: '1 / span 2' }}>
+              Asset and loan accounts will be auto-created on save. First payment date is used for accurate mortgage amortization calculations.
+            </p>
           </>
         )}
 
@@ -767,121 +582,36 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </>
         )}
 
-        {/* ───────────── WHOLESALE (when YOU are wholesaling) ───────────── */}
-        {type === 'wholesale' && (
-          <>
-            <div style={sectionStyle}>Assignment Fee (Your Fee)</div>
+        {/* ───────────── ASSIGNMENT FEES ───────────── */}
+        <div style={sectionStyle}>Assignment / Sale</div>
 
-            <label style={labelStyle}>
-              Expected assignment fee
-              <input
-                type="number"
-                step="0.01"
-                value={expectedAssignmentFee}
-                onChange={(e) => setExpectedAssignmentFee(e.target.value)}
-              />
-            </label>
+        <label style={labelStyle}>
+          Expected assignment fee (optional)
+          <input
+            type="number"
+            step="0.01"
+            value={expectedAssignmentFee}
+            onChange={(e) => setExpectedAssignmentFee(e.target.value)}
+          />
+        </label>
 
-            <label style={labelStyle}>
-              Actual assignment fee
-              <input
-                type="number"
-                step="0.01"
-                value={actualAssignmentFee}
-                onChange={(e) => setActualAssignmentFee(e.target.value)}
-              />
-            </label>
-          </>
-        )}
-
-        {/* ───────────── DEAL SUMMARY (Flip) ───────────── */}
-        {type === 'flip' && (purchasePriceNum > 0 || arvNum > 0) && (
-          <div style={{
-            ...summaryCardStyle,
-            background: estimatedProfit >= 0 ? '#e8f5e9' : '#ffebee',
-            borderColor: estimatedProfit >= 0 ? '#a5d6a7' : '#ef9a9a',
-          }}>
-            <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: estimatedProfit >= 0 ? '#2e7d32' : '#c62828' }}>
-              Deal Analysis (Estimated)
-            </div>
-            
-            <div style={summaryRowStyle}>
-              <span>Purchase Price:</span>
-              <span>{formatCurrency(purchasePriceNum)}</span>
-            </div>
-            {assignmentFeeNum > 0 && (
-              <div style={summaryRowStyle}>
-                <span>+ Assignment Fee:</span>
-                <span>{formatCurrency(assignmentFeeNum)}</span>
-              </div>
-            )}
-            <div style={{ ...summaryRowStyle, fontWeight: 500 }}>
-              <span>= Total Acquisition:</span>
-              <span>{formatCurrency(totalAcquisitionCost)}</span>
-            </div>
-            
-            <div style={{ borderTop: '1px solid #ccc', margin: '0.5rem 0' }} />
-            
-            <div style={summaryRowStyle}>
-              <span>+ Rehab Budget:</span>
-              <span>{formatCurrency(rehabBudgetNum)}</span>
-            </div>
-            <div style={summaryRowStyle}>
-              <span>+ Closing Costs:</span>
-              <span>{formatCurrency(closingCostsNum)}</span>
-            </div>
-            <div style={summaryRowStyle}>
-              <span>+ Holding Costs:</span>
-              <span>{formatCurrency(holdingCostsNum)}</span>
-            </div>
-            <div style={{ ...summaryRowStyle, fontWeight: 600 }}>
-              <span>= Est. Cost Basis:</span>
-              <span>{formatCurrency(estimatedCostBasis)}</span>
-            </div>
-            
-            <div style={{ borderTop: '1px solid #ccc', margin: '0.5rem 0' }} />
-            
-            <div style={summaryRowStyle}>
-              <span>ARV:</span>
-              <span>{formatCurrency(arvNum)}</span>
-            </div>
-            <div style={summaryRowStyle}>
-              <span>- Cost Basis:</span>
-              <span>({formatCurrency(estimatedCostBasis)})</span>
-            </div>
-            <div style={summaryRowStyle}>
-              <span>- Selling Costs (~8%):</span>
-              <span>({formatCurrency(estimatedSellingCosts)})</span>
-            </div>
-            <div style={{ 
-              ...summaryRowStyle, 
-              fontWeight: 700, 
-              fontSize: 15,
-              color: estimatedProfit >= 0 ? '#2e7d32' : '#c62828',
-              borderTop: '1px solid #ccc',
-              paddingTop: '0.5rem',
-            }}>
-              <span>= Est. Profit:</span>
-              <span>{formatCurrency(estimatedProfit)} ({estimatedMargin.toFixed(1)}%)</span>
-            </div>
-
-            {isFinanced && estimatedCashToClose > 0 && (
-              <div style={{ ...summaryRowStyle, marginTop: '0.5rem', color: '#555' }}>
-                <span>Est. Cash to Close:</span>
-                <span>{formatCurrency(estimatedCashToClose)}</span>
-              </div>
-            )}
-          </div>
-        )}
+        <label style={labelStyle}>
+          Actual assignment fee (optional)
+          <input
+            type="number"
+            step="0.01"
+            value={actualAssignmentFee}
+            onChange={(e) => setActualAssignmentFee(e.target.value)}
+          />
+        </label>
 
         {/* ───────────── NOTES ───────────── */}
         <label style={{ ...labelStyle, gridColumn: '1 / span 2' }}>
           Notes
           <textarea
-            rows={3}
+            rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Additional details, maturity date, special terms, etc."
           />
         </label>
 
@@ -893,7 +623,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
             marginTop: '0.5rem',
           }}
         >
-          <button type="submit" disabled={saving} style={{ padding: '0.5rem 1.5rem' }}>
+          <button type="submit" disabled={saving}>
             {saving ? 'Saving…' : 'Save Deal'}
           </button>
         </div>

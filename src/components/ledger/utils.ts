@@ -1,6 +1,8 @@
 // src/components/ledger/utils.ts
 
 import type { DateRange, DateRangePreset, AccountFilter, SortDir } from './types';
+import { ACCOUNT_CODE_RANGES } from '../../utils/accounts';
+
 
 /**
  * Get date range for a preset
@@ -34,39 +36,26 @@ export function codeMatchesFilter(code: number | null, filter: AccountFilter): b
 
   switch (filter) {
     case 'banks':
-      return code >= 1000 && code <= 1999;
+      return code >= ACCOUNT_CODE_RANGES.BANK_MIN && code <= ACCOUNT_CODE_RANGES.BANK_MAX;
     case 'cards':
-      return code >= 2000 && code <= 2999;
+      return code >= ACCOUNT_CODE_RANGES.CREDIT_CARD_MIN && code <= ACCOUNT_CODE_RANGES.CREDIT_CARD_MAX;
     case 're-all':
-      return code >= 63000 && code <= 64999;
+      return code >= ACCOUNT_CODE_RANGES.RE_ASSET_MIN && code <= ACCOUNT_CODE_RANGES.RE_MORTGAGE_MAX;
     case 're-assets':
-      return code >= 63000 && code <= 63999;
+      return code >= ACCOUNT_CODE_RANGES.RE_ASSET_MIN && code <= ACCOUNT_CODE_RANGES.RE_ASSET_MAX;
     case 're-liabilities':
-      return code >= 64000 && code <= 64999;
+      return code >= ACCOUNT_CODE_RANGES.RE_MORTGAGE_MIN && code <= ACCOUNT_CODE_RANGES.RE_MORTGAGE_MAX;
     default:
-      return false; // number filter handled separately
+      return false;
   }
 }
 
 /**
  * Format date from ISO to M/D/YYYY
  */
-export function formatDate(dateStr: string): string {
-  if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-');
-  return y && m && d ? `${Number(m)}/${Number(d)}/${y}` : dateStr;
-}
+export { formatLocalDate as formatDate } from '../../utils/date';
 
-/**
- * Format number as USD currency
- */
-export function formatMoney(value: number): string {
-  return value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-  });
-}
+export { formatMoney } from '../../utils/format';
 
 /**
  * Compare two values for sorting

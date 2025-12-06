@@ -7,8 +7,8 @@ import { DashboardOverview } from './components/DashboardOverview';
 import { InstallersView } from './components/InstallersView';
 import { VendorsView } from './components/VendorsView';
 import { LeadSourcesView } from './components/LeadSourcesView';
-import { LedgerView } from './components/LedgerViewOLD';
-//import { LedgerView } from './components/ledger';
+//import { LedgerView } from './components/LedgerViewOLD';
+import { LedgerView } from './components/ledger';
 import { ProfitSummary } from './components/ProfitSummary';
 import { ExpenseCategoriesView } from './components/ExpensesView';
 import { NewEntryView } from './components/NewEntryView';
@@ -17,6 +17,7 @@ import { REIView } from './components/REIView';
 import { Analytics } from './components/AnalyticsView';
 import { PriceListView } from './components/PriceListView';
 import { MobileContainer } from './components/mobile';
+import { FlipDetailView } from './components/FlipDetailView';
 
 type View =
   | 'dashboard'

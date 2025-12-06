@@ -20,6 +20,8 @@ type PropertyData = {
   transactions: PropertyTransaction[];
   // Loan & equity
   loanBalance: number;
+  propertyValue: number;
+  propertyValueSource: 'ARV' | 'Purchase';
   equity: number;
 };
 
@@ -263,6 +265,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
         const rawLoanBalance = deal.loan_account_id ? (loanBalances.get(deal.loan_account_id) ?? 0) : 0;
         const loanBalance = Math.abs(rawLoanBalance);
         const propertyValue = deal.arv ?? deal.purchase_price ?? 0;
+        const propertyValueSource: 'ARV' | 'Purchase' = deal.arv ? 'ARV' : 'Purchase';
         const equity = propertyValue - loanBalance;
 
         propertyMap.set(deal.id, {
@@ -270,6 +273,8 @@ export function RentalOperationsView({ selectedYear }: Props) {
           nickname: deal.nickname,
           address: deal.address,
           status: deal.status,
+          propertyValue,
+          propertyValueSource,
           totalIncome: 0,
           totalMortgageInterest: 0,
           totalMortgagePrincipal: 0,
@@ -531,7 +536,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
                     </span>
                   </h3>
 
-                  {/* Loan Balance & Equity */}
+                  {/* Loan Balance, ARV & Equity */}
                   <div
                     style={{
                       display: 'flex',
@@ -540,11 +545,16 @@ export function RentalOperationsView({ selectedYear }: Props) {
                       fontSize: 13,
                       color: '#555',
                       marginBottom: '0.5rem',
+                      flexWrap: 'wrap',
                     }}
                   >
                     <span>
                       <strong>Loan Balance:</strong>{' '}
                       <span style={{ color: '#b00020' }}>{currency(property.loanBalance)}</span>
+                    </span>
+                    <span>
+                      <strong>{property.propertyValueSource}:</strong>{' '}
+                      <span>{currency(property.propertyValue)}</span>
                     </span>
                     <span>
                       <strong>Equity:</strong>{' '}

@@ -18,10 +18,11 @@ import {
   formatDate,
   formatMoney,
   compareValues,
-  getDefaultSortDir,
 } from './utils';
 import { LedgerEditModal, type EditModalResult } from './LedgerEditModal';
 import { LedgerClearModal } from './LedgerClearModal';
+import { LedgerFilters } from './LedgerFilters';
+import { LedgerTable } from './LedgerTable';
 
 export function LedgerView() {
   const [allRows, setAllRows] = useState<LedgerRow[]>([]);
@@ -246,61 +247,12 @@ export function LedgerView() {
   }, []);
 
   // ---------- helpers ----------
-  // Combine job name and description for display
+  // Combine job name and description for display (still needed for delete confirmation)
   const getDisplayDescription = (row: LedgerRow): string => {
     if (row.job_name && row.description) {
       return `${row.job_name} / ${row.description}`;
     }
     return row.job_name || row.description || '';
-  };
-
-  const thStyleBase = {
-    textAlign: 'left' as const,
-    borderBottom: '1px solid #ccc',
-    padding: '4px 4px',
-  };
-  const tdStyle = {
-    padding: '6px 4px',
-    borderBottom: '1px solid #eee',
-  };
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      // Toggle direction
-      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      // New field: default direction based on field type
-      setSortField(field);
-      setSortDir(getDefaultSortDir(field));
-    }
-  };
-
-  const sortableTh = (field: SortField, label: string, align: 'left' | 'right' | 'center' = 'left') => {
-    const isActive = sortField === field;
-    const arrow = isActive ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
-
-    return (
-      <th
-        style={{
-          ...thStyleBase,
-          textAlign: align,
-          cursor: 'pointer',
-          userSelect: 'none' as const,
-          whiteSpace: 'nowrap' as const,
-          background: isActive ? '#f5f5f5' : 'transparent',
-        }}
-        onClick={() => handleSort(field)}
-      >
-        {label}
-        {arrow}
-      </th>
-    );
-  };
-
-  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newSize = Number(e.target.value) || 25;
-    setPageSize(newSize);
-    setPage(1);
   };
 
   const handlePrev = () => setPage((p) => Math.max(1, p - 1));
@@ -555,376 +507,49 @@ export function LedgerView() {
         {!loading && !error && (
           <>
             {/* controls row */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                marginBottom: '0.5rem',
-                fontSize: 13,
-                gap: '0.75rem',
-                flexWrap: 'wrap',
+            <LedgerFilters
+              pageSize={pageSize}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
               }}
-            >
-              {/* page size */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>Show</span>
-                <select
-                  value={pageSize}
-                  onChange={handlePageSizeChange}
-                  style={{
-                    padding: '4px 8px',
-                    fontSize: 13,
-                    borderRadius: 4,
-                    border: '1px solid #ccc',
-                    width: 'auto',
-                  }}
-                >
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-                <span>rows</span>
-              </div>
-
-              {/* date range picker */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>Date:</span>
-                <select
-                  value={dateRangePreset}
-                  onChange={(e) => setDateRangePreset(e.target.value as DateRangePreset)}
-                  style={{
-                    padding: '4px 8px',
-                    fontSize: 13,
-                    borderRadius: 4,
-                    border: '1px solid #ccc',
-                    width: 'auto',
-                  }}
-                >
-                  <option value="last-12-months">Last 12 months</option>
-                  <option value="custom">Custom range</option>
-                </select>
-                {dateRangePreset === 'custom' && (
-                  <>
-                    <input
-                      type="date"
-                      value={customStartDate}
-                      onChange={(e) => setCustomStartDate(e.target.value)}
-                      style={{
-                        padding: '4px 6px',
-                        fontSize: 13,
-                        borderRadius: 4,
-                        border: '1px solid #ccc',
-                      }}
-                    />
-                    <span>-</span>
-                    <input
-                      type="date"
-                      value={customEndDate}
-                      onChange={(e) => setCustomEndDate(e.target.value)}
-                      style={{
-                        padding: '4px 6px',
-                        fontSize: 13,
-                        borderRadius: 4,
-                        border: '1px solid #ccc',
-                      }}
-                    />
-                  </>
-                )}
-              </div>
-
-              {/* account selector - tiered dropdown */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>Account:</span>
-                <select
-                  value={typeof accountFilter === 'number' ? String(accountFilter) : accountFilter}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (
-                      val === 'all' ||
-                      val === 'banks' ||
-                      val === 'cards' ||
-                      val === 're-all' ||
-                      val === 're-assets' ||
-                      val === 're-liabilities'
-                    ) {
-                      setAccountFilter(val as AccountFilter);
-                    } else {
-                      setAccountFilter(Number(val));
-                    }
-                  }}
-                  style={{
-                    padding: '4px 8px',
-                    fontSize: 13,
-                    borderRadius: 4,
-                    border: '1px solid #ccc',
-                    minWidth: 220,
-                  }}
-                >
-                  <option value="all">All Accounts</option>
-
-                  {/* Banks group */}
-                  {categorizedAccounts.banks.length > 0 && (
-                    <>
-                      <option value="banks">── All Banks (1000-1999)</option>
-                      {categorizedAccounts.banks.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          &nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
-                        </option>
-                      ))}
-                    </>
-                  )}
-
-                  {/* Cards group */}
-                  {categorizedAccounts.cards.length > 0 && (
-                    <>
-                      <option value="cards">── All Cards (2000-2999)</option>
-                      {categorizedAccounts.cards.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          &nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
-                        </option>
-                      ))}
-                    </>
-                  )}
-
-                  {/* RE group */}
-                  {(categorizedAccounts.reAssets.length > 0 ||
-                    categorizedAccounts.reLiabilities.length > 0) && (
-                    <>
-                      <option value="re-all">── All RE (63000-64999)</option>
-
-                      {/* RE Assets subgroup */}
-                      {categorizedAccounts.reAssets.length > 0 && (
-                        <>
-                          <option value="re-assets">
-                            &nbsp;&nbsp;── All RE Assets (63000-63999)
-                          </option>
-                          {categorizedAccounts.reAssets.map((acc) => (
-                            <option key={acc.id} value={acc.id}>
-                              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
-                            </option>
-                          ))}
-                        </>
-                      )}
-
-                      {/* RE Liabilities subgroup */}
-                      {categorizedAccounts.reLiabilities.length > 0 && (
-                        <>
-                          <option value="re-liabilities">
-                            &nbsp;&nbsp;── All RE Liabilities (64000-64999)
-                          </option>
-                          {categorizedAccounts.reLiabilities.map((acc) => (
-                            <option key={acc.id} value={acc.id}>
-                              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{acc.label}
-                            </option>
-                          ))}
-                        </>
-                      )}
-                    </>
-                  )}
-
-                  {/* Other accounts */}
-                  {categorizedAccounts.other.length > 0 && (
-                    <>
-                      <option disabled>──────────</option>
-                      {categorizedAccounts.other.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.label}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
-              </div>
-
-              {/* fast search */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  flex: 1,
-                  maxWidth: 560,
-                  minWidth: 220,
-                }}
-              >
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search: date, description, job, vendor, account, type, amount..."
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    padding: '4px 8px',
-                    fontSize: 13,
-                    borderRadius: 4,
-                    border: '1px solid #ccc',
-                  }}
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchTerm('')}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      lineHeight: 1,
-                      padding: '0 4px',
-                    }}
-                    aria-label="Clear fast search"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-
-              {/* summary */}
-              <div
-                style={{
-                  marginLeft: 'auto',
-                  whiteSpace: 'nowrap',
-                  fontSize: 12,
-                }}
-              >
-                Showing {totalCount === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, totalCount)} of{' '}
-                {totalCount} {accountFilter !== 'all' ? '(filtered)' : ''}
-              </div>
-            </div>
+              dateRangePreset={dateRangePreset}
+              onDateRangePresetChange={setDateRangePreset}
+              customStartDate={customStartDate}
+              onCustomStartDateChange={setCustomStartDate}
+              customEndDate={customEndDate}
+              onCustomEndDateChange={setCustomEndDate}
+              accountFilter={accountFilter}
+              onAccountFilterChange={setAccountFilter}
+              categorizedAccounts={categorizedAccounts}
+              searchTerm={searchTerm}
+              onSearchTermChange={setSearchTerm}
+              totalCount={totalCount}
+              startIndex={startIndex}
+              endIndex={endIndex}
+            />
 
             {totalCount === 0 && (
               <p style={{ fontSize: 13, color: '#777' }}>No transactions found for this selection.</p>
             )}
 
             {totalCount > 0 && (
-              <>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      {sortableTh('date', 'Date')}
-                      {sortableTh('description', 'Description')}
-                      {sortableTh('vendor_installer', 'Vendor / Installer')}
-                      {sortableTh('cash_account', 'Account')}
-                      {sortableTh('type_label', 'Category')}
-                      {sortableTh('amount', 'Amount', 'right')}
-                      {sortableTh('is_cleared', 'Cleared', 'center')}
-                      <th
-                        style={{
-                          ...thStyleBase,
-                          textAlign: 'right',
-                          cursor: 'default',
-                        }}
-                      >
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pageRows.map((row) => (
-                      <tr
-                        key={row.transaction_id}
-                        style={{
-                          background: row.is_cleared ? 'transparent' : '#fffbe6',
-                        }}
-                      >
-                        <td style={tdStyle}>{formatDate(row.date)}</td>
-                        <td style={tdStyle}>{getDisplayDescription(row)}</td>
-                        <td style={tdStyle}>{row.vendor_installer}</td>
-                        <td style={tdStyle}>{row.cash_account}</td>
-                        <td style={tdStyle}>{row.type_label}</td>
-                        <td style={{ ...tdStyle, textAlign: 'right' }}>{formatMoney(row.amount)}</td>
-                        <td style={{ ...tdStyle, textAlign: 'center' }}>{row.is_cleared ? '✓' : ''}</td>
-                        <td
-                          style={{
-                            ...tdStyle,
-                            textAlign: 'right',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {!row.is_cleared && (
-                            <button
-                              type="button"
-                              onClick={() => handleMarkClearedFromLedger(row)}
-                              style={{
-                                border: '1px solid #0a7a3c',
-                                background: '#e8f5e9',
-                                borderRadius: 4,
-                                cursor: 'pointer',
-                                padding: '2px 6px',
-                                fontSize: 13,
-                                color: '#0a7a3c',
-                                marginRight: 4,
-                                lineHeight: 1,
-                              }}
-                              title="Mark cleared"
-                            >
-                              ✓
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => openEditModal(row)}
-                            style={{
-                              border: 'none',
-                              background: 'transparent',
-                              cursor: 'pointer',
-                              padding: '0 4px',
-                              fontSize: 14,
-                            }}
-                            title="Edit"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(row)}
-                            style={{
-                              border: 'none',
-                              background: 'transparent',
-                              cursor: 'pointer',
-                              padding: '0 4px',
-                              fontSize: 14,
-                              color: '#b00020',
-                            }}
-                            title="Delete"
-                          >
-                            ×
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginTop: '0.5rem',
-                    fontSize: 13,
-                  }}
-                >
-                  <button
-                    onClick={handlePrev}
-                    disabled={page === 1}
-                    style={{ padding: '0.2rem 0.6rem', fontSize: 13 }}
-                  >
-                    Prev
-                  </button>
-                  <span>
-                    Page {page} of {totalPages}
-                  </span>
-                  <button
-                    onClick={handleNext}
-                    disabled={page === totalPages}
-                    style={{ padding: '0.2rem 0.6rem', fontSize: 13 }}
-                  >
-                    Next
-                  </button>
-                </div>
-              </>
+              <LedgerTable
+                rows={pageRows}
+                sortField={sortField}
+                sortDir={sortDir}
+                onSort={(field, dir) => {
+                  setSortField(field);
+                  setSortDir(dir);
+                }}
+                page={page}
+                totalPages={totalPages}
+                onPrevPage={handlePrev}
+                onNextPage={handleNext}
+                onEdit={openEditModal}
+                onDelete={(row) => void handleDelete(row)}
+                onMarkCleared={handleMarkClearedFromLedger}
+              />
             )}
           </>
         )}

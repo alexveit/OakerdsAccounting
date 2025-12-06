@@ -14,6 +14,10 @@ export function formatCurrency(value: number, decimals = 2): string {
   });
 }
 
+export function formatMoney(value: number): string {
+  return formatCurrency(value, 2);
+}
+
 /**
  * Format a number as USD currency, returning empty string for null/undefined.
  * Useful for optional values in tables.
