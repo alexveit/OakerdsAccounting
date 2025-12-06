@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { NewTransactionForm } from './NewTransactionForm';
 import { NewJobForm } from './NewJobForm';
-import { NewRealEstateDealForm } from './real-estate/NewRealEstateDealForm';
+import { NewRealEstateDealForm } from './NewRealEstateDealForm';
 import { Transfers } from './Transfers';
 import { formatCurrency } from '../utils/format';
 import { isBankCode, isCreditCardCode } from '../utils/accounts';

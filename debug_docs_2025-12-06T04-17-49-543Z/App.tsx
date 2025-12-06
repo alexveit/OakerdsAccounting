@@ -4,20 +4,20 @@ import type { Session } from '@supabase/supabase-js';
 import { Login } from './components/Login';
 import { JobDetailView } from './components/JobDetailView';
 import { DashboardOverview } from './components/DashboardOverview';
-import { InstallersView } from './components/installers/InstallersView';
-import { VendorsView } from './components/vendors/VendorsView';
-import { LeadSourcesView } from './components/lead-sources/LeadSourcesView';
+import { InstallersView } from './components/InstallersView';
+import { VendorsView } from './components/VendorsView';
+import { LeadSourcesView } from './components/LeadSourcesView';
 //import { LedgerView } from './components/LedgerViewOLD';
 import { LedgerView } from './components/ledger';
 import { ProfitSummary } from './components/ProfitSummary';
-import { ExpenseCategoriesView } from './components/expenses/ExpensesView';
+import { ExpenseCategoriesView } from './components/ExpensesView';
 import { NewEntryView } from './components/NewEntryView';
 import { TaxExportView } from './components/TaxExportView';
-import { REIView } from './components/real-estate/REIView';
-import { Analytics } from './components/analytics/AnalyticsView';
+import { REIView } from './components/REIView';
+import { Analytics } from './components/AnalyticsView';
 import { PriceListView } from './components/PriceListView';
 import { MobileContainer } from './components/mobile';
-//import { FlipDetailView } from './components/real-estate/FlipDetailView';
+import { FlipDetailView } from './components/FlipDetailView';
 
 type View =
   | 'dashboard'
