@@ -557,21 +557,21 @@ export function ExpenseByCategory() {
           <div style={{ marginBottom: '0.75rem' }}>
             {!showAllTransactions && selectedDate && (
               <button type="button" onClick={backToMonth} style={btnStyle}>
-                â† Days
+                ← Days
               </button>
             )}
             {!showAllTransactions && (
               <button type="button" onClick={backToCategory} style={btnStyle}>
-                â† Months
+                ← Months
               </button>
             )}
             {showAllTransactions && (
               <button type="button" onClick={backToCategory} style={btnStyle}>
-                â† Back to months
+                ← Back to months
               </button>
             )}
             <button type="button" onClick={resetToYear} style={btnStyle}>
-              â† All categories
+              ← All categories
             </button>
           </div>
           {detailLinesWithRunning.length === 0 && <p>No transactions found.</p>}

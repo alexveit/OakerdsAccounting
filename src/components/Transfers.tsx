@@ -175,7 +175,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
     if (fromAcc && toAcc) {
       const fromLabel = fromAcc.code ? fromAcc.code : fromAcc.name;
       const toLabel = toAcc.code ? toAcc.code : toAcc.name;
-      setDescription(`Transfer ${fromLabel} â†’ ${toLabel}`);
+      setDescription(`Transfer ${fromLabel} → ${toLabel}`);
     } else {
       setDescription('');
     }
@@ -230,8 +230,8 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
       const transactionId = tx.id as number;
 
       // Two lines that net to zero:
-      // - From: amount = -amt â†’ money leaving
-      // - To:   amount = +amt â†’ money arriving
+      // - From: amount = -amt → money leaving
+      // - To:   amount = +amt → money arriving
       const { error: lineError } = await supabase.from('transaction_lines').insert([
         {
           transaction_id: transactionId,

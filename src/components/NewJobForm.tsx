@@ -104,7 +104,7 @@ export function NewJobForm() {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Steward â€“ Main Floor"
+            placeholder="e.g. Steward - Main Floor"
           />
         </label>
 
@@ -124,7 +124,7 @@ export function NewJobForm() {
             value={leadSourceId}
             onChange={(e) => setLeadSourceId(e.target.value)}
           >
-            <option value="">(optional) Select lead sourceâ€¦</option>
+            <option value="">(optional) Select lead source...</option>
             {leadSources.map((ls) => (
               <option key={ls.id} value={ls.id}>
                 {ls.nick_name}
