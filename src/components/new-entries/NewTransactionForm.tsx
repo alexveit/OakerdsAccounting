@@ -1,9 +1,9 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import type { FormEvent } from 'react';
-import { todayLocalISO } from '../utils/date';
-import { computeMortgageSplit } from '../utils/mortgageAmortization';
-import { isCashAccount, compareAccountsForSort } from '../utils/accounts';
+import { todayLocalISO } from '../../utils/date';
+import { computeMortgageSplit } from '../../utils/mortgageAmortization';
+import { isCashAccount, compareAccountsForSort, ACCOUNT_CODES } from '../../utils/accounts';
 
 type Job = {
   id: number;
@@ -265,7 +265,7 @@ export function NewTransactionForm({
     const startIndex = currentIndex >= 0 ? currentIndex + 1 : 0;
     const ordered = [...sortedCategoryAccounts.slice(startIndex), ...sortedCategoryAccounts.slice(0, startIndex)];
     const match = ordered.find((a) => {
-      const label = `${a.code ? `${a.code} — ` : ''}${a.name}`.toLowerCase();
+      const label = `${a.code ? `${a.code} - ` : ''}${a.name}`.toLowerCase();
       return label.includes(buffer);
     });
     if (match) setCategoryAccountId(String(match.id));
@@ -486,53 +486,45 @@ export function NewTransactionForm({
     const vendor_id = vendorId ? Number(vendorId) : null;
     const installer_id = installerId ? Number(installerId) : null;
 
-    // Determine expense account based on cost type
-    const laborAccount = accounts.find(a => a.name === 'RE – Flip Rehab Labor');
-    const materialsAccount = accounts.find(a => a.name === 'RE – Flip Rehab Materials');
-    let expenseAccountId = costType === 'L' && laborAccount ? laborAccount.id : materialsAccount?.id;
+    // Determine expense account based on cost type using code lookup
+    const laborAccount = accounts.find(a => a.code === ACCOUNT_CODES.FLIP_REHAB_LABOR);
+    const materialsAccount = accounts.find(a => a.code === ACCOUNT_CODES.FLIP_REHAB_MATERIALS);
+    const expenseAccountId = costType === 'L' && laborAccount ? laborAccount.id : materialsAccount?.id;
 
     if (!expenseAccountId) {
-      throw new Error('Could not find RE – Flip Rehab Labor or Materials accounts.');
+      throw new Error('Could not find flip rehab expense account. Check account codes.');
     }
 
-    // Create transaction
-    const { data: txData, error: txErr } = await supabase
-      .from('transactions')
-      .insert({ date, description: description || null })
-      .select('id')
-      .single();
-    if (txErr) throw txErr;
-    const txId = txData.id;
+    // Build lines for create_transaction_multi
+    const lines = [
+      {
+        account_id: expenseAccountId,
+        amount: amt,
+        real_estate_deal_id,
+        rehab_category_id,
+        cost_type: costType || null,
+        vendor_id,
+        installer_id,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+      {
+        account_id: cash_id,
+        amount: -amt,
+        real_estate_deal_id,
+        rehab_category_id,
+        cost_type: costType || null,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+    ];
 
-    // Expense line (debit)
-    const { error: line1Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txId,
-      account_id: expenseAccountId,
-      amount: amt,
-      real_estate_deal_id,
-      rehab_category_id,
-      cost_type: costType || null,
-      vendor_id,
-      installer_id,
-      purpose: 'business',
-      is_cleared: isCleared,
+    const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
+      p_date: date,
+      p_description: description || null,
+      p_lines: lines,
     });
-    if (line1Err) throw line1Err;
-
-    // Cash line (credit)
-    const { error: line2Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txId,
-      account_id: cash_id,
-      amount: -amt,
-      real_estate_deal_id,
-      rehab_category_id,
-      cost_type: costType || null,
-      vendor_id,
-      installer_id,
-      purpose: 'business',
-      is_cleared: isCleared,
-    });
-    if (line2Err) throw line2Err;
+    if (rpcErr) throw rpcErr;
 
     setSuccess('Flip expense saved.');
     resetFormFields();
@@ -547,51 +539,44 @@ export function NewTransactionForm({
     const vendor_id = vendorId ? Number(vendorId) : null;
     const installer_id = installerId ? Number(installerId) : null;
 
-    // For income/refunds, use the selected category or materials account
-    const materialsAccount = accounts.find(a => a.name === 'RE – Flip Rehab Materials');
+    // For income/refunds, use the selected category or materials account (by code)
+    const materialsAccount = accounts.find(a => a.code === ACCOUNT_CODES.FLIP_REHAB_MATERIALS);
     const expenseAccountId = categoryAccountId ? Number(categoryAccountId) : materialsAccount?.id;
 
     if (!expenseAccountId) {
       throw new Error('Could not find expense account for refund.');
     }
 
-    const { data: txData, error: txErr } = await supabase
-      .from('transactions')
-      .insert({ date, description: description || null })
-      .select('id')
-      .single();
-    if (txErr) throw txErr;
-    const txId = txData.id;
+    // Build lines for create_transaction_multi
+    const lines = [
+      {
+        account_id: cash_id,
+        amount: amt,
+        real_estate_deal_id,
+        rehab_category_id,
+        cost_type: costType || null,
+        vendor_id,
+        installer_id,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+      {
+        account_id: expenseAccountId,
+        amount: -amt,
+        real_estate_deal_id,
+        rehab_category_id,
+        cost_type: costType || null,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+    ];
 
-    // Cash line (debit - money in)
-    const { error: line1Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txId,
-      account_id: cash_id,
-      amount: amt,
-      real_estate_deal_id,
-      rehab_category_id,
-      cost_type: costType || null,
-      vendor_id,
-      installer_id,
-      purpose: 'business',
-      is_cleared: isCleared,
+    const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
+      p_date: date,
+      p_description: description || null,
+      p_lines: lines,
     });
-    if (line1Err) throw line1Err;
-
-    // Expense credit line (negative expense = refund)
-    const { error: line2Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txId,
-      account_id: expenseAccountId,
-      amount: -amt,
-      real_estate_deal_id,
-      rehab_category_id,
-      cost_type: costType || null,
-      vendor_id,
-      installer_id,
-      purpose: 'business',
-      is_cleared: isCleared,
-    });
-    if (line2Err) throw line2Err;
+    if (rpcErr) throw rpcErr;
 
     setSuccess('Refund saved.');
     resetFormFields();
@@ -620,8 +605,8 @@ export function NewTransactionForm({
       if (!deal) { setError('Deal not found.'); setSaving(false); return; }
       if (!deal.loan_account_id) { setError('Deal has no loan account.'); setSaving(false); return; }
 
-      const interestAccount = accounts.find((a) => a.name === 'RE – Mortgage Interest');
-      const escrowAccount = accounts.find((a) => a.name === 'RE – Taxes & Insurance');
+      const interestAccount = accounts.find((a) => a.code === ACCOUNT_CODES.RENTAL_MORTGAGE_INTEREST);
+      const escrowAccount = accounts.find((a) => a.code === ACCOUNT_CODES.RENTAL_TAXES_INSURANCE);
       if (!interestAccount || !escrowAccount) { setError('Missing RE accounts.'); setSaving(false); return; }
 
       const cash_id = Number(cashAccountId);
@@ -644,7 +629,7 @@ export function NewTransactionForm({
 
       const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
         p_date: date,
-        p_description: description || `Mortgage payment — ${deal.nickname}`,
+        p_description: description || `Mortgage payment - ${deal.nickname}`,
         p_purpose: 'business',
         p_lines: lines,
       });
@@ -669,7 +654,7 @@ export function NewTransactionForm({
     setMortgagePreview(null);
   }
 
-  if (loading) return <p>Loading form options…</p>;
+  if (loading) return <p>Loading form options...</p>;
 
   // Group rehab categories
   const groupedRehabCategories = rehabCategories.reduce((acc, cat) => {
@@ -704,7 +689,7 @@ export function NewTransactionForm({
           <label>
             Job
             <select value={jobId} onChange={(e) => setJobId(e.target.value)}>
-              <option value="">Select job…</option>
+              <option value="">Select job...</option>
               {jobs.map((j) => <option key={j.id} value={j.id}>{j.name}</option>)}
             </select>
           </label>
@@ -723,10 +708,10 @@ export function NewTransactionForm({
           <label>
             Real estate deal
             <select value={dealId} onChange={(e) => { setDealId(e.target.value); setRehabCategoryId(''); setCostType(''); }}>
-              <option value="">Select deal…</option>
+              <option value="">Select deal...</option>
               {realEstateDeals.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.nickname}{d.address ? ` — ${d.address}` : ''}{d.type ? ` (${d.type})` : ''}
+                  {d.nickname}{d.address ? ` - ${d.address}` : ''}{d.type ? ` (${d.type})` : ''}
                 </option>
               ))}
             </select>
@@ -763,18 +748,18 @@ export function NewTransactionForm({
         {/* FLIP EXPENSE FIELDS */}
         {linkToDeal && isFlipDeal && txType === 'expense' && (
           <div style={{ padding: '0.75rem', border: '1px solid #ddd', borderRadius: 8, background: '#f5f5dc' }}>
-            <div style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: 14 }}>🔨 Flip Expense Details</div>
+            <div style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: 14 }}>Flip Expense Details</div>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.5rem' }}>
               <label>
                 Rehab Category
                 <select value={rehabCategoryId} onChange={(e) => setRehabCategoryId(e.target.value)} style={{ width: '100%' }}>
-                  <option value="">Select category…</option>
+                  <option value="">Select category...</option>
                   {groupOrder.map(group => {
                     const cats = groupedRehabCategories[group];
                     if (!cats || cats.length === 0) return null;
                     return (
                       <optgroup key={group} label={groupLabels[group] || group}>
-                        {cats.map(cat => <option key={cat.id} value={cat.id}>{cat.code} – {cat.name}</option>)}
+                        {cats.map(cat => <option key={cat.id} value={cat.id}>{cat.code} - {cat.name}</option>)}
                       </optgroup>
                     );
                   })}
@@ -783,10 +768,10 @@ export function NewTransactionForm({
               <label>
                 Cost Type
                 <select value={costType} onChange={(e) => setCostType(e.target.value as CostType)} style={{ width: '100%' }}>
-                  <option value="">Select…</option>
-                  <option value="L">L – Labor</option>
-                  <option value="M">M – Material</option>
-                  <option value="S">S – Service</option>
+                  <option value="">Select...</option>
+                  <option value="L">L - Labor</option>
+                  <option value="M">M - Material</option>
+                  <option value="S">S - Service</option>
                 </select>
               </label>
             </div>
@@ -794,7 +779,7 @@ export function NewTransactionForm({
               <label style={{ marginTop: '0.5rem', display: 'block' }}>
                 Vendor
                 <select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
-                  <option value="">Select vendor…</option>
+                  <option value="">Select vendor...</option>
                   {vendors.map((v) => <option key={v.id} value={v.id}>{v.nick_name}</option>)}
                 </select>
               </label>
@@ -803,7 +788,7 @@ export function NewTransactionForm({
               <label style={{ marginTop: '0.5rem', display: 'block' }}>
                 Installer
                 <select value={installerId} onChange={(e) => setInstallerId(e.target.value)}>
-                  <option value="">Select installer…</option>
+                  <option value="">Select installer...</option>
                   {installers.map((i) => <option key={i.id} value={i.id}>{formatInstaller(i)}</option>)}
                 </select>
               </label>
@@ -815,7 +800,7 @@ export function NewTransactionForm({
         <label>
           Date
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          {isDateFuture && <span style={{ fontSize: 12, color: '#ff9800', display: 'block' }}>⚠️ Future date</span>}
+          {isDateFuture && <span style={{ fontSize: 12, color: '#ff9800', display: 'block' }}>[!] Future date</span>}
         </label>
 
         {/* Type */}
@@ -841,20 +826,20 @@ export function NewTransactionForm({
 
         {/* Job vendor/installer */}
         {txType === 'expense' && linkToJob && effectiveExpenseKind === 'material' && !isMortgagePayment && (
-          <label>Vendor<select value={vendorId} onChange={(e) => setVendorId(e.target.value)}><option value="">Select…</option>{vendors.map((v) => <option key={v.id} value={v.id}>{v.nick_name}</option>)}</select></label>
+          <label>Vendor<select value={vendorId} onChange={(e) => setVendorId(e.target.value)}><option value="">Select...</option>{vendors.map((v) => <option key={v.id} value={v.id}>{v.nick_name}</option>)}</select></label>
         )}
         {txType === 'expense' && linkToJob && effectiveExpenseKind === 'labor' && !isMortgagePayment && (
-          <label>Installer<select value={installerId} onChange={(e) => setInstallerId(e.target.value)}><option value="">Select…</option>{installers.map((i) => <option key={i.id} value={i.id}>{formatInstaller(i)}</option>)}</select></label>
+          <label>Installer<select value={installerId} onChange={(e) => setInstallerId(e.target.value)}><option value="">Select...</option>{installers.map((i) => <option key={i.id} value={i.id}>{formatInstaller(i)}</option>)}</select></label>
         )}
 
         {/* Cash account */}
         <label>
           Pay from / deposit to
           <select value={cashAccountId} onChange={(e) => setCashAccountId(e.target.value)}>
-            <option value="">Select account…</option>
+            <option value="">Select account...</option>
             {cashAccounts.map((a) => {
               const isCard = a.account_types?.name === 'liability';
-              return <option key={a.id} value={a.id}>{a.code ? `${a.code} — ` : ''}{a.name}{isCard ? ' (card)' : ''}</option>;
+              return <option key={a.id} value={a.id}>{a.code ? `${a.code} - ` : ''}{a.name}{isCard ? ' (card)' : ''}</option>;
             })}
           </select>
         </label>
@@ -864,24 +849,24 @@ export function NewTransactionForm({
           <label>
             Category
             <select value={categoryAccountId} onChange={(e) => setCategoryAccountId(e.target.value)} onKeyDown={handleCategoryKeyDown}>
-              <option value="">Select category…</option>
-              {sortedCategoryAccounts.map((a) => <option key={a.id} value={a.id}>{a.code ? `${a.code} — ` : ''}{a.name}</option>)}
+              <option value="">Select category...</option>
+              {sortedCategoryAccounts.map((a) => <option key={a.id} value={a.id}>{a.code ? `${a.code} - ` : ''}{a.name}</option>)}
             </select>
           </label>
         )}
 
         {linkToDeal && isFlipDeal && txType === 'expense' && costType && (
           <div style={{ fontSize: 12, color: '#666', marginTop: '-0.5rem' }}>
-            Account: {costType === 'L' ? 'RE – Flip Rehab Labor' : 'RE – Flip Rehab Materials'}
+            Account: {costType === 'L' ? 'RE - Flip Rehab Labor' : 'RE - Flip Rehab Materials'}
           </div>
         )}
 
-        <label>Description<input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. HD materials, Bruno framing…" /></label>
+        <label>Description<input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. HD materials, Bruno framing..." /></label>
 
         <label>
           Amount
           <input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-          {isAmountLarge && <span style={{ fontSize: 12, color: '#ff9800', display: 'block' }}>⚠️ Large amount</span>}
+          {isAmountLarge && <span style={{ fontSize: 12, color: '#ff9800', display: 'block' }}>[!] Large amount</span>}
         </label>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -890,7 +875,7 @@ export function NewTransactionForm({
         </label>
 
         <button type="submit" disabled={saving} style={{ marginTop: '0.5rem', padding: '0.6rem 1rem', fontWeight: 500 }}>
-          {saving ? 'Saving…' : 'Save Transaction'}
+          {saving ? 'Saving...' : 'Save Transaction'}
         </button>
       </form>
 
@@ -914,7 +899,7 @@ export function NewTransactionForm({
               const isBalanced = Math.abs(diff) < 0.02;
               return (
                 <div style={{ padding: '0.5rem', borderRadius: 6, marginBottom: '0.75rem', backgroundColor: isBalanced ? '#d4edda' : '#f8d7da', fontSize: 13 }}>
-                  Split: ${editTotal.toFixed(2)} {isBalanced ? '✓' : `(${diff > 0 ? '+' : ''}${diff.toFixed(2)})`}
+                  Split: ${editTotal.toFixed(2)} {isBalanced ? 'OK' : `(${diff > 0 ? '+' : ''}${diff.toFixed(2)})`}
                 </div>
               );
             })()}
@@ -922,7 +907,7 @@ export function NewTransactionForm({
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button type="button" onClick={handleCancelMortgageSplit} disabled={saving}>Cancel</button>
               <button type="button" onClick={handleConfirmMortgageSplit} disabled={saving} style={{ background: '#0066cc', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: 4 }}>
-                {saving ? 'Saving…' : 'Confirm & Save'}
+                {saving ? 'Saving...' : 'Confirm & Save'}
               </button>
             </div>
           </div>

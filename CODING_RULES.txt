@@ -9,13 +9,15 @@ These rules apply to ALL code generation for this project.
 --------------------------------------------------------------------------------
 
 ACCOUNT CODES (src/utils/accounts.ts)
-- Import: ACCOUNT_CODE_RANGES, ACCOUNT_TYPE_IDS, SPECIAL_ACCOUNTS
+- Import: ACCOUNT_CODE_RANGES, ACCOUNT_TYPE_IDS, SPECIAL_ACCOUNTS, ACCOUNT_CODES
 - Import helpers: isBankCode, isBusinessCardCode, isPersonalCardCode, 
   isPersonalDebtCode, isHelocCode, isCreditCardCode, isRentalExpenseCode,
   isFlipExpenseCode, isMarketingExpenseCode, isRentalIncomeCode,
   isRealEstateAssetCode, isMortgageCode
 - NEVER hardcode account ranges (e.g., code >= 1000 && code <= 1999)
 - ALWAYS use: ACCOUNT_CODE_RANGES.BANK_MIN, ACCOUNT_CODE_RANGES.BANK_MAX, etc.
+- NEVER use account names for lookups (e.g., a.name === 'RE - Mortgage Interest')
+- ALWAYS use ACCOUNT_CODES: accounts.find(a => a.code === ACCOUNT_CODES.RENTAL_MORTGAGE_INTEREST)
 
 FORMATTING (src/utils/format.ts)
 - Import: formatCurrency, formatMoney, formatCurrencyOptional, formatPercent
@@ -43,8 +45,28 @@ DATES (src/utils/date.ts)
 DOUBLE-ENTRY RULES
 - Every transaction MUST have lines that sum to zero (debits = credits)
 - Never create single-sided transactions
-- Opening balances for liabilities offset to asset accounts, not equity
-- Opening balances for assets offset to equity accounts
+- DB trigger `trg_enforce_balance_*` blocks unbalanced transactions at database level
+
+TRANSACTION CREATION - USE RPC
+- ALWAYS use `create_transaction_multi` RPC for creating transactions
+- NEVER insert directly into transactions/transaction_lines tables
+- RPC validates balance before committing (rejects if SUM != 0)
+- RPC inserts all lines atomically in single statement
+
+Example:
+  const { error } = await supabase.rpc('create_transaction_multi', {
+    p_date: date,
+    p_description: description,
+    p_lines: [
+      { account_id: cashAccountId, amount: -100, is_cleared: true, purpose: 'business' },
+      { account_id: expenseAccountId, amount: 100, is_cleared: true, purpose: 'business' },
+    ],
+  });
+
+OPENING BALANCES
+- Mortgage/loan liabilities: offset to Owner Equity (account_id: 10, code: 3000)
+- Asset accounts: offset to Owner Equity
+- Pattern: Liability negative, Equity positive (or vice versa) - must sum to zero
 
 TRANSACTION STRUCTURE
 - transactions table: id, date, description
@@ -98,29 +120,73 @@ COMPONENT STRUCTURE
 - Foreign key relationships use ON DELETE CASCADE or ON DELETE SET NULL
 
 --------------------------------------------------------------------------------
-7. WHAT NOT TO DO
+7. CODE FILE STANDARDS
 --------------------------------------------------------------------------------
 
-❌ Hardcode account ranges: code >= 2000 && code <= 2099
-❌ Create local formatCurrency/formatMoney functions
-❌ Create local formatDate functions  
-❌ Use `as any[]` without good reason
-❌ Create single-sided transactions
-❌ Duplicate helper functions that exist in utils/
+ASCII ONLY
+- All .ts/.tsx files must contain only ASCII characters
+- No Unicode dashes, quotes, or symbols in code
+- Use standard ASCII: - instead of em-dash, ' instead of curly quotes
+- Prevents corruption when files are processed by different tools
+
+Unicode characters get corrupted when files pass through different systems
+(Windows CRLF, copy/paste, encoding mismatches). Use ASCII equivalents only.
+
+FORBIDDEN -> USE INSTEAD
+  em-dash or en-dash    ->  -- or -
+  ellipsis character    ->  ... (three periods)
+  arrow character       ->  ->
+  curly apostrophes     ->  ' (straight apostrophe)
+  curly quotes          ->  " (straight quote)
+  warning emoji         ->  [!] or text
+  checkmark             ->  [x] or OK or text
+
+IN UI STRINGS
+  BAD:  'Select job...'  (ellipsis character U+2026)
+  GOOD: 'Select job...' (three periods)
+
+  BAD:  'Transfer Bank -> Card' (arrow character U+2192)
+  GOOD: 'Transfer Bank -> Card' (hyphen + greater than)
+
+  BAD:  '${code} -- ${name}' (em-dash U+2014)
+  GOOD: '${code} - ${name}' (regular hyphen)
+
+IN COMMENTS
+  BAD:  // From: -amt -> money leaving (arrow character)
+  GOOD: // From: -amt -> money leaving (hyphen + greater than)
+
+This prevents garbled output like: a->', a EUR ", a[TM], etc.
 
 --------------------------------------------------------------------------------
-8. WHAT TO ALWAYS DO
+8. WHAT NOT TO DO
 --------------------------------------------------------------------------------
 
-✅ Import from centralized utils (accounts.ts, format.ts, date.ts)
-✅ Use ACCOUNT_CODE_RANGES constants
-✅ Use helper functions: isBankCode(), isBusinessCardCode(), etc.
-✅ Ensure transactions balance (sum of lines = 0)
-✅ Define proper TypeScript types
-✅ Handle Supabase errors explicitly
+X  Hardcode account ranges: code >= 2000 && code <= 2099
+X  Use account names for lookups: a.name === 'RE - Mortgage Interest'
+X  Create local formatCurrency/formatMoney functions
+X  Create local formatDate functions  
+X  Use `as any[]` without good reason
+X  Create single-sided transactions
+X  Duplicate helper functions that exist in utils/
+X  Insert directly into transactions/transaction_lines (use RPC)
+X  Use Unicode characters in code files
 
 --------------------------------------------------------------------------------
-9. ACCOUNT CODE RANGES REFERENCE
+9. WHAT TO ALWAYS DO
+--------------------------------------------------------------------------------
+
+OK  Import from centralized utils (accounts.ts, format.ts, date.ts)
+OK  Use ACCOUNT_CODE_RANGES constants
+OK  Use ACCOUNT_CODES for specific account lookups
+OK  Use helper functions: isBankCode(), isBusinessCardCode(), etc.
+OK  Use create_transaction_multi RPC for all transaction creation
+OK  Ensure transactions balance (sum of lines = 0)
+OK  Define proper TypeScript types
+OK  Handle Supabase errors explicitly
+OK  Keep code files ASCII-only
+
+--------------------------------------------------------------------------------
+10. ACCOUNT CODE RANGES REFERENCE
 --------------------------------------------------------------------------------
 
 ASSETS (1xxx, 63xxx)
@@ -137,6 +203,7 @@ LIABILITIES (2xxx, 64xxx)
 
 EQUITY (3xxx)
 - Equity: 3000-3999
+- Owner Equity: account_id=10, code=3000 (used for opening balance offsets)
 
 INCOME (4xxx, 61xxx)
 - Job Income: 4000-4999
@@ -149,5 +216,51 @@ EXPENSES (5xxxx, 6xxxx)
 - Real Estate Expenses: 62000-62999
   - Rental Expenses: 62000-62099
   - Flip Expenses: 62100-62105
+
+--------------------------------------------------------------------------------
+11. SPECIFIC ACCOUNT CODES (ACCOUNT_CODES constant)
+--------------------------------------------------------------------------------
+
+Use these for direct account lookups instead of name matching:
+
+INCOME
+- JOB_INCOME: '4000'
+- RENTAL_INCOME: '61000'
+
+FLIP EXPENSES (62100-62105)
+- FLIP_INTEREST: '62100'
+- FLIP_REHAB_MATERIALS: '62101'
+- FLIP_REHAB_LABOR: '62102'
+- FLIP_CLOSING_COSTS: '62103'
+- FLIP_SERVICES: '62104'
+- FLIP_HOLDING_COSTS: '62105'
+
+RENTAL EXPENSES
+- RENTAL_REPAIRS: '62005'
+- RENTAL_PROPERTY_MGMT: '62006'
+- RENTAL_UTILITIES: '62007'
+- RENTAL_HOME_WARRANTY: '62008'
+- RENTAL_SUPPLIES: '62009'
+- RENTAL_HOA: '62010'
+- RENTAL_TAXES_INSURANCE: '62011'
+- RENTAL_MORTGAGE_INTEREST: '62012'
+
+--------------------------------------------------------------------------------
+12. SESSION LEARNINGS - META RULE
+--------------------------------------------------------------------------------
+
+After any substantial database or application improvement session:
+
+1. Review changes made during the session
+2. Identify patterns, conventions, or rules that were established
+3. Add relevant learnings to this CODING_RULES.txt file
+4. This ensures institutional knowledge is captured and not lost
+
+Examples of what to capture:
+- New RPC functions and their usage patterns
+- Database constraints or triggers added
+- Architectural decisions (e.g., where components should live)
+- Bug patterns to avoid
+- New utility functions or constants
 
 ================================================================================

@@ -11,7 +11,7 @@ import { LeadSourcesView } from './components/lead-sources/LeadSourcesView';
 import { LedgerView } from './components/ledger';
 import { ProfitSummary } from './components/ProfitSummary';
 import { ExpenseCategoriesView } from './components/expenses/ExpensesView';
-import { NewEntryView } from './components/NewEntryView';
+import { NewEntryView } from './components/new-entries/NewEntryView';
 import { TaxExportView } from './components/TaxExportView';
 import { REIView } from './components/real-estate/REIView';
 import { Analytics } from './components/analytics/AnalyticsView';

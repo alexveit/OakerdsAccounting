@@ -1,13 +1,12 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import { NewTransactionForm } from './NewTransactionForm';
 import { NewJobForm } from './NewJobForm';
-import { NewRealEstateDealForm } from './real-estate/NewRealEstateDealForm';
-import { Transfers } from './Transfers';
-import { formatCurrency } from '../utils/format';
-import { isBankCode, isCreditCardCode } from '../utils/accounts';
+import { Transfers } from '../Transfers';
+import { formatCurrency } from '../../utils/format';
+import { isBankCode, isCreditCardCode } from '../../utils/accounts';
 
-type EntryTab = 'transaction' | 'job' | 'deal' | 'transfer';
+type EntryTab = 'transaction' | 'job' | 'transfer';
 
 type AccountBalance = {
   account_id: number;
@@ -102,7 +101,7 @@ export function NewEntryView({ initialJobId }: { initialJobId?: number | null })
     isCard = false
   ) => {
     if (loadingAccounts) {
-      return <p style={{ fontSize: 13, color: '#777' }}>Loading…</p>;
+      return <p style={{ fontSize: 13, color: '#777' }}>Loading...</p>;
     }
     if (accountsError) {
       return <p style={{ color: 'red', fontSize: 13 }}>Error: {accountsError}</p>;
@@ -170,13 +169,6 @@ export function NewEntryView({ initialJobId }: { initialJobId?: number | null })
           onClick={() => setTab('job')}
         >
           Job
-        </button>
-        <button
-          type="button"
-          className={`tab ${tab === 'deal' ? 'tab--active' : ''}`}
-          onClick={() => setTab('deal')}
-        >
-          RE Deal
         </button>
         <button
           type="button"
@@ -253,19 +245,6 @@ export function NewEntryView({ initialJobId }: { initialJobId?: number | null })
             }}
           >
             <NewJobForm />
-          </div>
-        )}
-
-        {tab === 'deal' && (
-          <div
-            className="card"
-            style={{
-              maxWidth: 900,
-              margin: '0 auto',
-              padding: '1rem',
-            }}
-          >
-            <NewRealEstateDealForm />
           </div>
         )}
       </div>

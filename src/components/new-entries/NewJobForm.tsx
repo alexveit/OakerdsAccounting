@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import type { FormEvent } from 'react';
-import { todayLocalISO } from '../utils/date';
+import { todayLocalISO } from '../../utils/date';
 
 
 type LeadSource = {

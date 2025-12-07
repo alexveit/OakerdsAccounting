@@ -1,4 +1,6 @@
+# -------------------------
 # Logs
+# -------------------------
 logs
 *.log
 npm-debug.log*
@@ -7,45 +9,64 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# -------------------------
 # Node
+# -------------------------
 node_modules/
 dist/
 dist-ssr/
 
-# Environment files (CRITICAL)
+# -------------------------
+# Environment Files (CRITICAL — Do Not Commit Secrets)
+# -------------------------
 .env
 .env.*
 !.env.example
+.env*.local
 
-# Local config
+# -------------------------
+# Local Config / Editor Settings
+# -------------------------
 *.local
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 
-# Supabase metadata
+# -------------------------
+# Supabase Metadata
+# -------------------------
 .supabase/
 
-# OS / Editor junk
+# -------------------------
+# OS / Editor Junk
+# -------------------------
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# Lock files (optional — ignore if switching package managers)
-package-lock.json
-pnpm-lock.yaml
-yarn.lock
+# -------------------------
+# Lock Files (optional)
+# Uncomment if you switch package managers frequently
+# -------------------------
+# package-lock.json
+# pnpm-lock.yaml
+# yarn.lock
 
-# DB Snapshots
-#db_backup/
-#my_db_backup.ps1
-#*.sql
-#*.gz
-
+# -------------------------
+# Database Snapshots / Sensitive Data
+# -------------------------
 pg_password.txt
+*.sql
+*.dump
+*.gz
+db_backup/
+db_debug/
+debug_docs_*.zip
 
-.vercel
-.env*.local
+# -------------------------
+# Build / Deploy Platforms
+# -------------------------
+.vercel/

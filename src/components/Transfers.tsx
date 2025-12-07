@@ -52,6 +52,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
   const [toAccountId, setToAccountId] = useState('');
   const [amount, setAmount] = useState('');
   const [purpose, setPurpose] = useState<Purpose>('business');
+  const [isCleared, setIsCleared] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -175,7 +176,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
     if (fromAcc && toAcc) {
       const fromLabel = fromAcc.code ? fromAcc.code : fromAcc.name;
       const toLabel = toAcc.code ? toAcc.code : toAcc.name;
-      setDescription(`Transfer ${fromLabel} → ${toLabel}`);
+      setDescription(`Transfer ${fromLabel} -> ${toLabel}`);
     } else {
       setDescription('');
     }
@@ -212,46 +213,34 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
 
     setSaving(true);
     try {
-      // Create parent transaction
-      const { data: tx, error: txError } = await supabase
-        .from('transactions')
-        .insert({
-          date,
-          description: description.trim() || 'Account transfer',
-        })
-        .select('id')
-        .single();
-
-      if (txError || !tx) {
-        console.error('Failed to create transfer transaction', txError);
-        throw new Error('Could not create transfer transaction.');
-      }
-
-      const transactionId = tx.id as number;
-
+      // Build lines for create_transaction_multi RPC
       // Two lines that net to zero:
-      // - From: amount = -amt → money leaving
-      // - To:   amount = +amt → money arriving
-      const { error: lineError } = await supabase.from('transaction_lines').insert([
+      // - From: amount = -amt -> money leaving
+      // - To:   amount = +amt -> money arriving
+      const lines = [
         {
-          transaction_id: transactionId,
           account_id: fromId,
           amount: -amt,
-          is_cleared: true,
+          is_cleared: isCleared,
           purpose,
         },
         {
-          transaction_id: transactionId,
           account_id: toId,
           amount: amt,
-          is_cleared: true,
+          is_cleared: isCleared,
           purpose,
         },
-      ]);
+      ];
 
-      if (lineError) {
-        console.error('Failed to insert transfer lines', lineError);
-        throw new Error('Could not save transfer lines.');
+      const { error: rpcError } = await supabase.rpc('create_transaction_multi', {
+        p_date: date,
+        p_description: description.trim() || 'Account transfer',
+        p_lines: lines,
+      });
+
+      if (rpcError) {
+        console.error('Failed to create transfer transaction', rpcError);
+        throw new Error(rpcError.message || 'Could not create transfer transaction.');
       }
 
       setSaveSuccess('Transfer saved.');
@@ -413,6 +402,16 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
             />
           </label>
         </div>
+
+        {/* Cleared checkbox */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 13, marginBottom: '0.75rem' }}>
+          <input
+            type="checkbox"
+            checked={isCleared}
+            onChange={(e) => setIsCleared(e.target.checked)}
+          />
+          Mark as cleared
+        </label>
 
         {saveError && (
           <p style={{ color: 'red', fontSize: 12, marginBottom: '0.5rem' }}>{saveError}</p>

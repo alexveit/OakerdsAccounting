@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { RentalOperationsView } from './RentalOperationsView';
 import { FlipDetailView } from './FlipDetailView';
-//import { FlipSummary } from './FlipSummary';
 import { WholesaleOperationsView } from './WholesaleOperationsView';
 import { DealEditView } from './DealEditView';
+import { NewRealEstateDealForm } from './NewRealEstateDealForm';
 
-type REITab = 'rentals' | 'flips' | 'wholesales' | 'editDeal';
+type REITab = 'rentals' | 'flips' | 'wholesales' | 'editDeal' | 'newDeal';
 
 // Generate year options from 2020 to current year
 function getYearOptions(): string[] {
@@ -26,6 +26,11 @@ export function REIView() {
 
   // Only show year selector for views that use it
   const showYearSelector = tab === 'rentals' || tab === 'wholesales';
+
+  // Callback when a new deal is created - switch to appropriate tab
+  function handleDealCreated() {
+    // Could switch to rentals/flips based on deal type, but for now just stay
+  }
 
   return (
     <div>
@@ -98,6 +103,14 @@ export function REIView() {
         >
           Edit Deal
         </button>
+
+        <button
+          type="button"
+          className={`tab ${tab === 'newDeal' ? 'tab--active' : ''}`}
+          onClick={() => setTab('newDeal')}
+        >
+          + New Deal
+        </button>
       </div>
 
       {/* Content */}
@@ -106,6 +119,18 @@ export function REIView() {
         {tab === 'flips' && <FlipDetailView />}
         {tab === 'wholesales' && <WholesaleOperationsView />}
         {tab === 'editDeal' && <DealEditView />}
+        {tab === 'newDeal' && (
+          <div
+            className="card"
+            style={{
+              maxWidth: 900,
+              margin: '0 auto',
+              padding: '1rem',
+            }}
+          >
+            <NewRealEstateDealForm onCreated={handleDealCreated} />
+          </div>
+        )}
       </div>
     </div>
   );

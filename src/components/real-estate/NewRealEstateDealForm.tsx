@@ -2,6 +2,9 @@ import { useState, type FormEvent } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { ACCOUNT_CODE_RANGES, ACCOUNT_TYPE_IDS } from '../../utils/accounts';
 
+// Owner Equity account ID - used for balancing mortgage opening entries
+const OWNER_EQUITY_ACCOUNT_ID = 10;
+
 type DealType = 'rental' | 'flip' | 'wholesale';
 type DealStatus = 'active' | 'in_contract' | 'rehab' | 'listed' | 'under_contract' | 'stabilized' | 'sold' | 'failed';
 type LoanType = 'hard_money' | 'conventional' | 'heloc' | 'private' | 'other';
@@ -60,9 +63,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // ─────────────────────────────────────────────────────────────────
+  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
   // Computed values for display
-  // ─────────────────────────────────────────────────────────────────
+  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
 
   const purchasePriceNum = parseNumber(purchasePrice) ?? 0;
   const assignmentFeeNum = parseNumber(assignmentFeePaid) ?? 0;
@@ -90,9 +93,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   // Cash to close estimate
   const estimatedCashToClose = totalAcquisitionCost + closingCostsNum - loanToClosingTable;
 
-  // ─────────────────────────────────────────────────────────────────
+  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
   // Helpers
-  // ─────────────────────────────────────────────────────────────────
+  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
 
   function parseNumber(val: string): number | null {
     if (!val.trim()) return null;
@@ -172,7 +175,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     const { data: assetData, error: assetError } = await supabase
       .from('accounts')
       .insert({
-        name: `RE – Asset ${dealNickname}`,
+        name: `RE ?EUR" Asset ${dealNickname}`,
         code: assetCode,
         account_type_id: ACCOUNT_TYPE_IDS.ASSET,
         is_active: true,
@@ -187,7 +190,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     const { data: loanData, error: loanError } = await supabase
       .from('accounts')
       .insert({
-        name: `RE – ${loanLabel} ${dealNickname}`,
+        name: `RE ?EUR" ${loanLabel} ${dealNickname}`,
         code: loanCode,
         account_type_id: ACCOUNT_TYPE_IDS.LIABILITY,
         is_active: true,
@@ -204,9 +207,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     };
   }
 
-  // ─────────────────────────────────────────────────────────────────
+  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
   // Submit
-  // ─────────────────────────────────────────────────────────────────
+  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -277,7 +280,6 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         arv: parseNumber(arv),
         rehab_budget: parseNumber(rehabBudget),
         closing_costs_estimate: parseNumber(closingCostsEstimate),
-        holding_costs_estimate: parseNumber(holdingCostsEstimate),
         rental_monthly_rent: parseNumber(rentalMonthlyRent),
         rental_monthly_mortgage: parseNumber(rentalMonthlyMortgage),
         rental_monthly_taxes: parseNumber(rentalMonthlyTaxes),
@@ -306,8 +308,44 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
 
       if (error) throw error;
 
+      // If financed, create opening balance transaction (balanced entry)
+      // Mortgage liability (negative) offset by Owner Equity (positive)
+      if (isFinanced && loanAccountId) {
+        const loanAmt = parseNumber(originalLoanAmount) ?? 0;
+        if (loanAmt > 0) {
+          const openingLines = [
+            {
+              account_id: loanAccountId,
+              amount: -loanAmt,  // Liability - you owe this
+              is_cleared: true,
+              purpose: 'business',
+            },
+            {
+              account_id: OWNER_EQUITY_ACCOUNT_ID,
+              amount: loanAmt,   // Balancing entry to equity
+              is_cleared: true,
+              purpose: 'business',
+            },
+          ];
+
+          const { error: txError } = await supabase.rpc('create_transaction_multi', {
+            p_date: closeDate,
+            p_description: `Opening Balance - ${nickname.trim()}`,
+            p_lines: openingLines,
+          });
+
+          if (txError) {
+            console.error('Failed to create opening balance transaction:', txError);
+            // Don't throw - deal is already created, just warn
+            setSuccess(`Deal "${nickname}" saved, but opening balance transaction failed: ${txError.message}`);
+            onCreated?.();
+            return;
+          }
+        }
+      }
+
       console.log('Created real estate deal', data);
-      setSuccess(`Deal "${nickname}" saved successfully! Asset and loan accounts created.`);
+      setSuccess(`Deal "${nickname}" saved successfully!${isFinanced ? ' Accounts and opening balance created.' : ''}`);
 
       // Reset form
       setNickname('');
@@ -345,9 +383,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────
+  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
   // Styles
-  // ─────────────────────────────────────────────────────────────────
+  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
 
   const labelStyle: React.CSSProperties = {
     display: 'flex',
@@ -382,9 +420,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     padding: '0.25rem 0',
   };
 
-  // ─────────────────────────────────────────────────────────────────
+  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
   // Render
-  // ─────────────────────────────────────────────────────────────────
+  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
 
   return (
     <div className="card">
@@ -409,7 +447,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           gap: '0.75rem 1rem',
         }}
       >
-        {/* ───────────── CORE INFO ───────────── */}
+        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR CORE INFO ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
         <label style={labelStyle}>
           Deal type
           <select value={type} onChange={(e) => setType(e.target.value as DealType)}>
@@ -453,7 +491,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           />
         </label>
 
-        {/* ───────────── DATES ───────────── */}
+        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR DATES ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
         <div style={sectionStyle}>Dates</div>
 
         <label style={labelStyle}>
@@ -485,7 +523,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </label>
         )}
 
-        {/* ───────────── ACQUISITION COSTS ───────────── */}
+        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR ACQUISITION COSTS ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
         <div style={sectionStyle}>Acquisition</div>
 
         <label style={labelStyle}>
@@ -551,7 +589,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
             </label>
 
             <label style={labelStyle}>
-              Holding costs estimate (monthly × months)
+              Holding costs estimate (monthly x months)
               <input
                 type="number"
                 step="0.01"
@@ -563,7 +601,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </>
         )}
 
-        {/* ───────────── FINANCING ───────────── */}
+        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR FINANCING ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
         <div style={sectionStyle}>Financing</div>
 
         <label
@@ -710,7 +748,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </>
         )}
 
-        {/* ───────────── RENTAL OPERATIONS ───────────── */}
+        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR RENTAL OPERATIONS ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
         {type === 'rental' && (
           <>
             <div style={sectionStyle}>Rental Operations</div>
@@ -767,7 +805,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </>
         )}
 
-        {/* ───────────── WHOLESALE (when YOU are wholesaling) ───────────── */}
+        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR WHOLESALE (when YOU are wholesaling) ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
         {type === 'wholesale' && (
           <>
             <div style={sectionStyle}>Assignment Fee (Your Fee)</div>
@@ -794,7 +832,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </>
         )}
 
-        {/* ───────────── DEAL SUMMARY (Flip) ───────────── */}
+        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR DEAL SUMMARY (Flip) ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
         {type === 'flip' && (purchasePriceNum > 0 || arvNum > 0) && (
           <div style={{
             ...summaryCardStyle,
@@ -874,7 +912,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </div>
         )}
 
-        {/* ───────────── NOTES ───────────── */}
+        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR NOTES ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
         <label style={{ ...labelStyle, gridColumn: '1 / span 2' }}>
           Notes
           <textarea
@@ -885,7 +923,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           />
         </label>
 
-        {/* ───────────── SUBMIT ───────────── */}
+        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR SUBMIT ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
         <div
           style={{
             gridColumn: '1 / span 2',
@@ -894,7 +932,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           }}
         >
           <button type="submit" disabled={saving} style={{ padding: '0.5rem 1.5rem' }}>
-            {saving ? 'Saving…' : 'Save Deal'}
+            {saving ? 'Saving...' : 'Save Deal'}
           </button>
         </div>
       </form>

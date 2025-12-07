@@ -13,9 +13,9 @@ import {
   compareAccountsForSort,
 } from '../../utils/accounts';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Types
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 type FlipDeal = {
   id: number;
@@ -71,20 +71,20 @@ type Props = {
   onTransactionSaved?: () => void;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Constants
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 const TX_TYPE_LABELS: Record<FlipTxType, string> = {
-  acquisition: '🏠 Acquisition (Purchase & Closing)',
-  rehab_labor: '👷 Rehab – Labor',
-  rehab_material: '🧱 Rehab – Materials',
-  rehab_service: '🔧 Rehab – Service/Contractor',
-  loan_draw: '💰 Loan Draw (from escrow)',
-  holding: '🏢 Holding Cost (utilities, insurance)',
-  interest: '💵 Interest Payment',
-  refund: '↩️ Refund / Credit',
-  sale: '🏷️ Property Sale',
+  acquisition: '[House] Acquisition (Purchase & Closing)',
+  rehab_labor: '[Worker] Rehab - Labor',
+  rehab_material: '[Brick] Rehab - Materials',
+  rehab_service: '[Wrench] Rehab - Service/Contractor',
+  loan_draw: '[Money] Loan Draw (from escrow)',
+  holding: '[Building] Holding Cost (utilities, insurance)',
+  interest: '[Cash] Interest Payment',
+  refund: '[Return] Refund / Credit',
+  sale: '[Tag] Property Sale',
 };
 
 const REHAB_GROUP_LABELS: Record<string, string> = {
@@ -112,9 +112,9 @@ const REHAB_GROUP_ORDER = [
   'other',
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Component
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }: Props) {
   // Reference data
@@ -151,9 +151,9 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
   const [salePrice, setSalePrice] = useState('');
   const [sellingCosts, setSellingCosts] = useState('');
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
   // Derived values
-  // ─────────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
 
   const selectedDeal = dealId ? deals.find((d) => d.id === Number(dealId)) : null;
 
@@ -193,9 +193,9 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
   const closingCategory = rehabCategories.find((c) => c.code === REHAB_CODES.CLSE);
   const creditCategory = rehabCategories.find((c) => c.code === REHAB_CODES.CRED);
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
   // Load reference data
-  // ─────────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
 
   useEffect(() => {
     async function loadData() {
@@ -268,9 +268,9 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     loadData();
   }, [initialDealId]);
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
   // Helpers
-  // ─────────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
 
   function parseNumber(val: string): number | null {
     if (!val.trim()) return null;
@@ -296,9 +296,9 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     setSellingCosts('');
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
   // Submit handlers
-  // ─────────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -378,17 +378,8 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     const loanToClosing = loan ?? 0;
     const cashToClose = purchase + (closing ?? 0) - loanToClosing;
 
-    // Create transaction
-    const { data: txData, error: txErr } = await supabase
-      .from('transactions')
-      .insert({ date, description: description || `Acquisition - ${selectedDeal.nickname}` })
-      .select('id')
-      .single();
-    if (txErr) throw txErr;
-    const txId = txData.id;
-
+    // Build lines for create_transaction_multi
     const lines: Array<{
-      transaction_id: number;
       account_id: number;
       amount: number;
       real_estate_deal_id: number;
@@ -399,7 +390,6 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
 
     // Asset account - debit purchase price
     lines.push({
-      transaction_id: txId,
       account_id: assetAccountId,
       amount: purchase,
       real_estate_deal_id: Number(dealId),
@@ -411,7 +401,6 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     // Closing costs - debit to closing costs expense
     if (closing && closing > 0 && flipClosingAccount) {
       lines.push({
-        transaction_id: txId,
         account_id: flipClosingAccount.id,
         amount: closing,
         real_estate_deal_id: Number(dealId),
@@ -424,7 +413,6 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     // Loan proceeds - credit (increases liability)
     if (loan && loan > 0 && loanAccountId) {
       lines.push({
-        transaction_id: txId,
         account_id: loanAccountId,
         amount: -loan,
         real_estate_deal_id: Number(dealId),
@@ -437,7 +425,6 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     // Cash to close - credit (decreases cash)
     if (cashToClose !== 0) {
       lines.push({
-        transaction_id: txId,
         account_id: cashId,
         amount: -cashToClose,
         real_estate_deal_id: Number(dealId),
@@ -447,15 +434,13 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
       });
     }
 
-    // Verify double-entry balances
-    const total = lines.reduce((sum, line) => sum + line.amount, 0);
-    if (Math.abs(total) > 0.01) {
-      throw new Error(`Transaction does not balance. Sum: ${total.toFixed(2)}`);
-    }
-
-    // Insert all lines
-    const { error: linesErr } = await supabase.from('transaction_lines').insert(lines);
-    if (linesErr) throw linesErr;
+    // RPC handles balance validation
+    const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
+      p_date: date,
+      p_description: description || `Acquisition - ${selectedDeal.nickname}`,
+      p_lines: lines,
+    });
+    if (rpcErr) throw rpcErr;
   }
 
   async function handleRehabExpense(type: 'labor' | 'material' | 'service') {
@@ -485,42 +470,35 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
 
     if (!expenseAccount) throw new Error(`Could not find expense account for ${type}.`);
 
-    const { data: txData, error: txErr } = await supabase
-      .from('transactions')
-      .insert({ date, description: description || null })
-      .select('id')
-      .single();
-    if (txErr) throw txErr;
+    const lines = [
+      {
+        account_id: expenseAccount.id,
+        amount: amt,
+        real_estate_deal_id: Number(dealId),
+        rehab_category_id: Number(rehabCategoryId),
+        cost_type: costTypeCode,
+        vendor_id: vendorId ? Number(vendorId) : null,
+        installer_id: installerId ? Number(installerId) : null,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+      {
+        account_id: Number(cashAccountId),
+        amount: -amt,
+        real_estate_deal_id: Number(dealId),
+        rehab_category_id: Number(rehabCategoryId),
+        cost_type: costTypeCode,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+    ];
 
-    // Expense line (debit)
-    const { error: line1Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txData.id,
-      account_id: expenseAccount.id,
-      amount: amt,
-      real_estate_deal_id: Number(dealId),
-      rehab_category_id: Number(rehabCategoryId),
-      cost_type: costTypeCode,
-      vendor_id: vendorId ? Number(vendorId) : null,
-      installer_id: installerId ? Number(installerId) : null,
-      purpose: 'business',
-      is_cleared: isCleared,
+    const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
+      p_date: date,
+      p_description: description || null,
+      p_lines: lines,
     });
-    if (line1Err) throw line1Err;
-
-    // Cash line (credit)
-    const { error: line2Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txData.id,
-      account_id: Number(cashAccountId),
-      amount: -amt,
-      real_estate_deal_id: Number(dealId),
-      rehab_category_id: Number(rehabCategoryId),
-      cost_type: costTypeCode,
-      vendor_id: null,
-      installer_id: null,
-      purpose: 'business',
-      is_cleared: isCleared,
-    });
-    if (line2Err) throw line2Err;
+    if (rpcErr) throw rpcErr;
   }
 
   async function handleLoanDraw() {
@@ -529,36 +507,31 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     if (!cashAccountId) throw new Error('Deposit to account is required.');
     if (!selectedDeal?.loan_account_id) throw new Error('Deal has no loan account.');
 
-    const { data: txData, error: txErr } = await supabase
-      .from('transactions')
-      .insert({ date, description: description || `Loan Draw - ${selectedDeal.nickname}` })
-      .select('id')
-      .single();
-    if (txErr) throw txErr;
+    const lines = [
+      {
+        account_id: Number(cashAccountId),
+        amount: amt,
+        real_estate_deal_id: Number(dealId),
+        rehab_category_id: creditCategory?.id ?? null,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+      {
+        account_id: selectedDeal.loan_account_id,
+        amount: -amt,
+        real_estate_deal_id: Number(dealId),
+        rehab_category_id: creditCategory?.id ?? null,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+    ];
 
-    // Cash (debit - money in)
-    const { error: line1Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txData.id,
-      account_id: Number(cashAccountId),
-      amount: amt,
-      real_estate_deal_id: Number(dealId),
-      rehab_category_id: creditCategory?.id ?? null,
-      purpose: 'business',
-      is_cleared: isCleared,
+    const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
+      p_date: date,
+      p_description: description || `Loan Draw - ${selectedDeal.nickname}`,
+      p_lines: lines,
     });
-    if (line1Err) throw line1Err;
-
-    // Loan liability (credit - increases debt)
-    const { error: line2Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txData.id,
-      account_id: selectedDeal.loan_account_id,
-      amount: -amt,
-      real_estate_deal_id: Number(dealId),
-      rehab_category_id: creditCategory?.id ?? null,
-      purpose: 'business',
-      is_cleared: isCleared,
-    });
-    if (line2Err) throw line2Err;
+    if (rpcErr) throw rpcErr;
   }
 
   async function handleHoldingCost() {
@@ -567,36 +540,31 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     if (!cashAccountId) throw new Error('Pay from account is required.');
     if (!flipHoldingAccount) throw new Error('Holding cost account not found.');
 
-    const { data: txData, error: txErr } = await supabase
-      .from('transactions')
-      .insert({ date, description: description || null })
-      .select('id')
-      .single();
-    if (txErr) throw txErr;
+    const lines = [
+      {
+        account_id: flipHoldingAccount.id,
+        amount: amt,
+        real_estate_deal_id: Number(dealId),
+        rehab_category_id: holdingCategory?.id ?? null,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+      {
+        account_id: Number(cashAccountId),
+        amount: -amt,
+        real_estate_deal_id: Number(dealId),
+        rehab_category_id: holdingCategory?.id ?? null,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+    ];
 
-    // Expense (debit)
-    const { error: line1Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txData.id,
-      account_id: flipHoldingAccount.id,
-      amount: amt,
-      real_estate_deal_id: Number(dealId),
-      rehab_category_id: holdingCategory?.id ?? null,
-      purpose: 'business',
-      is_cleared: isCleared,
+    const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
+      p_date: date,
+      p_description: description || null,
+      p_lines: lines,
     });
-    if (line1Err) throw line1Err;
-
-    // Cash (credit)
-    const { error: line2Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txData.id,
-      account_id: Number(cashAccountId),
-      amount: -amt,
-      real_estate_deal_id: Number(dealId),
-      rehab_category_id: holdingCategory?.id ?? null,
-      purpose: 'business',
-      is_cleared: isCleared,
-    });
-    if (line2Err) throw line2Err;
+    if (rpcErr) throw rpcErr;
   }
 
   async function handleInterestPayment() {
@@ -605,36 +573,31 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     if (!cashAccountId) throw new Error('Pay from account is required.');
     if (!flipInterestAccount) throw new Error('Interest account not found.');
 
-    const { data: txData, error: txErr } = await supabase
-      .from('transactions')
-      .insert({ date, description: description || `Hard Money Interest - ${selectedDeal?.nickname}` })
-      .select('id')
-      .single();
-    if (txErr) throw txErr;
+    const lines = [
+      {
+        account_id: flipInterestAccount.id,
+        amount: amt,
+        real_estate_deal_id: Number(dealId),
+        rehab_category_id: holdingCategory?.id ?? null,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+      {
+        account_id: Number(cashAccountId),
+        amount: -amt,
+        real_estate_deal_id: Number(dealId),
+        rehab_category_id: holdingCategory?.id ?? null,
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+    ];
 
-    // Interest expense (debit)
-    const { error: line1Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txData.id,
-      account_id: flipInterestAccount.id,
-      amount: amt,
-      real_estate_deal_id: Number(dealId),
-      rehab_category_id: holdingCategory?.id ?? null,
-      purpose: 'business',
-      is_cleared: isCleared,
+    const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
+      p_date: date,
+      p_description: description || `Hard Money Interest - ${selectedDeal?.nickname}`,
+      p_lines: lines,
     });
-    if (line1Err) throw line1Err;
-
-    // Cash (credit)
-    const { error: line2Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txData.id,
-      account_id: Number(cashAccountId),
-      amount: -amt,
-      real_estate_deal_id: Number(dealId),
-      rehab_category_id: holdingCategory?.id ?? null,
-      purpose: 'business',
-      is_cleared: isCleared,
-    });
-    if (line2Err) throw line2Err;
+    if (rpcErr) throw rpcErr;
   }
 
   async function handleRefund() {
@@ -647,36 +610,31 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     const expenseAccount = flipMaterialsAccount;
     if (!expenseAccount) throw new Error('Could not find materials account for refund.');
 
-    const { data: txData, error: txErr } = await supabase
-      .from('transactions')
-      .insert({ date, description: description || `Refund - ${selectedDeal?.nickname}` })
-      .select('id')
-      .single();
-    if (txErr) throw txErr;
+    const lines = [
+      {
+        account_id: Number(cashAccountId),
+        amount: amt,
+        real_estate_deal_id: Number(dealId),
+        rehab_category_id: Number(rehabCategoryId),
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+      {
+        account_id: expenseAccount.id,
+        amount: -amt,
+        real_estate_deal_id: Number(dealId),
+        rehab_category_id: Number(rehabCategoryId),
+        purpose: 'business',
+        is_cleared: isCleared,
+      },
+    ];
 
-    // Cash (debit - money in)
-    const { error: line1Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txData.id,
-      account_id: Number(cashAccountId),
-      amount: amt,
-      real_estate_deal_id: Number(dealId),
-      rehab_category_id: Number(rehabCategoryId),
-      purpose: 'business',
-      is_cleared: isCleared,
+    const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
+      p_date: date,
+      p_description: description || `Refund - ${selectedDeal?.nickname}`,
+      p_lines: lines,
     });
-    if (line1Err) throw line1Err;
-
-    // Expense (credit - reduces expense)
-    const { error: line2Err } = await supabase.from('transaction_lines').insert({
-      transaction_id: txData.id,
-      account_id: expenseAccount.id,
-      amount: -amt,
-      real_estate_deal_id: Number(dealId),
-      rehab_category_id: Number(rehabCategoryId),
-      purpose: 'business',
-      is_cleared: isCleared,
-    });
-    if (line2Err) throw line2Err;
+    if (rpcErr) throw rpcErr;
   }
 
   async function handleSale() {
@@ -709,15 +667,7 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     // Net proceeds after paying off loan and selling costs
     const netProceeds = sale - costs - loanBalance;
 
-    const { data: txData, error: txErr } = await supabase
-      .from('transactions')
-      .insert({ date, description: description || `Sale - ${selectedDeal.nickname}` })
-      .select('id')
-      .single();
-    if (txErr) throw txErr;
-
     const lines: Array<{
-      transaction_id: number;
       account_id: number;
       amount: number;
       real_estate_deal_id: number;
@@ -728,7 +678,6 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
 
     // Cash received (debit)
     lines.push({
-      transaction_id: txData.id,
       account_id: Number(cashAccountId),
       amount: netProceeds,
       real_estate_deal_id: Number(dealId),
@@ -740,7 +689,6 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
     // Pay off loan (debit - decreases liability)
     if (loanBalance > 0) {
       lines.push({
-        transaction_id: txData.id,
         account_id: loanAccountId,
         amount: loanBalance,
         real_estate_deal_id: Number(dealId),
@@ -750,10 +698,9 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
       });
     }
 
-    // Selling costs (debit expense)
+    // Selling costs (debit to expense)
     if (costs > 0 && flipClosingAccount) {
       lines.push({
-        transaction_id: txData.id,
         account_id: flipClosingAccount.id,
         amount: costs,
         real_estate_deal_id: Number(dealId),
@@ -763,35 +710,32 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
       });
     }
 
-    // Remove asset (credit - decreases asset by sale price)
+    // Remove asset (credit - clears the property from books)
     lines.push({
-      transaction_id: txData.id,
       account_id: assetAccountId,
-      amount: -sale,
+      amount: -assetBalance,
       real_estate_deal_id: Number(dealId),
       rehab_category_id: null,
       purpose: 'business',
       is_cleared: isCleared,
     });
 
-    // Note: The gain/loss is implicit:
-    // If sale > (assetBalance + costs), there's a gain
-    // This simplified version just removes the asset at sale price
+    // The difference (gain/loss) is implicit in the transaction balance
     // A more complete version would record gain/loss to a separate account
 
-    // Verify balance
-    const total = lines.reduce((sum, line) => sum + line.amount, 0);
-    if (Math.abs(total) > 0.01) {
-      throw new Error(`Transaction does not balance. Sum: ${total.toFixed(2)}`);
-    }
-
-    const { error: linesErr } = await supabase.from('transaction_lines').insert(lines);
-    if (linesErr) throw linesErr;
+    // RPC handles balance validation
+    const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
+      p_date: date,
+      p_description: description || `Sale - ${selectedDeal.nickname}`,
+      p_lines: lines,
+    });
+    if (rpcErr) throw rpcErr;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+
+  // -------------------------------------------------------------------------
   // Render
-  // ─────────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
 
   if (loading) return <p>Loading...</p>;
 
@@ -902,7 +846,7 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
               <option value="">Select account...</option>
               {cashAccounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.code ? `${a.code} — ` : ''}
+                  {a.code ? `${a.code} - ` : ''}
                   {a.name}
                 </option>
               ))}
@@ -1037,7 +981,7 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
                     <optgroup key={group} label={REHAB_GROUP_LABELS[group] || group}>
                       {cats.map((cat) => (
                         <option key={cat.id} value={cat.id}>
-                          {cat.code} – {cat.name}
+                          {cat.code} - {cat.name}
                         </option>
                       ))}
                     </optgroup>
