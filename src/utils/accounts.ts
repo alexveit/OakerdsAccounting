@@ -199,9 +199,9 @@ export const REHAB_CODES_TRANSACTIONAL = [
   REHAB_CODES.CRED,
 ] as const;
 
-// ─────────────────────────────────────────────────────────────────
+// -------------------------------------------------------------------
 // Parse & Range Check Helpers
-// ─────────────────────────────────────────────────────────────────
+// -------------------------------------------------------------------
 
 /**
  * Parse account code string to number.
@@ -221,9 +221,9 @@ export function isCodeInRange(code: string | null | undefined, min: number, max:
   return n !== null && n >= min && n <= max;
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -------------------------------------------------------------------
 // Account type checks by code range
-// ─────────────────────────────────────────────────────────────────
+// -------------------------------------------------------------------
 
 export function isBusinessCardCode(code: string | null | undefined): boolean {
   return isCodeInRange(code, ACCOUNT_CODE_RANGES.BUSINESS_CARD_MIN, ACCOUNT_CODE_RANGES.BUSINESS_CARD_MAX);
@@ -281,9 +281,9 @@ export function isMortgageCode(code: string | null | undefined): boolean {
   return isCodeInRange(code, ACCOUNT_CODE_RANGES.RE_MORTGAGE_MIN, ACCOUNT_CODE_RANGES.RE_MORTGAGE_MAX);
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -------------------------------------------------------------------
 // Compound checks for categorization
-// ─────────────────────────────────────────────────────────────────
+// -------------------------------------------------------------------
 
 /**
  * Check if this is a cash-like account (bank or credit card)
@@ -310,9 +310,14 @@ export function isScheduleECode(code: string | null | undefined): boolean {
 
 /**
  * Categorize an expense by its code for dashboard/tax reporting
+ * @deprecated Use classifyLine() instead for more granular categorization
+ * that separates rental from flip expenses
  */
 export type ExpenseCategory = 'realEstate' | 'marketing' | 'overhead' | 'jobExpense' | 'personal';
 
+/**
+ * @deprecated Use classifyLine() instead
+ */
 export function categorizeExpense(
   code: string | null | undefined,
   purpose: Purpose,
@@ -330,9 +335,134 @@ export function categorizeExpense(
   return 'overhead';
 }
 
-// ─────────────────────────────────────────────────────────────────
+// -------------------------------------------------------------------------
+// Transaction Line Classification (unified for all dashboards/analytics)
+// -------------------------------------------------------------------------
+
+/**
+ * Income categories for P&L classification
+ */
+export type IncomeCategory = 'job' | 'rental' | 'personal' | 'other';
+
+/**
+ * Expense categories for P&L classification (granular)
+ * - job: Business expense linked to a job
+ * - rental: Rental property expenses (62000-62099)
+ * - flip: Flip/rehab expenses (62100-62105) - capitalized, not deductible
+ * - marketing: Marketing expenses (55000-55999)
+ * - overhead: Business overhead (no job, not RE, not marketing)
+ * - personal: Personal expenses
+ */
+export type ExpenseCategoryGranular = 
+  | 'job' 
+  | 'rental' 
+  | 'flip' 
+  | 'marketing' 
+  | 'overhead' 
+  | 'personal';
+
+/**
+ * Full classification result for a transaction line
+ */
+export type LineClassification = {
+  /** Whether this is business-related (business or mixed purpose) */
+  isBusiness: boolean;
+  /** Whether this is personal */
+  isPersonal: boolean;
+  /** For income lines: the income category */
+  incomeCategory: IncomeCategory | null;
+  /** For expense lines: the expense category */
+  expenseCategory: ExpenseCategoryGranular | null;
+};
+
+/**
+ * Input shape for classifyLine - matches common Supabase query patterns.
+ * All fields optional to handle various query shapes gracefully.
+ */
+export type ClassifiableLineInput = {
+  amount?: number | string | null;
+  purpose?: Purpose | null;
+  job_id?: number | null;
+  accounts?: {
+    name?: string | null;
+    code?: string | null;
+    account_types?: { name?: string | null } | null;
+  } | null;
+};
+
+/**
+ * Classify a transaction line for P&L reporting.
+ * Single source of truth for income/expense categorization.
+ * 
+ * @example
+ * const classification = classifyLine(line);
+ * if (classification.incomeCategory === 'job') {
+ *   jobIncome += Math.abs(amount);
+ * }
+ * if (classification.expenseCategory === 'rental') {
+ *   rentalExpenses += amount;
+ * }
+ */
+export function classifyLine(line: ClassifiableLineInput): LineClassification {
+  const purpose: Purpose = (line.purpose as Purpose) ?? 'business';
+  const accountType = line.accounts?.account_types?.name ?? '';
+  const code = line.accounts?.code ?? '';
+  const hasJobId = line.job_id != null;
+
+  const isBusiness = purpose === 'business' || purpose === 'mixed';
+  const isPersonal = purpose === 'personal';
+
+  const result: LineClassification = {
+    isBusiness,
+    isPersonal,
+    incomeCategory: null,
+    expenseCategory: null,
+  };
+
+  // INCOME classification
+  if (accountType === 'income') {
+    if (isPersonal) {
+      result.incomeCategory = 'personal';
+    } else if (isBusiness) {
+      result.incomeCategory = isRentalIncomeCode(code) ? 'rental' : 'job';
+    } else {
+      result.incomeCategory = 'other';
+    }
+  }
+
+  // EXPENSE classification
+  else if (accountType === 'expense') {
+    if (isPersonal) {
+      result.expenseCategory = 'personal';
+    } else if (isBusiness) {
+      // Order matters: check specific ranges before fallback
+      if (isFlipExpenseCode(code)) {
+        result.expenseCategory = 'flip';
+      } else if (isRentalExpenseCode(code)) {
+        result.expenseCategory = 'rental';
+      } else if (hasJobId) {
+        result.expenseCategory = 'job';
+      } else if (isMarketingExpenseCode(code)) {
+        result.expenseCategory = 'marketing';
+      } else {
+        result.expenseCategory = 'overhead';
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Convenience helper: check if expense is real estate related (rental OR flip)
+ */
+export function isRealEstateExpenseCategory(category: ExpenseCategoryGranular | null): boolean {
+  return category === 'rental' || category === 'flip';
+}
+
+// -------------------------------------------------------------------------
 // Sorting helpers
-// ─────────────────────────────────────────────────────────────────
+// -------------------------------------------------------------------------
 
 /**
  * Get sort priority for an account based on special account rules.

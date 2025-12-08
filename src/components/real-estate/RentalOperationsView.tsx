@@ -92,7 +92,7 @@ function getMonthsInPeriod(selectedYear: string, earliestDate?: string): number 
  */
 function simplifyAccountName(name: string): string {
   return name
-    .replace(/^RE – /, '')
+    .replace(/^RE â€“ /, '')
     .replace(/^Expense - /, '')
     .replace(/^Income - /, '');
 }
@@ -433,7 +433,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
       minimumFractionDigits: 2,
     });
 
-  if (loading) return <p>Loading rental data…</p>;
+  if (loading) return <p>Loading rental dataâ€¦</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
 
   const propertyList = Object.values(properties);
@@ -441,20 +441,29 @@ export function RentalOperationsView({ selectedYear }: Props) {
 
   // Portfolio totals
   const portfolioTotalIncome = propertyList.reduce((sum, p) => sum + p.totalIncome, 0);
-  const portfolioTotalExpenses = propertyList.reduce(
+  const portfolioDeductibleExpenses = propertyList.reduce(
     (sum, p) =>
       sum +
       p.totalMortgageInterest +
-      p.totalMortgagePrincipal +
       p.totalTaxesInsurance +
       p.totalRepairs +
       p.totalOtherExpenses,
     0
   );
-  const portfolioNetProfit = propertyList.reduce((sum, p) => sum + p.totalNetProfit, 0);
-  const portfolioAvgMonthlyNet = propertyList.reduce((sum, p) => sum + p.avgMonthlyNet, 0);
+  const portfolioPrincipalPaydown = propertyList.reduce((sum, p) => sum + p.totalMortgagePrincipal, 0);
+  const portfolioTotalCashOut = portfolioDeductibleExpenses + portfolioPrincipalPaydown;
+  const portfolioTaxableNOI = portfolioTotalIncome - portfolioDeductibleExpenses;
+  const portfolioTrueCashFlow = portfolioTotalIncome - portfolioTotalCashOut;
   const portfolioTotalLoanBalance = propertyList.reduce((sum, p) => sum + p.loanBalance, 0);
   const portfolioTotalEquity = propertyList.reduce((sum, p) => sum + p.equity, 0);
+
+  // Monthly average (based on period)
+  const earliestDate = propertyList
+    .flatMap((p) => p.transactions.map((t) => t.date))
+    .filter(Boolean)
+    .sort()[0];
+  const monthsInPeriod = getMonthsInPeriod(selectedYear, earliestDate);
+  const portfolioAvgMonthlyNet = portfolioTrueCashFlow / monthsInPeriod;
 
   const periodLabel = selectedYear === 'all' ? 'Total' : selectedYear;
 
@@ -470,38 +479,76 @@ export function RentalOperationsView({ selectedYear }: Props) {
 
       {propertyCount > 0 && (
         <>
-          {/* Portfolio Summary */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: '1rem',
-              marginBottom: '1.5rem',
-            }}
-          >
-            <SummaryCard label="Properties" value={propertyCount} isCount />
-            <SummaryCard label={`${periodLabel} Income`} value={portfolioTotalIncome} />
-            <SummaryCard label={`${periodLabel} Expenses`} value={portfolioTotalExpenses} />
-            <SummaryCard
-              label={`${periodLabel} Net Profit`}
-              value={portfolioNetProfit}
-              highlight={portfolioNetProfit >= 0 ? 'positive' : 'negative'}
-            />
-            <SummaryCard
-              label="Avg Monthly Cash Flow"
-              value={portfolioAvgMonthlyNet}
-              highlight={portfolioAvgMonthlyNet >= 0 ? 'positive' : 'negative'}
-            />
-            <SummaryCard
-              label="Total Loan Balance"
-              value={portfolioTotalLoanBalance}
-              highlight="negative"
-            />
-            <SummaryCard
-              label="Total Equity"
-              value={portfolioTotalEquity}
-              highlight={portfolioTotalEquity >= 0 ? 'positive' : 'negative'}
-            />
+          {/* Portfolio Summary - Two Cards */}
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            {/* Card 1: Operations */}
+            <div
+              className="card"
+              style={{
+                padding: '0.6rem 1rem',
+                display: 'flex',
+                gap: '1.25rem',
+                alignItems: 'center',
+                fontSize: 15,
+                flexWrap: 'wrap',
+              }}
+            >
+              <div>
+                <span style={{ color: '#777' }}>Props </span>
+                <span style={{ fontWeight: 700 }}>{propertyCount}</span>
+              </div>
+              <div>
+                <span style={{ color: '#777' }}>Income </span>
+                <span style={{ fontWeight: 700, color: '#0a7a3c' }}>{currency(portfolioTotalIncome)}</span>
+              </div>
+              <div>
+                <span style={{ color: '#777' }}>Deduct </span>
+                <span style={{ fontWeight: 700, color: '#b00020' }}>-{currency(portfolioDeductibleExpenses)}</span>
+              </div>
+              <div>
+                <span style={{ color: '#777' }}>Tax NOI </span>
+                <span style={{ fontWeight: 700, color: portfolioTaxableNOI >= 0 ? '#0a7a3c' : '#b00020' }}>
+                  {currency(portfolioTaxableNOI)}
+                </span>
+              </div>
+              <div>
+                <span style={{ color: '#777' }}>Principal </span>
+                <span style={{ fontWeight: 700, color: '#1565c0' }}>{currency(portfolioPrincipalPaydown)}</span>
+              </div>
+              <div>
+                <span style={{ color: '#777' }}>Cash Flow </span>
+                <span style={{ fontWeight: 700, color: portfolioTrueCashFlow >= 0 ? '#0a7a3c' : '#b00020' }}>
+                  {currency(portfolioTrueCashFlow)}
+                </span>
+              </div>
+              <div>
+                <span style={{ color: '#777' }}>Mo Avg </span>
+                <span style={{ fontWeight: 700, color: portfolioAvgMonthlyNet >= 0 ? '#0a7a3c' : '#b00020' }}>
+                  {currency(portfolioAvgMonthlyNet)}
+                </span>
+              </div>
+            </div>
+
+            {/* Card 2: Balance Sheet */}
+            <div
+              className="card"
+              style={{
+                padding: '0.6rem 1rem',
+                display: 'flex',
+                gap: '1.25rem',
+                alignItems: 'center',
+                fontSize: 15,
+              }}
+            >
+              <div>
+                <span style={{ color: '#777' }}>Loans </span>
+                <span style={{ fontWeight: 700, color: '#b00020' }}>{currency(portfolioTotalLoanBalance)}</span>
+              </div>
+              <div>
+                <span style={{ color: '#777' }}>Equity </span>
+                <span style={{ fontWeight: 700, color: '#0a7a3c' }}>{currency(portfolioTotalEquity)}</span>
+              </div>
+            </div>
           </div>
 
           {/* Property Cards */}
@@ -627,7 +674,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
                       fontSize: 15,
                     }}
                   >
-                    <span>{isExpanded ? '▾' : '▸'}</span>
+                    <span>{isExpanded ? 'â–¾' : 'â–¸'}</span>
                     <span>Transactions ({property.transactions.length})</span>
                   </h4>
 
@@ -670,7 +717,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
                                       <Td>{formatLocalDate(tx.date)}</Td>
                                       <Td>
                                         <span style={{ marginRight: '0.4rem' }}>
-                                          {isMortgageExpanded ? '▾' : '▸'}
+                                          {isMortgageExpanded ? 'â–¾' : 'â–¸'}
                                         </span>
                                         {tx.description}
                                       </Td>
@@ -689,7 +736,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
                                         <Td>&nbsp;</Td>
                                         <Td>
                                           <span style={{ paddingLeft: '1.5rem', color: '#666', fontSize: 12 }}>
-                                            └ {detail.accountName}
+                                            â”” {detail.accountName}
                                           </span>
                                         </Td>
                                         <Td>&nbsp;</Td>
@@ -737,47 +784,9 @@ export function RentalOperationsView({ selectedYear }: Props) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Helper Components
-// ─────────────────────────────────────────────────────────────────
-
-function SummaryCard({
-  label,
-  value,
-  highlight,
-  isCount,
-}: {
-  label: string;
-  value: number;
-  highlight?: 'positive' | 'negative';
-  isCount?: boolean;
-}) {
-  let color = '#111';
-  if (highlight === 'positive') color = '#0a7a3c';
-  if (highlight === 'negative') color = '#b00020';
-
-  const text = isCount
-    ? value.toString()
-    : value.toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-      });
-
-  return (
-    <div
-      style={{
-        borderRadius: 12,
-        border: '1px solid #eee',
-        padding: '0.6rem 0.9rem',
-        background: '#fff',
-      }}
-    >
-      <div style={{ fontSize: 12, color: '#777', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontWeight: 600, fontSize: 20, color }}>{text}</div>
-    </div>
-  );
-}
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function Stat({
   label,

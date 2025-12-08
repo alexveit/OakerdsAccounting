@@ -22,7 +22,12 @@ type Installer = {
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function InstallerManageView() {
+type InstallerManageViewProps = {
+  initialSelectedId?: number | null;
+  onSelectionUsed?: () => void;
+};
+
+export function InstallerManageView({ initialSelectedId, onSelectionUsed }: InstallerManageViewProps) {
   // List state
   const [installers, setInstallers] = useState<Installer[]>([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -46,6 +51,15 @@ export function InstallerManageView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Handle initialSelectedId from parent (e.g., click from Overview)
+  useEffect(() => {
+    if (initialSelectedId != null && installers.length > 0) {
+      setSelectedId(initialSelectedId);
+      setIsCreating(false);
+      onSelectionUsed?.();
+    }
+  }, [initialSelectedId, installers.length, onSelectionUsed]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Data Loading
@@ -110,7 +124,7 @@ export function InstallerManageView() {
     setEmail(installer.email || '');
     setIsActive(installer.is_active);
     setError(null);
-    setSuccess(null);
+    // Don't clear success here - it would erase the "saved" feedback
   }
 
   function startCreate() {

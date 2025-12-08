@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { formatCurrency } from '../utils/format';
+import { supabase } from '../../lib/supabaseClient';
+import { formatCurrency } from '../../utils/format';
 import {
   isBankCode,
-  isRentalIncomeCode,
-  isMarketingExpenseCode,
-  isRentalExpenseCode,
-  isFlipExpenseCode,
   isBusinessCardCode,
   isPersonalCardCode,
   isPersonalDebtCode,
   isHelocCode,
-  type Purpose,
-} from '../utils/accounts';
+  classifyLine,
+  type ClassifiableLineInput,
+} from '../../utils/accounts';
 
 type AccountBalance = {
   account_id: number;
@@ -40,7 +37,7 @@ type Job = {
   status: string;
 };
 
-// ─────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------------------------
 // Account code helpers based on new structure:
 //   1000-1099  Business Bank
 //   1100-1199  Personal Bank
@@ -51,7 +48,7 @@ type Job = {
 //   62005-62012 Rental expenses
 //   62100-62199 Flip expenses
 //   64xxx      RE Mortgages (not shown in liquid balances)
-// ─────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------------------------
 
 export function DashboardOverview() {
   const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
@@ -128,20 +125,15 @@ export function DashboardOverview() {
       let personalExp = 0;
       let rentalExp = 0;
 
-      for (const line of (allLines ?? []) as any[]) {
+      for (const line of (allLines ?? []) as ClassifiableLineInput[]) {
         const amount = Number(line.amount) || 0;
         const absAmount = Math.abs(amount);
-        const purpose: Purpose = line.purpose ?? 'business';
-        const accType = line.accounts?.account_types?.name;
-        const code = line.accounts?.code ?? '';
-
-        const isBusiness = purpose === 'business' || purpose === 'mixed';
-        const isPersonal = purpose === 'personal';
+        const classification = classifyLine(line);
 
         // INCOME (stored as negative/credits, so use absolute value)
-        if (accType === 'income') {
-          if (isBusiness) {
-            if (isRentalIncomeCode(code)) {
+        if (classification.incomeCategory) {
+          if (classification.isBusiness) {
+            if (classification.incomeCategory === 'rental') {
               rentalInc += absAmount;
             } else {
               jobInc += absAmount;
@@ -150,22 +142,27 @@ export function DashboardOverview() {
         }
 
         // EXPENSES (stored as positive/debits, use raw amount to allow refunds to subtract)
-        else if (accType === 'expense') {
-          if (isPersonal) {
-            personalExp += amount;
-          } else if (isBusiness) {
-            if (isRentalExpenseCode(code)) {
+        if (classification.expenseCategory) {
+          switch (classification.expenseCategory) {
+            case 'personal':
+              personalExp += amount;
+              break;
+            case 'rental':
               rentalExp += amount;
-            } else if (isFlipExpenseCode(code)) {
+              break;
+            case 'flip':
               // Flip expenses tracked separately, not shown in dashboard YTD
               // (they'll appear in ExpensesSummary view)
-            } else if (line.job_id !== null) {
+              break;
+            case 'job':
               jobExp += amount;
-            } else if (isMarketingExpenseCode(code)) {
+              break;
+            case 'marketing':
               marketingExp += amount;
-            } else {
+              break;
+            case 'overhead':
               overheadExp += amount;
-            }
+              break;
           }
         }
       }
@@ -270,13 +267,6 @@ export function DashboardOverview() {
     fontSize: 14,
   };
 
-  const indentRowStyle: React.CSSProperties = {
-    ...rowStyle,
-    paddingLeft: '12px',
-    fontSize: 13,
-    color: '#666',
-  };
-
   const dividerStyle: React.CSSProperties = {
     borderTop: '1px solid #e0e0e0',
     margin: '6px 0',
@@ -335,22 +325,22 @@ export function DashboardOverview() {
           </div>
           <div style={rowStyle}>
             <span>Job Expenses</span>
-            <span style={{ color: red }}>-{currency(jobExpenseYtd)}</span>
+            <span style={{ color: red }}>{currency(jobExpenseYtd)}</span>
           </div>
           <div style={rowStyle}>
             <span>Marketing</span>
-            <span style={{ color: red }}>-{currency(marketingExpenseYtd)}</span>
+            <span style={{ color: red }}>{currency(marketingExpenseYtd)}</span>
           </div>
           <div style={rowStyle}>
             <span>Overhead</span>
-            <span style={{ color: red }}>-{currency(overheadExpenseYtd)}</span>
+            <span style={{ color: red }}>{currency(overheadExpenseYtd)}</span>
           </div>
           <div style={subtotalStyle}>
             <span>Job Profit</span>
             <span style={{ color: jobProfit >= 0 ? green : red }}>{currency(jobProfit)}</span>
           </div>
           <div style={metricsStyle}>
-            Margin: {pct(jobMargin)} · Avg: {currency(avgJobSize)} · Count: {jobCount}
+            Margin: {pct(jobMargin)} | Avg: {currency(avgJobSize)} | Count: {jobCount}
           </div>
           
           <div style={dividerStyle} />
@@ -363,7 +353,7 @@ export function DashboardOverview() {
           </div>
           <div style={rowStyle}>
             <span>Expenses</span>
-            <span style={{ color: red }}>-{currency(rentalExpenseYtd)}</span>
+            <span style={{ color: red }}>{currency(rentalExpenseYtd)}</span>
           </div>
           <div style={subtotalStyle}>
             <span>Rental NOI</span>
@@ -376,7 +366,7 @@ export function DashboardOverview() {
           <div style={sectionLabelStyle}><span>Other</span></div>
           <div style={rowStyle}>
             <span>Personal</span>
-            <span style={{ color: red }}>-{currency(personalExpenseYtd)}</span>
+            <span style={{ color: red }}>{currency(personalExpenseYtd)}</span>
           </div>
           
           <div style={thickDividerStyle} />

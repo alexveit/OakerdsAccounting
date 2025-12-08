@@ -24,6 +24,41 @@ import { LedgerClearModal } from './LedgerClearModal';
 import { LedgerFilters } from './LedgerFilters';
 import { LedgerTable } from './LedgerTable';
 
+// Raw shape from Supabase query
+type RawTransactionLine = {
+  id: number;
+  transaction_id: number;
+  amount: number;
+  is_cleared: boolean;
+  created_at: string;
+  account_id: number;
+  job_id: number | null;
+  accounts: {
+    name: string;
+    code: string | null;
+    account_types: { name: string } | null;
+  } | null;
+  transactions: {
+    date: string;
+    description: string | null;
+    created_at: string;
+    updated_at: string;
+  } | null;
+  jobs: { name: string } | null;
+  vendors: { name: string } | null;
+  installers: {
+    first_name: string | null;
+    last_name: string | null;
+    company_name: string | null;
+  } | null;
+};
+
+type RawAccount = {
+  id: number;
+  name: string;
+  code: string | null;
+};
+
 export function LedgerView() {
   const [allRows, setAllRows] = useState<LedgerRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,9 +142,9 @@ export function LedgerView() {
 
       if (lineErr) throw lineErr;
 
-      const rawLines = (data ?? []) as any[];
+      const rawLines = (data ?? []) as unknown as RawTransactionLine[];
 
-      const txMap = new Map<number, any[]>();
+      const txMap = new Map<number, RawTransactionLine[]>();
       for (const line of rawLines) {
         const txId: number = line.transaction_id;
         if (!txMap.has(txId)) txMap.set(txId, []);
@@ -127,18 +162,18 @@ export function LedgerView() {
         const createdAt: string = tx?.created_at ?? first.created_at;
 
         // Job name from any line that has a job_id
-        const lineWithJob = lines.find((l: any) => l.jobs?.name);
+        const lineWithJob = lines.find((l) => l.jobs?.name);
         const jobName: string | null = lineWithJob?.jobs?.name ?? null;
 
         // Vendor / installer label
         let vendorInstaller = '';
         const withVendor = lines.find(
-          (l: any) => l.vendors && l.vendors.name && l.vendors.name.trim() !== ''
+          (l) => l.vendors && l.vendors.name && l.vendors.name.trim() !== ''
         );
         if (withVendor?.vendors?.name) {
           vendorInstaller = withVendor.vendors.name;
         } else {
-          const withInstaller = lines.find((l: any) => l.installers != null);
+          const withInstaller = lines.find((l) => l.installers != null);
           if (withInstaller?.installers) {
             const inst = withInstaller.installers;
             const fullName = [inst.first_name, inst.last_name]
@@ -151,7 +186,7 @@ export function LedgerView() {
 
         // Cash side (asset/liability)
         const cashLine =
-          lines.find((l: any) => {
+          lines.find((l) => {
             const t = l.accounts?.account_types?.name;
             return t === 'asset' || t === 'liability';
           }) ?? lines[0];
@@ -169,11 +204,11 @@ export function LedgerView() {
         const cashLineId: number = cashLine.id;
 
         // Type / category side (other account)
-        const typeLine = lines.find((l: any) => l !== cashLine) ?? lines[0];
+        const typeLine = lines.find((l) => l !== cashLine) ?? lines[0];
         const typeLabel: string | null = typeLine.accounts?.name ?? null;
 
         const amount = Number(cashLine.amount);
-        const isCleared = lines.every((l: any) => !!l.is_cleared);
+        const isCleared = lines.every((l) => !!l.is_cleared);
         const updatedAt: string = tx?.updated_at ?? createdAt;
 
         // Collect all account IDs and codes from all lines
@@ -209,9 +244,9 @@ export function LedgerView() {
 
       setAllRows(ledgerRows);
       setLoading(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message ?? 'Failed to load ledger');
+      setError(err instanceof Error ? err.message : 'Failed to load ledger');
       setLoading(false);
     }
   }
@@ -225,7 +260,7 @@ export function LedgerView() {
 
       if (accErr) throw accErr;
 
-      const accounts: AccountOption[] = (data ?? []).map((a: any) => {
+      const accounts: AccountOption[] = (data ?? []).map((a: RawAccount) => {
         const code = a.code ? parseInt(a.code, 10) : null;
         return {
           id: a.id,
@@ -236,7 +271,7 @@ export function LedgerView() {
       });
 
       setAllAccounts(accounts);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load accounts:', err);
     }
   }
@@ -470,9 +505,9 @@ export function LedgerView() {
       if (txErr) throw txErr;
 
       setAllRows((prev) => prev.filter((r) => r.transaction_id !== row.transaction_id));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Delete failed:', err);
-      setRowActionError(err.message ?? 'Failed to delete transaction.');
+      setRowActionError(err instanceof Error ? err.message : 'Failed to delete transaction.');
     }
   }
 

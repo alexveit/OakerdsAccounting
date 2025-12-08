@@ -6,6 +6,19 @@ type InstallersTab = 'overview' | 'manage';
 
 export function InstallersView() {
   const [tab, setTab] = useState<InstallersTab>('overview');
+  const [selectedInstallerId, setSelectedInstallerId] = useState<number | null>(null);
+
+  function handleInstallerSelect(installerId: number) {
+    setSelectedInstallerId(installerId);
+    setTab('manage');
+  }
+
+  function handleTabChange(newTab: InstallersTab) {
+    if (newTab !== 'manage') {
+      setSelectedInstallerId(null);
+    }
+    setTab(newTab);
+  }
 
   return (
     <div>
@@ -25,7 +38,7 @@ export function InstallersView() {
         <button
           type="button"
           className={`tab ${tab === 'overview' ? 'tab--active' : ''}`}
-          onClick={() => setTab('overview')}
+          onClick={() => handleTabChange('overview')}
         >
           Overview
         </button>
@@ -33,7 +46,7 @@ export function InstallersView() {
         <button
           type="button"
           className={`tab ${tab === 'manage' ? 'tab--active' : ''}`}
-          onClick={() => setTab('manage')}
+          onClick={() => handleTabChange('manage')}
         >
           Manage
         </button>
@@ -41,8 +54,13 @@ export function InstallersView() {
 
       {/* Content */}
       <div style={{ marginTop: '0.75rem' }}>
-        {tab === 'overview' && <InstallersOverview />}
-        {tab === 'manage' && <InstallerManageView />}
+        {tab === 'overview' && <InstallersOverview onInstallerSelect={handleInstallerSelect} />}
+        {tab === 'manage' && (
+          <InstallerManageView 
+            initialSelectedId={selectedInstallerId} 
+            onSelectionUsed={() => setSelectedInstallerId(null)} 
+          />
+        )}
       </div>
     </div>
   );

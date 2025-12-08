@@ -1,23 +1,24 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
-import { Login } from './components/Login';
-import { JobDetailView } from './components/JobDetailView';
-import { DashboardOverview } from './components/DashboardOverview';
+import { Login } from './components/stand-alones/Login';
+import { JobDetailView } from './components/stand-alones/JobDetailView';
+import { DashboardOverview } from './components/stand-alones/DashboardOverview';
 import { InstallersView } from './components/installers/InstallersView';
 import { VendorsView } from './components/vendors/VendorsView';
 import { LeadSourcesView } from './components/lead-sources/LeadSourcesView';
-//import { LedgerView } from './components/LedgerViewOLD';
 import { LedgerView } from './components/ledger';
-import { ProfitSummary } from './components/ProfitSummary';
+import { ProfitSummary } from './components/stand-alones/ProfitSummary';
 import { ExpenseCategoriesView } from './components/expenses/ExpensesView';
 import { NewEntryView } from './components/new-entries/NewEntryView';
-import { TaxExportView } from './components/TaxExportView';
+import { TaxExportView } from './components/stand-alones/TaxExportView';
 import { REIView } from './components/real-estate/REIView';
 import { Analytics } from './components/analytics/AnalyticsView';
-import { PriceListView } from './components/PriceListView';
+import { PriceListView } from './components/stand-alones/PriceListView';
 import { MobileContainer } from './components/mobile';
 //import { FlipDetailView } from './components/real-estate/FlipDetailView';
+import { BankImportView } from './components/bank-import/BankImportView';
+import { CarpetCalculator } from './components/stand-alones/CarpetCalculator';
 
 type View =
   | 'dashboard'
@@ -28,11 +29,13 @@ type View =
   | 'entry'
   | 'jobDetail'
   | 'ledger'
+  | 'bankImport'
   | 'profitSummary'
   | 'taxExport'
   | 'rei'
   | 'analytics'
-  | 'priceList';
+  | 'priceList'
+  | 'carpetCalc';
 
 type NavSection = {
   title: string | null;
@@ -44,7 +47,6 @@ const NAV_SECTIONS: NavSection[] = [
     title: null,
     items: [
       { view: 'dashboard', label: 'Dashboard', icon: '📊' },
-      { view: 'analytics', label: 'Analytics', icon: '📈' },
     ],
   },
   {
@@ -55,11 +57,14 @@ const NAV_SECTIONS: NavSection[] = [
       { view: 'vendors', label: 'Vendors', icon: '🪙' },
       { view: 'leadSources', label: 'Lead Sources', icon: '📣' },
       { view: 'priceList', label: 'Price List', icon: '💲' },
+      { view: 'carpetCalc', label: 'Carpet Calculator', icon: '🧮' },
     ],
   },
   {
     title: 'Financials',
     items: [
+      { view: 'analytics', label: 'Analytics', icon: '📈' },
+      { view: 'bankImport', label: 'Bank Import', icon: '🏦' },
       { view: 'ledger', label: 'Ledger', icon: '📒' },
       { view: 'expenses', label: 'Expenses by Category', icon: '📋' },
       { view: 'profitSummary', label: 'Profit Summary', icon: '💰' },
@@ -75,6 +80,7 @@ const NAV_SECTIONS: NavSection[] = [
 const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   dashboard: DashboardOverview,
   analytics: Analytics,
+  bankImport: BankImportView,
   installers: InstallersView,
   vendors: VendorsView,
   leadSources: LeadSourcesView,
@@ -86,6 +92,7 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   taxExport: TaxExportView,
   rei: REIView,
   priceList: PriceListView,
+  carpetCalc: CarpetCalculator,
 };
 
 function shouldShowMobileView(): boolean {
@@ -151,6 +158,7 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
   const [initialJobIdForEntry, setInitialJobIdForEntry] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(['Operations', 'Financials', 'Real Estate']));
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -261,24 +269,47 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
 
         {/* Navigation Sections */}
         <nav className="sidebar-nav">
-          {NAV_SECTIONS.map((section, sectionIndex) => (
-            <div key={sectionIndex} className="sidebar-section">
-              {section.title && !sidebarCollapsed && (
-                <div className="sidebar-section-title">{section.title}</div>
-              )}
-              {section.items.map(({ view: navView, label, icon }) => (
-                <button
-                  key={navView}
-                  className={`sidebar-nav-item ${view === navView ? 'sidebar-nav-item--active' : ''}`}
-                  onClick={() => handleNavClick(navView)}
-                  title={sidebarCollapsed ? label : undefined}
-                >
-                  <span className="sidebar-icon">{icon}</span>
-                  {!sidebarCollapsed && <span className="sidebar-label">{label}</span>}
-                </button>
-              ))}
-            </div>
-          ))}
+          {NAV_SECTIONS.map((section, sectionIndex) => {
+            const isCollapsed = section.title ? collapsedSections.has(section.title) : false;
+            const toggleSection = () => {
+              if (!section.title) return;
+              setCollapsedSections(prev => {
+                const next = new Set(prev);
+                if (next.has(section.title!)) {
+                  next.delete(section.title!);
+                } else {
+                  next.add(section.title!);
+                }
+                return next;
+              });
+            };
+
+            return (
+              <div key={sectionIndex} className="sidebar-section">
+                {section.title && !sidebarCollapsed && (
+                  <div 
+                    className="sidebar-section-title" 
+                    onClick={toggleSection}
+                    style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  >
+                    <span>{section.title}</span>
+                    <span style={{ fontSize: 10, opacity: 0.6 }}>{isCollapsed ? '▶' : '▼'}</span>
+                  </div>
+                )}
+                {(!section.title || !isCollapsed) && section.items.map(({ view: navView, label, icon }) => (
+                  <button
+                    key={navView}
+                    className={`sidebar-nav-item ${view === navView ? 'sidebar-nav-item--active' : ''}`}
+                    onClick={() => handleNavClick(navView)}
+                    title={sidebarCollapsed ? label : undefined}
+                  >
+                    <span className="sidebar-icon">{icon}</span>
+                    {!sidebarCollapsed && <span className="sidebar-label">{label}</span>}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </nav>
 
         {/* Logout Button */}

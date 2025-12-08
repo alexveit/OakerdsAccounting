@@ -16,7 +16,7 @@ const projectRoot = process.cwd();
 // ---- CONFIG ----
 const DIRS_TO_INCLUDE = ['src', 'scripts', 'db_tools'];
 const FILES_TO_INCLUDE = ['CODING_RULES.txt', 'README.md'];
-const FILES_TO_IGNORE = ['pg_password.txt'];
+const FILES_TO_IGNORE = ['pg_password.txt', 'anthropic-key.txt'];
 
 // ---- HELPERS ----
 

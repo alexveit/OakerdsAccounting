@@ -37,6 +37,29 @@ type JobSummary = {
 
 type FilterMode = 'open' | 'all';
 
+// Raw types from Supabase queries
+type RawJob = {
+  id: number;
+  name: string;
+  address: string | null;
+  status: string | null;
+  start_date: string | null;
+};
+
+type RawTransactionLine = {
+  id: number;
+  job_id: number | null;
+  amount: number;
+  is_cleared: boolean;
+  installer_id: number | null;
+  vendor_id: number | null;
+  transaction_id: number;
+  transactions: { id: number; date: string; description: string | null } | null;
+  accounts: { name: string; account_types: { name: string } | null } | null;
+  vendors: { name: string } | null;
+  installers: { first_name: string; last_name: string | null } | null;
+};
+
 // ============================================================
 // COMPONENT
 // ============================================================
@@ -78,25 +101,27 @@ export function JobsTab() {
 
         if (linesErr) throw linesErr;
 
-        const linesByJob = new Map<number, typeof linesData>();
-        for (const line of linesData ?? []) {
+        const rawLines = (linesData ?? []) as unknown as RawTransactionLine[];
+        const linesByJob = new Map<number, RawTransactionLine[]>();
+        for (const line of rawLines) {
           if (!line.job_id) continue;
           const arr = linesByJob.get(line.job_id) ?? [];
           arr.push(line);
           linesByJob.set(line.job_id, arr);
         }
 
-        const summaries: JobSummary[] = (jobsData ?? []).map((job: any) => {
+        const rawJobs = (jobsData ?? []) as unknown as RawJob[];
+        const summaries: JobSummary[] = rawJobs.map((job) => {
           const lines = linesByJob.get(job.id) ?? [];
           let income = 0, labor = 0, materials = 0, otherExpenses = 0;
           let hasIncome = false, hasLabor = false;
           const txMap = new Map<number, Transaction>();
 
           for (const line of lines) {
-            const typeName = (line.accounts as any)?.account_types?.name ?? '';
+            const typeName = line.accounts?.account_types?.name ?? '';
             const amt = Number(line.amount) || 0;
             const txId = line.transaction_id;
-            const tx = line.transactions as any;
+            const tx = line.transactions;
 
             if (txId && !txMap.has(txId)) {
               txMap.set(txId, {
@@ -107,7 +132,7 @@ export function JobsTab() {
                 type: 'other',
                 cleared: true,
                 vendorInstaller: null,
-                accountName: (line.accounts as any)?.name ?? '',
+                accountName: line.accounts?.name ?? '',
               });
             }
 
@@ -125,9 +150,9 @@ export function JobsTab() {
               }
               if (!txEntry.vendorInstaller) {
                 if (line.installers) {
-                  txEntry.vendorInstaller = `${(line.installers as any).first_name} ${(line.installers as any).last_name ?? ''}`.trim();
+                  txEntry.vendorInstaller = `${line.installers.first_name} ${line.installers.last_name ?? ''}`.trim();
                 } else if (line.vendors) {
-                  txEntry.vendorInstaller = (line.vendors as any).name;
+                  txEntry.vendorInstaller = line.vendors.name;
                 }
               }
               if (!line.is_cleared) txEntry.cleared = false;
@@ -164,8 +189,8 @@ export function JobsTab() {
         });
 
         setJobs(summaries);
-      } catch (err: any) {
-        setError(err.message ?? 'Failed to load jobs');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load jobs');
       } finally {
         setLoading(false);
       }
@@ -244,11 +269,11 @@ export function JobsTab() {
                 <div style={styles.financials}>
                   <div style={styles.finRow}>
                     <span style={styles.finLabel}>Client</span>
-                    <span style={styles.finAmount}>{job.hasIncome ? formatCurrency(job.income, 0) : '—'}</span>
+                    <span style={styles.finAmount}>{job.hasIncome ? formatCurrency(job.income, 0) : '-'}</span>
                   </div>
                   <div style={styles.finRow}>
                     <span style={styles.finLabel}>Installer</span>
-                    <span style={styles.finAmount}>{job.hasLabor ? formatCurrency(job.labor, 0) : '—'}</span>
+                    <span style={styles.finAmount}>{job.hasLabor ? formatCurrency(job.labor, 0) : '-'}</span>
                   </div>
                   <div style={styles.finRow}>
                     <span style={styles.finLabel}>Profit</span>

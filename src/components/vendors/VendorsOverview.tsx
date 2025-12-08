@@ -11,7 +11,11 @@ type Vendor = {
   is_lender: boolean;
 };
 
-export function VendorsOverview() {
+type VendorsOverviewProps = {
+  onVendorSelect?: (vendorId: number) => void;
+};
+
+export function VendorsOverview({ onVendorSelect }: VendorsOverviewProps) {
   const currentYear = new Date().getFullYear();
   
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -37,7 +41,7 @@ export function VendorsOverview() {
 
         if (vendErr) throw vendErr;
 
-        const vendorsTyped: Vendor[] = (vendorsData ?? []).map((v: any) => ({
+        const vendorsTyped: Vendor[] = ((vendorsData ?? []) as unknown as Vendor[]).map((v) => ({
           ...v,
           is_lender: v.is_lender ?? false,
         }));
@@ -76,9 +80,9 @@ export function VendorsOverview() {
         setVendors(vendorsTyped);
         setSpend(spendMap);
         setLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message ?? 'Failed to load vendors');
+        setError(err instanceof Error ? err.message : 'Failed to load vendors');
         setLoading(false);
       }
     }
@@ -197,7 +201,15 @@ export function VendorsOverview() {
               const vendorSpend = spend[v.id] ?? 0;
 
               return (
-                <tr key={v.id} style={{ opacity: v.is_active ? 1 : 0.5 }}>
+                <tr 
+                  key={v.id} 
+                  style={{ 
+                    opacity: v.is_active ? 1 : 0.5,
+                    cursor: onVendorSelect ? 'pointer' : 'default',
+                  }}
+                  onClick={() => onVendorSelect?.(v.id)}
+                  title={onVendorSelect ? 'Click to edit' : undefined}
+                >
                   <Td>{v.name}</Td>
                   <Td>{v.nick_name ?? ''}</Td>
                   <Td>{v.tax_id ?? ''}</Td>
@@ -237,7 +249,15 @@ export function VendorsOverview() {
                 const lenderSpend = spend[v.id] ?? 0;
 
                 return (
-                  <tr key={v.id} style={{ opacity: v.is_active ? 1 : 0.5 }}>
+                  <tr 
+                    key={v.id} 
+                    style={{ 
+                      opacity: v.is_active ? 1 : 0.5,
+                      cursor: onVendorSelect ? 'pointer' : 'default',
+                    }}
+                    onClick={() => onVendorSelect?.(v.id)}
+                    title={onVendorSelect ? 'Click to edit' : undefined}
+                  >
                     <Td>{v.name}</Td>
                     <Td>{v.nick_name ?? ''}</Td>
                     <Td>{v.tax_id ?? ''}</Td>

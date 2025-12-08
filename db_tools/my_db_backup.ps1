@@ -29,9 +29,6 @@ $PGUSER = "postgres"
 $DATE   = Get-Date -Format "yyyyMMdd_HHmmss"
 $OUTDIR = Join-Path $ROOT "oakerds_dev_dump_$DATE"
 
-# Create timestamp folder directly under db_tools
-New-Item -ItemType Directory -Force -Path $OUTDIR | Out-Null
-
 # Create timestamp folder
 New-Item -ItemType Directory -Force -Path $OUTDIR | Out-Null
 
@@ -55,7 +52,7 @@ Write-Host "1. Dumping CORE schema (public core tables)..."
   -t public.real_estate_deals `
   -t public.transactions `
   -t public.transaction_lines `
-  > "$OUTDIR/schema_core.sql"
+  | Out-File -FilePath "$OUTDIR/schema_core.sql" -Encoding utf8
 
 # ----------------------------
 # 2. App Logic (public schema only: your views, functions, triggers)
@@ -66,7 +63,7 @@ Write-Host "2. Dumping app logic (public schema only)..."
   --schema-only `
   -n public `
   --section=pre-data --section=post-data `
-  > "$OUTDIR/logic_app_public.sql"
+  | Out-File -FilePath "$OUTDIR/logic_app_public.sql" -Encoding utf8
 
 # ----------------------------
 # 3. Sample Data (all core tables in one pg_dump call)
@@ -85,7 +82,7 @@ Write-Host "3. Dumping sample data..."
   -t public.real_estate_deals `
   -t public.transactions `
   -t public.transaction_lines `
-  > "$OUTDIR/sample_data.sql"
+  | Out-File -FilePath "$OUTDIR/sample_data.sql" -Encoding utf8
 
 Write-Host ""
 Write-Host "=============================="

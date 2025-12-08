@@ -19,7 +19,25 @@ type LeadSourceStats = {
   roi: number | null;
 };
 
-export function LeadSourcesOverview() {
+type RawJobForLeadSource = {
+  id: number;
+  lead_source_id: number | null;
+  start_date: string | null;
+};
+
+type RawTxLineForLeadSource = {
+  amount: number;
+  account_id: number;
+  job_id: number | null;
+  accounts: { account_types: { name: string } } | null;
+  transactions: { date: string } | null;
+};
+
+type LeadSourcesOverviewProps = {
+  onLeadSourceSelect?: (leadSourceId: number) => void;
+};
+
+export function LeadSourcesOverview({ onLeadSourceSelect }: LeadSourcesOverviewProps) {
   const currentYear = new Date().getFullYear();
 
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
@@ -62,10 +80,11 @@ export function LeadSourcesOverview() {
 
         if (jobsErr) throw jobsErr;
 
+        const rawJobs = (jobsData ?? []) as unknown as RawJobForLeadSource[];
         // Filter jobs by year for job count
         const filteredJobs = year === 'all'
-          ? jobsData ?? []
-          : (jobsData ?? []).filter((job: any) => {
+          ? rawJobs
+          : rawJobs.filter((job) => {
               const startYear = job.start_date?.slice(0, 4);
               return startYear === String(year);
             });
@@ -73,7 +92,7 @@ export function LeadSourcesOverview() {
         const jobCountMap: Record<number, number> = {};
         const jobToLeadSource: Record<number, number> = {};
         
-        for (const job of jobsData ?? []) {
+        for (const job of rawJobs) {
           if (job.lead_source_id) {
             jobToLeadSource[job.id] = job.lead_source_id;
           }
@@ -115,11 +134,12 @@ export function LeadSourcesOverview() {
         const jobExpenseMap: Record<number, number> = {};
         const marketingSpendMap: Record<number, number> = {};
 
-        for (const line of txData ?? []) {
-          const accType = (line.accounts as any)?.account_types?.name;
-          const accountId = line.account_id as number;
+        const rawTxLines = (txData ?? []) as unknown as RawTxLineForLeadSource[];
+        for (const line of rawTxLines) {
+          const accType = line.accounts?.account_types?.name;
+          const accountId = line.account_id;
           const amount = Math.abs(Number(line.amount) || 0);
-          const jobId = line.job_id as number | null;
+          const jobId = line.job_id;
 
           // Marketing spend: check if account_id is a marketing account for a lead source
           const leadSourceFromMarketing = marketingAccountToLeadSource[accountId];
@@ -163,9 +183,9 @@ export function LeadSourcesOverview() {
         setLeadSources(sourcesTyped);
         setStats(combinedStats);
         setLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message ?? 'Failed to load lead sources');
+        setError(err instanceof Error ? err.message : 'Failed to load lead sources');
         setLoading(false);
       }
     }
@@ -230,7 +250,7 @@ export function LeadSourcesOverview() {
   };
 
   const formatRoi = (roi: number | null): string => {
-    if (roi === null) return '—';
+    if (roi === null) return '-';
     return `${roi.toFixed(1)}x`;
   };
 
@@ -301,7 +321,15 @@ export function LeadSourcesOverview() {
             const sourceStats = stats[s.id] || { jobCount: 0, grossIncome: 0, jobExpenses: 0, profit: 0, marketingSpend: 0, roi: null };
 
             return (
-              <tr key={s.id} style={{ opacity: s.is_active ? 1 : 0.5 }}>
+              <tr 
+                key={s.id} 
+                style={{ 
+                  opacity: s.is_active ? 1 : 0.5,
+                  cursor: onLeadSourceSelect ? 'pointer' : 'default',
+                }}
+                onClick={() => onLeadSourceSelect?.(s.id)}
+                title={onLeadSourceSelect ? 'Click to edit' : undefined}
+              >
                 <Td>{formatSourceName(s)}</Td>
                 <Td align="right">{sourceStats.jobCount}</Td>
                 <Td align="right">{formatCurrency(sourceStats.grossIncome, 0)}</Td>

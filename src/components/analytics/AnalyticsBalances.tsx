@@ -20,11 +20,26 @@ type AccountBalance = {
   balance: number;
 };
 
+type RawAccountBalance = {
+  account_id: number;
+  account_name: string;
+  account_code: string | null;
+  account_type: string;
+  balance: number;
+};
+
 type TransactionLine = {
   id: number;
   account_id: number;
   amount: number;
   transaction_date: string;
+};
+
+type RawTransactionLineQuery = {
+  id: number;
+  account_id: number;
+  amount: number;
+  transactions: { date: string } | null;
 };
 
 type CandlestickData = {
@@ -59,15 +74,16 @@ export function AnalyticsBalances() {
         return;
       }
 
-      const bankAccounts = (data ?? [])
-        .filter((acc: any) => isBankCode(acc.account_code))
-        .sort((a: any, b: any) => {
+      const rawAccounts = (data ?? []) as unknown as RawAccountBalance[];
+      const bankAccounts = rawAccounts
+        .filter((acc) => isBankCode(acc.account_code))
+        .sort((a, b) => {
           const codeA = a.account_code || a.account_name;
           const codeB = b.account_code || b.account_name;
           return codeA.localeCompare(codeB);
         });
 
-      setAccountBalances(bankAccounts as AccountBalance[]);
+      setAccountBalances(bankAccounts);
     }
 
     loadAccounts();
@@ -127,13 +143,14 @@ export function AnalyticsBalances() {
 
         if (txErr) throw txErr;
 
-        const txLines: TransactionLine[] = (transactions ?? [])
-          .filter((tx: any) => tx && tx.transactions && tx.transactions.date)
-          .map((tx: any) => ({
+        const rawTxLines = (transactions ?? []) as unknown as RawTransactionLineQuery[];
+        const txLines: TransactionLine[] = rawTxLines
+          .filter((tx) => tx && tx.transactions && tx.transactions.date)
+          .map((tx) => ({
             id: tx.id,
             account_id: tx.account_id,
             amount: Number(tx.amount),
-            transaction_date: tx.transactions.date,
+            transaction_date: tx.transactions!.date,
           }));
 
         const balancesByDate = calculateBalancesByPeriod(
@@ -266,7 +283,7 @@ export function AnalyticsBalances() {
     }
   }
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: CandlestickData }> }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -484,8 +501,14 @@ export function AnalyticsBalances() {
                 dataKey="high"
                 fill="transparent"
                 isAnimationActive={false}
-                shape={(props: any) => {
-                  const { x, y, width, height, payload } = props;
+                shape={(props: unknown) => {
+                  const { x, y, width, height, payload } = props as {
+                    x: number;
+                    y: number;
+                    width: number;
+                    height: number;
+                    payload: CandlestickData;
+                  };
                   if (!payload || height <= 0) return <></>;
 
                   const { open, close, high, low } = payload;

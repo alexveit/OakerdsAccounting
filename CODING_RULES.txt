@@ -19,6 +19,21 @@ ACCOUNT CODES (src/utils/accounts.ts)
 - NEVER use account names for lookups (e.g., a.name === 'RE - Mortgage Interest')
 - ALWAYS use ACCOUNT_CODES: accounts.find(a => a.code === ACCOUNT_CODES.RENTAL_MORTGAGE_INTEREST)
 
+TRANSACTION LINE CLASSIFICATION (src/utils/accounts.ts)
+- Use classifyLine(line) for all P&L categorization
+- Returns: { isBusiness, isPersonal, incomeCategory, expenseCategory }
+- Income categories: 'job' | 'rental' | 'personal' | 'other'
+- Expense categories: 'job' | 'rental' | 'flip' | 'marketing' | 'overhead' | 'personal'
+- Use isRealEstateExpenseCategory(category) to check if rental OR flip
+- NEVER duplicate classification logic inline in components
+- ALWAYS use classifyLine() for Dashboard, Analytics, ProfitSummary, etc.
+
+Example:
+  const classification = classifyLine(line);
+  if (classification.incomeCategory === 'rental') { ... }
+  if (classification.expenseCategory === 'flip') { ... }
+  if (isRealEstateExpenseCategory(classification.expenseCategory)) { ... }
+
 FORMATTING (src/utils/format.ts)
 - Import: formatCurrency, formatMoney, formatCurrencyOptional, formatPercent
 - formatCurrency(value, decimals) - use decimals=0 for whole dollars
@@ -37,6 +52,41 @@ DATES (src/utils/date.ts)
 - AVOID `as any[]` type casting - define proper types instead
 - Use `catch (err: unknown)` then `err instanceof Error ? err.message : '...'`
 - Define explicit types for Supabase query results
+
+SUPABASE QUERY TYPE CASTING
+- Define RawXxxRow types matching exact query shape (including nested joins)
+- Cast results: (data ?? []) as unknown as RawXxxRow[]
+- Handle nested joins that return arrays OR objects:
+
+  type RawAccountRow = {
+    id: number;
+    name: string;
+    account_types: { name: string }[] | { name: string } | null;
+  };
+
+  const raw = (data ?? []) as unknown as RawAccountRow[];
+  const mapped = raw.map(a => ({
+    ...a,
+    account_types: Array.isArray(a.account_types)
+      ? a.account_types[0] ?? null
+      : a.account_types ?? null,
+  }));
+
+RECHARTS COMPONENT TYPING
+- Tooltip props: { active?: boolean; payload?: Array<{ payload: DataType }>; label?: string }
+- Shape props: Use (props: unknown) then cast inside:
+
+  shape={(props: unknown) => {
+    const { x, y, width, height, payload } = props as {
+      x: number; y: number; width: number; height: number; payload: MyData;
+    };
+    ...
+  }}
+
+ERROR HANDLING
+- Always: catch (err: unknown)
+- Then: err instanceof Error ? err.message : 'Fallback message'
+- NEVER: catch (err: any) or catch (err) with implicit any
 
 --------------------------------------------------------------------------------
 3. ACCOUNTING INTEGRITY
@@ -262,5 +312,255 @@ Examples of what to capture:
 - Architectural decisions (e.g., where components should live)
 - Bug patterns to avoid
 - New utility functions or constants
+
+--------------------------------------------------------------------------------
+13. REAL ESTATE TRANSACTION RULES
+--------------------------------------------------------------------------------
+
+DEAL ATTRIBUTION
+- All RE expense transaction_lines MUST have real_estate_deal_id set
+- Orphaned RE expenses (no deal linked) break per-property P&L tracking
+- Verify with: SELECT ... WHERE real_estate_deal_id IS NULL AND account code in RE range
+
+ACCOUNT TYPE MUST MATCH PROPERTY TYPE
+- Flip properties: Use Flip Expense accounts (62100-62105)
+- Rental properties: Use Rental Expense accounts (62000-62099)
+- NEVER use Flip accounts for rental property expenses (or vice versa)
+- Common mistake: Contractor work on rental coded as Flip Rehab Labor
+
+VERIFICATION QUERIES
+When flip or rental totals don't match between views:
+1. Check for orphaned expenses (no deal_id)
+2. Check for misattributed expenses (wrong deal)
+3. Check for wrong account type (flip account on rental property)
+
+Example:
+  SELECT COALESCE(d.nickname, '** NO DEAL **') AS deal, a.code, SUM(tl.amount)
+  FROM transaction_lines tl
+  JOIN accounts a ON a.id = tl.account_id
+  LEFT JOIN real_estate_deals d ON d.id = tl.real_estate_deal_id
+  WHERE a.code BETWEEN '62100' AND '62105'
+  GROUP BY d.nickname, a.code;
+
+--------------------------------------------------------------------------------
+14. AI ASSISTANT FILE EDITING
+--------------------------------------------------------------------------------
+
+WHEN EDITING FILES WITH UNICODE/EMOJI CONTENT
+- NEVER use shell commands (sed, cat >, awk) on files containing emojis or special characters
+- Shell tools corrupt multi-byte UTF-8 sequences (emojis become garbled like ðŸ"Š)
+- ALWAYS use the str_replace tool for targeted edits
+- OR provide clean code snippets for manual paste
+
+SAFE: str_replace tool, view tool, providing code blocks to paste
+UNSAFE: sed, cat >, echo >, awk, perl one-liners on UTF-8 files
+
+This applies especially to:
+- App.tsx (nav icons)
+- Any UI component with emoji icons
+- Files with non-ASCII characters in strings
+
+If you see garbled characters like ðŸ"Š instead of 📊, the file was corrupted
+by shell commands and needs to be restored from source control.
+
+--------------------------------------------------------------------------------
+15. AI-POWERED FEATURES (Bank Import Pattern)
+--------------------------------------------------------------------------------
+
+EDGE FUNCTION STRUCTURE
+- Supabase Edge Functions for AI API calls (keeps API keys server-side)
+- Send reference data (accounts, vendors, jobs) to AI for context
+- Include current date context for parsing dates without years
+- Return structured JSON with validation
+
+JSON PARSING FROM AI
+- AI responses may have trailing commas - clean with regex before parsing
+- Remove control characters: jsonStr.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+- Remove trailing commas: jsonStr.replace(/,(\s*[\}\]])/g, '$1')
+- Wrap JSON.parse in try/catch with detailed error logging
+
+STATE PERSISTENCE FOR EXPENSIVE OPERATIONS
+- Use localStorage to preserve AI-processed data across navigation
+- Pattern: save on state change, restore on mount, clear on commit/cancel
+
+  const STORAGE_KEY = 'featureName_state';
+  
+  // Restore on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) { /* restore state */ }
+  }, []);
+  
+  // Save on change
+  useEffect(() => {
+    if (hasData) localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
+  
+  // Clear after commit
+  function clearSavedState() {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+--------------------------------------------------------------------------------
+16. CLICK-TO-EDIT PATTERN (Overview -> Manage)
+--------------------------------------------------------------------------------
+
+For views with Overview and Manage tabs (Vendors, Installers, LeadSources):
+
+PARENT VIEW (e.g., VendorsView.tsx)
+- State: selectedId, setSelectedId
+- Pass onSelect callback to Overview
+- Pass initialSelectedId + onSelectionUsed to ManageView
+
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  
+  <Overview onVendorSelect={(id) => { setSelectedId(id); setTab('manage'); }} />
+  <ManageView 
+    initialSelectedId={selectedId} 
+    onSelectionUsed={() => setSelectedId(null)} 
+  />
+
+OVERVIEW COMPONENT
+- Accept onXxxSelect prop
+- Add onClick to table rows with cursor: pointer
+
+  <tr 
+    onClick={() => onVendorSelect?.(v.id)}
+    style={{ cursor: onVendorSelect ? 'pointer' : 'default' }}
+  >
+
+MANAGE COMPONENT  
+- Accept initialSelectedId and onSelectionUsed props
+- useEffect to apply selection after data loads
+
+  useEffect(() => {
+    if (initialSelectedId != null && items.length > 0) {
+      setSelectedId(initialSelectedId);
+      setIsCreating(false);
+      onSelectionUsed?.();
+    }
+  }, [initialSelectedId, items.length, onSelectionUsed]);
+
+--------------------------------------------------------------------------------
+17. SEARCHABLE SELECT WITH QUICK-CREATE
+--------------------------------------------------------------------------------
+
+For dropdowns that allow creating new items inline:
+
+  <SearchableSelect
+    options={vendorOptions}
+    value={selectedVendorId}
+    onChange={(val) => setSelectedVendorId(val)}
+    allowCreate
+    onCreateNew={async (name) => {
+      const { data } = await supabase
+        .from('vendors')
+        .insert({ name, nick_name: name })
+        .select('id')
+        .single();
+      // Update local state immediately so new item appears
+      setVendors(prev => [...prev, { id: data.id, name }]);
+      return data?.id ?? null;
+    }}
+    createLabel="Create vendor"
+  />
+
+--------------------------------------------------------------------------------
+18. COMMON BUG PATTERNS TO AVOID
+--------------------------------------------------------------------------------
+
+SUCCESS MESSAGE DISAPPEARING
+- Bug: setSuccess() then list updates, triggering useEffect that calls populateForm()
+- populateForm() was clearing success - user never sees feedback
+- Fix: Don't clear success in populateForm(), only in resetForm()
+
+TYPESCRIPT TYPE NARROWING IN CONDITIONALS
+- Bug: {state === 'review' && <button disabled={state === 'committing'}>}
+- TS knows state can only be 'review' inside the block, flags comparison as always false
+- Fix: Include both states in condition: {(state === 'review' || state === 'committing') && ...}
+
+OPTIONAL FIELDS IN RPC CALLS
+- Bug: Passing null for optional fields like job_id in JSONB
+- Postgres RPC may not handle nulls in JSONB well
+- Fix: Only include fields if they have values
+
+  const line: Record<string, any> = { account_id, amount };
+  if (jobId) line.job_id = jobId;
+  if (vendorId) line.vendor_id = vendorId;
+
+CSS INPUT TYPE SELECTORS
+- Bug: input[type="tel"] not styled like other inputs
+- Fix: Add all input types to CSS selector list
+- Check: text, number, date, email, password, search, tel
+
+--------------------------------------------------------------------------------
+19. POWERSHELL DATABASE DUMPS
+--------------------------------------------------------------------------------
+
+ENCODING FIX
+- PowerShell's > redirection outputs UTF-16 by default
+- UTF-16 files can't be searched/processed by many tools
+- Always use: | Out-File -FilePath "file.sql" -Encoding utf8
+
+  # BAD - creates UTF-16
+  pg_dump ... > schema.sql
+  
+  # GOOD - creates UTF-8
+  pg_dump ... | Out-File -FilePath "schema.sql" -Encoding utf8
+
+--------------------------------------------------------------------------------
+20. UI DISPLAY CONVENTIONS
+--------------------------------------------------------------------------------
+
+EXPENSE DISPLAY
+- Red color alone indicates expense/negative - no minus sign needed
+- Showing both minus AND red is redundant and clutters the UI
+
+  # BAD
+  <span style={{ color: red }}>-{currency(expense)}</span>
+  
+  # GOOD  
+  <span style={{ color: red }}>{currency(expense)}</span>
+
+ASCII SEPARATORS IN UI
+- Use pipe | or hyphen - instead of middle dot (·) or bullet
+- Middle dots get garbled across systems (Â· instead of ·)
+
+  # BAD
+  Margin: 13.4% · Avg: $5,947 · Count: 104
+  
+  # GOOD
+  Margin: 13.4% | Avg: $5,947 | Count: 104
+
+COLLAPSIBLE SIDEBAR SECTIONS
+- Store collapsed state as Set<string> of section titles
+- Default to collapsed: new Set(['Operations', 'Financials', 'Real Estate'])
+- Toggle with click on section header, show chevron indicator
+
+--------------------------------------------------------------------------------
+21. AI BANK IMPORT SPECIFICS
+--------------------------------------------------------------------------------
+
+DATE PARSING
+- Bank data often shows dates without year (e.g., "12/07")
+- Always include current date context in AI prompt
+- System prompt: "Today is ${currentDate}. Use ${currentYear} for dates without year."
+
+STATUS AUTO-POPULATION
+- Bank "Processing"/"Pending" -> is_cleared = false (unchecked)
+- Bank "Posted"/"Cleared" -> is_cleared = true (checked)
+- Allow user override but default from bank status
+
+  checked={tx.override_is_cleared ?? (tx.bank_status === 'posted')}
+
+MINIMAL INPUT FOR BEST RESULTS
+- Copy only the transaction table, not full page
+- Full page includes navigation, footer, disclaimers = more tokens + higher error rate
+- Cleaner input = more reliable JSON output from AI
+
+PURPOSE FIELD
+- Removed from Bank Import for consistency with NewTransactionForm
+- Default to 'business' for all imported transactions
+- User can edit in Ledger if needed
 
 ================================================================================

@@ -18,7 +18,12 @@ type LeadSource = {
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function LeadSourceManageView() {
+type LeadSourceManageViewProps = {
+  initialSelectedId?: number | null;
+  onSelectionUsed?: () => void;
+};
+
+export function LeadSourceManageView({ initialSelectedId, onSelectionUsed }: LeadSourceManageViewProps) {
   // List state
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -38,6 +43,15 @@ export function LeadSourceManageView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Handle initialSelectedId from parent (e.g., click from Overview)
+  useEffect(() => {
+    if (initialSelectedId != null && leadSources.length > 0) {
+      setSelectedId(initialSelectedId);
+      setIsCreating(false);
+      onSelectionUsed?.();
+    }
+  }, [initialSelectedId, leadSources.length, onSelectionUsed]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Data Loading
@@ -94,7 +108,7 @@ export function LeadSourceManageView() {
     setDescription(source.description || '');
     setIsActive(source.is_active);
     setError(null);
-    setSuccess(null);
+    // Don't clear success here - it would erase the "saved" feedback
   }
 
   function startCreate() {

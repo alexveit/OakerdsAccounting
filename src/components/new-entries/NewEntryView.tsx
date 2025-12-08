@@ -2,13 +2,21 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { NewTransactionForm } from './NewTransactionForm';
 import { NewJobForm } from './NewJobForm';
-import { Transfers } from '../Transfers';
+import { Transfers } from '../stand-alones/Transfers';
 import { formatCurrency } from '../../utils/format';
 import { isBankCode, isCreditCardCode } from '../../utils/accounts';
 
 type EntryTab = 'transaction' | 'job' | 'transfer';
 
 type AccountBalance = {
+  account_id: number;
+  account_name: string;
+  account_code: string | null;
+  account_type: string;
+  balance: number;
+};
+
+type RawAccountBalanceRow = {
   account_id: number;
   account_name: string;
   account_code: string | null;
@@ -35,8 +43,8 @@ export function NewEntryView({ initialJobId }: { initialJobId?: number | null })
 
       if (error) throw error;
 
-      const accounts: AccountBalance[] = ((data ?? []) as any[])
-        .map((row: any) => ({
+      const accounts: AccountBalance[] = ((data ?? []) as unknown as RawAccountBalanceRow[])
+        .map((row) => ({
           account_id: Number(row.account_id),
           account_name: String(row.account_name),
           account_code: row.account_code ?? null,

@@ -11,7 +11,11 @@ type Installer = {
   is_active: boolean;
 };
 
-export function InstallersOverview() {
+type InstallersOverviewProps = {
+  onInstallerSelect?: (installerId: number) => void;
+};
+
+export function InstallersOverview({ onInstallerSelect }: InstallersOverviewProps) {
   const currentYear = new Date().getFullYear();
 
   const [installers, setInstallers] = useState<Installer[]>([]);
@@ -181,7 +185,15 @@ export function InstallersOverview() {
             const installerPaid = paid[i.id] ?? 0;
 
             return (
-              <tr key={i.id} style={{ opacity: i.is_active ? 1 : 0.5 }}>
+              <tr 
+                key={i.id} 
+                style={{ 
+                  opacity: i.is_active ? 1 : 0.5,
+                  cursor: onInstallerSelect ? 'pointer' : 'default',
+                }}
+                onClick={() => onInstallerSelect?.(i.id)}
+                title={onInstallerSelect ? 'Click to edit' : undefined}
+              >
                 <Td>{name}</Td>
                 <Td>{i.company_name ?? ''}</Td>
                 <Td>{i.tax_id ?? ''}</Td>

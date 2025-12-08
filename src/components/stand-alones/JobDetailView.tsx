@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { formatLocalDate, todayLocalISO } from '../utils/date';
+import { supabase } from '../../lib/supabaseClient';
+import { formatLocalDate, todayLocalISO } from '../../utils/date';
 
 type Job = {
   id: number;
@@ -113,7 +113,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
 
         if (lineErr) throw lineErr;
 
-        const allLines = (lineData ?? []) as Line[];
+        const allLines = (lineData ?? []) as unknown as Line[];
 
         // Group lines by job
         const linesByJob = new Map<number, Line[]>();
@@ -513,7 +513,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
             fontSize: 15,
           }}
         >
-          <span>{isExpanded ? '▾' : '▸'}</span>
+          <span>{isExpanded ? 'â–¾' : 'â–¸'}</span>
           <span>Transactions</span>
         </h3>
 
@@ -556,7 +556,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
                           maximumFractionDigits: 2,
                         })}
                       </Td>
-                      <Td align="center">{row.cleared ? '✓' : ''}</Td>
+                      <Td align="center">{row.cleared ? 'âœ“' : ''}</Td>
                     </tr>
                   ))}
                 </tbody>

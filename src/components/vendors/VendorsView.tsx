@@ -6,6 +6,20 @@ type VendorsTab = 'overview' | 'manage';
 
 export function VendorsView() {
   const [tab, setTab] = useState<VendorsTab>('overview');
+  const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null);
+
+  function handleVendorSelect(vendorId: number) {
+    setSelectedVendorId(vendorId);
+    setTab('manage');
+  }
+
+  // Clear selection when switching away from manage tab
+  function handleTabChange(newTab: VendorsTab) {
+    if (newTab !== 'manage') {
+      setSelectedVendorId(null);
+    }
+    setTab(newTab);
+  }
 
   return (
     <div>
@@ -25,7 +39,7 @@ export function VendorsView() {
         <button
           type="button"
           className={`tab ${tab === 'overview' ? 'tab--active' : ''}`}
-          onClick={() => setTab('overview')}
+          onClick={() => handleTabChange('overview')}
         >
           Overview
         </button>
@@ -33,7 +47,7 @@ export function VendorsView() {
         <button
           type="button"
           className={`tab ${tab === 'manage' ? 'tab--active' : ''}`}
-          onClick={() => setTab('manage')}
+          onClick={() => handleTabChange('manage')}
         >
           Manage
         </button>
@@ -41,8 +55,13 @@ export function VendorsView() {
 
       {/* Content */}
       <div style={{ marginTop: '0.75rem' }}>
-        {tab === 'overview' && <VendorsOverview />}
-        {tab === 'manage' && <VendorManageView />}
+        {tab === 'overview' && <VendorsOverview onVendorSelect={handleVendorSelect} />}
+        {tab === 'manage' && (
+          <VendorManageView 
+            initialSelectedId={selectedVendorId} 
+            onSelectionUsed={() => setSelectedVendorId(null)} 
+          />
+        )}
       </div>
     </div>
   );

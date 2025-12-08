@@ -9,6 +9,14 @@ type LeadSource = {
   nick_name: string;
 };
 
+type JobInsertPayload = {
+  name: string;
+  address: string | null;
+  status: string;
+  start_date: string;
+  lead_source_id?: number;
+};
+
 export function NewJobForm() {
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +64,7 @@ export function NewJobForm() {
 
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: JobInsertPayload = {
         name: name.trim(),
         address: address.trim() || null,
         status: 'open',
@@ -78,9 +86,9 @@ export function NewJobForm() {
       setAddress('');
       setLeadSourceId('');
       setStartDate(todayLocalISO());
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message ?? 'Error saving job');
+      setError(err instanceof Error ? err.message : 'Error saving job');
     } finally {
       setSaving(false);
     }

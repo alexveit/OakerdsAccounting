@@ -6,6 +6,19 @@ type LeadSourcesTab = 'overview' | 'manage';
 
 export function LeadSourcesView() {
   const [tab, setTab] = useState<LeadSourcesTab>('overview');
+  const [selectedLeadSourceId, setSelectedLeadSourceId] = useState<number | null>(null);
+
+  function handleLeadSourceSelect(leadSourceId: number) {
+    setSelectedLeadSourceId(leadSourceId);
+    setTab('manage');
+  }
+
+  function handleTabChange(newTab: LeadSourcesTab) {
+    if (newTab !== 'manage') {
+      setSelectedLeadSourceId(null);
+    }
+    setTab(newTab);
+  }
 
   return (
     <div>
@@ -25,7 +38,7 @@ export function LeadSourcesView() {
         <button
           type="button"
           className={`tab ${tab === 'overview' ? 'tab--active' : ''}`}
-          onClick={() => setTab('overview')}
+          onClick={() => handleTabChange('overview')}
         >
           Overview
         </button>
@@ -33,7 +46,7 @@ export function LeadSourcesView() {
         <button
           type="button"
           className={`tab ${tab === 'manage' ? 'tab--active' : ''}`}
-          onClick={() => setTab('manage')}
+          onClick={() => handleTabChange('manage')}
         >
           Manage
         </button>
@@ -41,8 +54,13 @@ export function LeadSourcesView() {
 
       {/* Content */}
       <div style={{ marginTop: '0.75rem' }}>
-        {tab === 'overview' && <LeadSourcesOverview />}
-        {tab === 'manage' && <LeadSourceManageView />}
+        {tab === 'overview' && <LeadSourcesOverview onLeadSourceSelect={handleLeadSourceSelect} />}
+        {tab === 'manage' && (
+          <LeadSourceManageView 
+            initialSelectedId={selectedLeadSourceId} 
+            onSelectionUsed={() => setSelectedLeadSourceId(null)} 
+          />
+        )}
       </div>
     </div>
   );

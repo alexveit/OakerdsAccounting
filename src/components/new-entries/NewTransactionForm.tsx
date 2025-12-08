@@ -70,6 +70,28 @@ type TxType = 'income' | 'expense';
 type ExpenseKind = 'material' | 'labor' | 'other';
 type CostType = 'L' | 'M' | 'S' | '';
 
+// Raw shape from Supabase accounts query
+type RawAccountData = {
+  id: number;
+  name: string;
+  code: string | null;
+  purpose_default: string | null;
+  account_types: { name: string } | null;
+};
+
+// Shape for transaction lines passed to create_transaction_multi RPC
+type TransactionLineInput = {
+  account_id: number;
+  amount: number;
+  job_id: number | null;
+  vendor_id: number | null;
+  installer_id: number | null;
+  real_estate_deal_id: number | null;
+  purpose: 'business' | 'personal';
+  is_cleared: boolean;
+  rehab_category_id?: number | null;
+};
+
 type NewTransactionFormProps = {
   initialJobId?: number | null;
   onTransactionSaved?: () => void;
@@ -167,7 +189,7 @@ export function NewTransactionForm({
           .from('accounts')
           .select('id, name, code, purpose_default, account_types(name)');
         if (accountsErr) throw accountsErr;
-        const normalizedAccounts: Account[] = (accountsData ?? []).map((a: any) => ({
+        const normalizedAccounts: Account[] = ((accountsData ?? []) as unknown as RawAccountData[]).map((a) => ({
           id: a.id,
           name: a.name,
           code: a.code ?? null,
@@ -197,9 +219,9 @@ export function NewTransactionForm({
         if (rehabErr) throw rehabErr;
         setRehabCategories((rehabData ?? []) as RehabCategory[]);
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message ?? 'Error loading options');
+        setError(err instanceof Error ? err.message : 'Error loading options');
       } finally {
         setLoading(false);
       }
@@ -409,9 +431,9 @@ export function NewTransactionForm({
         setSaving(true);
         await handleFlipExpenseSubmit(amt);
         return;
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message ?? 'Error saving flip transaction');
+        setError(err instanceof Error ? err.message : 'Error saving flip transaction');
         setSaving(false);
         return;
       }
@@ -423,9 +445,9 @@ export function NewTransactionForm({
         setSaving(true);
         await handleFlipIncomeSubmit(amt);
         return;
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message ?? 'Error saving flip transaction');
+        setError(err instanceof Error ? err.message : 'Error saving flip transaction');
         setSaving(false);
         return;
       }
@@ -448,8 +470,8 @@ export function NewTransactionForm({
           ? 'personal'
           : 'business';
 
-      let line1: any;
-      let line2: any;
+      let line1: TransactionLineInput;
+      let line2: TransactionLineInput;
 
       if (txType === 'income') {
         line1 = { account_id: cash_id, amount: amt, job_id, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
@@ -459,21 +481,21 @@ export function NewTransactionForm({
         line2 = { account_id: cash_id, amount: -amt, job_id, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
       }
 
-      const { error: rpcErr } = await supabase.rpc('create_transaction', {
+      const lines = [line1, line2];
+
+      const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
         p_date: date,
         p_description: description || null,
-        p_line1: line1,
-        p_line2: line2,
-        p_purpose: txPurpose,
+        p_lines: lines,
       });
       if (rpcErr) throw rpcErr;
 
       setSuccess('Transaction saved.');
       resetFormFields();
       if (onTransactionSaved) onTransactionSaved();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message ?? 'Error saving transaction');
+      setError(err instanceof Error ? err.message : 'Error saving transaction');
     } finally {
       setSaving(false);
     }
@@ -621,9 +643,9 @@ export function NewTransactionForm({
         return;
       }
 
-      const lines: any[] = [];
+      const lines: TransactionLineInput[] = [];
       lines.push({ account_id: cash_id, amount: -mortgagePreview.total, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: 'business', is_cleared: isCleared });
-      if (principal > 0) lines.push({ account_id: deal.loan_account_id, amount: principal, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: 'business', is_cleared: isCleared });
+      if (principal > 0) lines.push({ account_id: deal.loan_account_id!, amount: principal, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: 'business', is_cleared: isCleared });
       if (interestPortion > 0) lines.push({ account_id: interestAccount.id, amount: interestPortion, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: 'business', is_cleared: isCleared });
       if (escrowPortion > 0) lines.push({ account_id: escrowAccount.id, amount: escrowPortion, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: 'business', is_cleared: isCleared });
 
@@ -641,9 +663,9 @@ export function NewTransactionForm({
       setMortgagePreview(null);
       setIsMortgagePayment(false);
       if (onTransactionSaved) onTransactionSaved();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message ?? 'Error saving mortgage');
+      setError(err instanceof Error ? err.message : 'Error saving mortgage');
     } finally {
       setSaving(false);
     }

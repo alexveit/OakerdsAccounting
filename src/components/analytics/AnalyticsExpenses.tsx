@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import {
-  isMarketingExpenseCode,
-  isRentalExpenseCode,
-  isFlipExpenseCode,
-  type Purpose,
+  classifyLine,
+  type ClassifiableLineInput,
 } from '../../utils/accounts';
 import { formatCurrency } from '../../utils/format';
 import {
@@ -34,28 +32,8 @@ type ExpenseData = {
 };
 
 function truncateLabel(name: string, maxLen = 12): string {
-  return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
+  return name.length > maxLen ? name.slice(0, maxLen) + '...' : name;
 }
-
-const ExpenseTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div
-        style={{
-          backgroundColor: 'white',
-          padding: '10px',
-          border: '1px solid #ccc',
-          borderRadius: '4px',
-        }}
-      >
-        <p style={{ margin: '0 0 4px 0', fontWeight: 600 }}>{data.fullName}</p>
-        <p style={{ margin: 0, color: '#333' }}>{formatCurrency(data.amount, 2)}</p>
-      </div>
-    );
-  }
-  return null;
-};
 
 const ExpenseBarChart = ({
   data,
@@ -162,34 +140,37 @@ export function AnalyticsExpenses() {
         const flipExpenses = new Map<number, { name: string; amount: number }>();
         const personalExpenses = new Map<number, { name: string; amount: number }>();
 
-        for (const line of (expenseLines ?? []) as any[]) {
-          const accType = line.accounts?.account_types?.name;
-          if (accType !== 'expense') continue;
+        for (const line of (expenseLines ?? []) as ClassifiableLineInput[]) {
+          const classification = classifyLine(line);
+          if (!classification.expenseCategory) continue;
 
           const amount = Math.abs(Number(line.amount) || 0);
-          const purpose: Purpose = line.purpose ?? 'business';
-          const code = line.accounts?.code ?? '';
-
-          const isBusiness = purpose === 'business' || purpose === 'mixed';
-          const isPersonal = purpose === 'personal';
-
-          const accountId = line.account_id;
+          const accountId = (line as { account_id?: number }).account_id;
           const accountName = line.accounts?.name ?? 'Unknown';
+
+          if (typeof accountId !== 'number') continue;
 
           let targetMap: Map<number, { name: string; amount: number }> | null = null;
 
-          if (isPersonal) {
-            targetMap = personalExpenses;
-          } else if (isBusiness && isFlipExpenseCode(code)) {
-            targetMap = flipExpenses;
-          } else if (isBusiness && isRentalExpenseCode(code)) {
-            targetMap = rentalExpenses;
-          } else if (isBusiness && line.job_id !== null) {
-            targetMap = jobExpenses;
-          } else if (isBusiness && isMarketingExpenseCode(code)) {
-            targetMap = marketingExpenses;
-          } else if (isBusiness) {
-            targetMap = overheadExpenses;
+          switch (classification.expenseCategory) {
+            case 'personal':
+              targetMap = personalExpenses;
+              break;
+            case 'flip':
+              targetMap = flipExpenses;
+              break;
+            case 'rental':
+              targetMap = rentalExpenses;
+              break;
+            case 'job':
+              targetMap = jobExpenses;
+              break;
+            case 'marketing':
+              targetMap = marketingExpenses;
+              break;
+            case 'overhead':
+              targetMap = overheadExpenses;
+              break;
           }
 
           if (targetMap) {

@@ -55,6 +55,13 @@ type Installer = {
   last_name: string | null;
 };
 
+type RawAccountRow = {
+  id: number;
+  name: string;
+  code: string | null;
+  account_types: { name: string }[] | { name: string } | null;
+};
+
 type FlipTxType =
   | 'acquisition'    // Purchase transaction (asset + loan + closing costs)
   | 'rehab_labor'    // Rehab labor expense
@@ -217,12 +224,15 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
           .from('accounts')
           .select('id, name, code, account_types(name)');
         if (accountsErr) throw accountsErr;
-        const sortedAccounts = (accountsData ?? [])
+        const rawAccounts = (accountsData ?? []) as unknown as RawAccountRow[];
+        const sortedAccounts = rawAccounts
           .map((a): Account => ({
             id: a.id,
             name: a.name,
             code: a.code ?? null,
-            account_types: a.account_types ?? null,
+            account_types: Array.isArray(a.account_types)
+              ? a.account_types[0] ?? null
+              : a.account_types ?? null,
           }))
           .sort(compareAccountsForSort);
         setAccounts(sortedAccounts);

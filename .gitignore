@@ -70,3 +70,8 @@ debug_docs_*.zip
 # Build / Deploy Platforms
 # -------------------------
 .vercel/
+
+# -------------------------
+# Anthropic Key
+# -------------------------
+anthropic-key.txt

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { formatCurrency } from '../utils/format';
-import { isRentalIncomeCode, isRentalExpenseCode, isFlipExpenseCode } from '../utils/accounts';
+import { supabase } from '../../lib/supabaseClient';
+import { formatCurrency } from '../../utils/format';
+import { isRentalIncomeCode, isRentalExpenseCode, isFlipExpenseCode } from '../../utils/accounts';
 import * as XLSX from 'xlsx';
 
 type TaxYear = number;

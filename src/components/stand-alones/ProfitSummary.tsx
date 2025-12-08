@@ -1,26 +1,17 @@
 import { useEffect, useState, useMemo } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { formatCurrency } from '../utils/format';
-import { getDayOfYearForYear } from '../utils/date';
+import { supabase } from '../../lib/supabaseClient';
+import { formatCurrency } from '../../utils/format';
+import { getDayOfYearForYear } from '../../utils/date';
 import {
-  isRentalIncomeCode,
-  isRealEstateExpenseCode,
-  isMarketingExpenseCode,
-  type Purpose,
-} from '../utils/accounts';
+  classifyLine,
+  type ClassifiableLineInput,
+} from '../../utils/accounts';
 
-type RawLine = {
+type RawLine = ClassifiableLineInput & {
   id: number;
   account_id: number;
   amount: number;
   is_cleared: boolean;
-  purpose: Purpose | null;
-  job_id: number | null;
-  accounts: {
-    name: string;
-    code: string | null;
-    account_types: { name: string } | null;
-  } | null;
   transactions: { date: string } | null;
 };
 
@@ -30,18 +21,22 @@ type MonthlyBucket = {
   jobIncome: number;
   jobExpenses: number;
   jobProfit: number;
-  // Real Estate (Schedule E)
-  reIncome: number;
-  reExpenses: number;
-  reProfit: number;
+  // Rental Real Estate (Schedule E) - currently deductible
+  rentalIncome: number;
+  rentalExpenses: number;
+  rentalProfit: number;
+  // Flip Inventory - capitalized, not deductible until sale
+  flipExpenses: number;
   // Overhead (business expenses not tied to jobs or RE)
   marketing: number;
   overhead: number;
-  // Derived
+  // Derived - Tax view (excludes flip as it's inventory)
   taxableNet: number;
+  // Derived - Economic view (cash reality including flip spend)
+  economicNet: number;
   // Personal
   personal: number;
-  // Final
+  // Final - True cash position
   trueNet: number;
 };
 
@@ -53,12 +48,14 @@ function createEmptyBucket(label: string): MonthlyBucket {
     jobIncome: 0,
     jobExpenses: 0,
     jobProfit: 0,
-    reIncome: 0,
-    reExpenses: 0,
-    reProfit: 0,
+    rentalIncome: 0,
+    rentalExpenses: 0,
+    rentalProfit: 0,
+    flipExpenses: 0,
     marketing: 0,
     overhead: 0,
     taxableNet: 0,
+    economicNet: 0,
     personal: 0,
     trueNet: 0,
   };
@@ -70,9 +67,12 @@ function createEmptyMonthBuckets(): MonthlyBucket[] {
 
 function deriveBucketTotals(bucket: MonthlyBucket): void {
   bucket.jobProfit = bucket.jobIncome - bucket.jobExpenses;
-  bucket.reProfit = bucket.reIncome - bucket.reExpenses;
-  bucket.taxableNet = bucket.jobProfit + bucket.reProfit - bucket.marketing - bucket.overhead;
-  bucket.trueNet = bucket.taxableNet - bucket.personal;
+  bucket.rentalProfit = bucket.rentalIncome - bucket.rentalExpenses;
+  // Taxable net excludes flip (inventory sits on balance sheet until sale)
+  bucket.taxableNet = bucket.jobProfit + bucket.rentalProfit - bucket.marketing - bucket.overhead;
+  // Economic net includes flip cash outflow (what actually left your bank account)
+  bucket.economicNet = bucket.taxableNet - bucket.flipExpenses;
+  bucket.trueNet = bucket.economicNet - bucket.personal;
 }
 
 export function ProfitSummary() {
@@ -106,7 +106,7 @@ export function ProfitSummary() {
             ),
             transactions!inner (date)
           `)
-          .eq('is_cleared', true)
+          //.eq('is_cleared', true)
           .gte('transactions.date', startDate)
           .lte('transactions.date', endDate);
 
@@ -128,9 +128,6 @@ export function ProfitSummary() {
     const buckets = createEmptyMonthBuckets();
 
     for (const line of lines) {
-      const accType = line.accounts?.account_types?.name;
-      if (!accType) continue;
-
       const dateStr = line.transactions?.date;
       if (!dateStr) continue;
       const d = new Date(dateStr + 'T00:00:00');
@@ -140,18 +137,15 @@ export function ProfitSummary() {
       const bucket = buckets[monthIndex];
       if (!bucket) continue;
 
-      const amt = Math.abs(Number(line.amount) || 0);
-      const purpose: Purpose = line.purpose ?? 'business';
-      const code = line.accounts?.code ?? '';
+      const rawAmount = Number(line.amount) || 0;
+      const classification = classifyLine(line);
 
-      const isBusiness = purpose === 'business' || purpose === 'mixed';
-      const isPersonal = purpose === 'personal';
-
-      // INCOME
-      if (accType === 'income') {
-        if (isBusiness) {
-          if (isRentalIncomeCode(code)) {
-            bucket.reIncome += amt;
+      // INCOME: use absolute value (income lines are negative credits in double-entry)
+      if (classification.incomeCategory) {
+        const amt = Math.abs(rawAmount);
+        if (classification.isBusiness) {
+          if (classification.incomeCategory === 'rental') {
+            bucket.rentalIncome += amt;
           } else {
             bucket.jobIncome += amt;
           }
@@ -159,16 +153,20 @@ export function ProfitSummary() {
         // Personal income not tracked in P&L
       }
 
-      // EXPENSES
-      else if (accType === 'expense') {
-        if (isPersonal) {
+      // EXPENSES: use signed amount (so refunds/credits offset debits)
+      if (classification.expenseCategory) {
+        const amt = rawAmount;
+        if (classification.isPersonal) {
           bucket.personal += amt;
-        } else if (isBusiness) {
-          if (isRealEstateExpenseCode(code)) {
-            bucket.reExpenses += amt;
-          } else if (line.job_id !== null) {
+        } else if (classification.isBusiness) {
+          if (classification.expenseCategory === 'flip') {
+            // Flip expenses are inventory (capitalized), tracked separately
+            bucket.flipExpenses += amt;
+          } else if (classification.expenseCategory === 'rental') {
+            bucket.rentalExpenses += amt;
+          } else if (classification.expenseCategory === 'job') {
             bucket.jobExpenses += amt;
-          } else if (isMarketingExpenseCode(code)) {
+          } else if (classification.expenseCategory === 'marketing') {
             bucket.marketing += amt;
           } else {
             bucket.overhead += amt;
@@ -200,8 +198,9 @@ export function ProfitSummary() {
 
       q.jobIncome += m.jobIncome;
       q.jobExpenses += m.jobExpenses;
-      q.reIncome += m.reIncome;
-      q.reExpenses += m.reExpenses;
+      q.rentalIncome += m.rentalIncome;
+      q.rentalExpenses += m.rentalExpenses;
+      q.flipExpenses += m.flipExpenses;
       q.marketing += m.marketing;
       q.overhead += m.overhead;
       q.personal += m.personal;
@@ -227,8 +226,9 @@ export function ProfitSummary() {
     for (const b of monthlyBuckets) {
       totals.jobIncome += b.jobIncome;
       totals.jobExpenses += b.jobExpenses;
-      totals.reIncome += b.reIncome;
-      totals.reExpenses += b.reExpenses;
+      totals.rentalIncome += b.rentalIncome;
+      totals.rentalExpenses += b.rentalExpenses;
+      totals.flipExpenses += b.flipExpenses;
       totals.marketing += b.marketing;
       totals.overhead += b.overhead;
       totals.personal += b.personal;
@@ -238,8 +238,9 @@ export function ProfitSummary() {
     const avg = createEmptyBucket('Avg');
     avg.jobIncome = (totals.jobIncome / dayOfYear) * daysPerMonth;
     avg.jobExpenses = (totals.jobExpenses / dayOfYear) * daysPerMonth;
-    avg.reIncome = (totals.reIncome / dayOfYear) * daysPerMonth;
-    avg.reExpenses = (totals.reExpenses / dayOfYear) * daysPerMonth;
+    avg.rentalIncome = (totals.rentalIncome / dayOfYear) * daysPerMonth;
+    avg.rentalExpenses = (totals.rentalExpenses / dayOfYear) * daysPerMonth;
+    avg.flipExpenses = (totals.flipExpenses / dayOfYear) * daysPerMonth;
     avg.marketing = (totals.marketing / dayOfYear) * daysPerMonth;
     avg.overhead = (totals.overhead / dayOfYear) * daysPerMonth;
     avg.personal = (totals.personal / dayOfYear) * daysPerMonth;
@@ -257,8 +258,9 @@ export function ProfitSummary() {
     for (const q of quarterlyBuckets) {
       total.jobIncome += q.jobIncome;
       total.jobExpenses += q.jobExpenses;
-      total.reIncome += q.reIncome;
-      total.reExpenses += q.reExpenses;
+      total.rentalIncome += q.rentalIncome;
+      total.rentalExpenses += q.rentalExpenses;
+      total.flipExpenses += q.flipExpenses;
       total.marketing += q.marketing;
       total.overhead += q.overhead;
       total.personal += q.personal;
@@ -269,13 +271,14 @@ export function ProfitSummary() {
       return { quarterlyAverage: null, yearTotal: total };
     }
 
-    // Quarterly average (daily rate Ã— 91.25 days per quarter)
+    // Quarterly average (daily rate x 91.25 days per quarter)
     const daysPerQuarter = 91.25;
     const avg = createEmptyBucket('Avg');
     avg.jobIncome = (total.jobIncome / dayOfYear) * daysPerQuarter;
     avg.jobExpenses = (total.jobExpenses / dayOfYear) * daysPerQuarter;
-    avg.reIncome = (total.reIncome / dayOfYear) * daysPerQuarter;
-    avg.reExpenses = (total.reExpenses / dayOfYear) * daysPerQuarter;
+    avg.rentalIncome = (total.rentalIncome / dayOfYear) * daysPerQuarter;
+    avg.rentalExpenses = (total.rentalExpenses / dayOfYear) * daysPerQuarter;
+    avg.flipExpenses = (total.flipExpenses / dayOfYear) * daysPerQuarter;
     avg.marketing = (total.marketing / dayOfYear) * daysPerQuarter;
     avg.overhead = (total.overhead / dayOfYear) * daysPerQuarter;
     avg.personal = (total.personal / dayOfYear) * daysPerQuarter;
@@ -347,15 +350,19 @@ export function ProfitSummary() {
         <td style={{ ...tdStyle, color: profitColor(bucket.jobProfit), fontWeight, borderRight: sectionBorder, ...bgStyle }}>
           {currency(bucket.jobProfit)}
         </td>
-        {/* RE */}
+        {/* Rentals */}
         <td style={{ ...tdStyle, color: incomeColor, fontWeight, ...bgStyle }}>
-          {currency(bucket.reIncome)}
+          {currency(bucket.rentalIncome)}
         </td>
         <td style={{ ...tdStyle, color: expenseColor, fontWeight, ...bgStyle }}>
-          {currency(bucket.reExpenses)}
+          {currency(bucket.rentalExpenses)}
         </td>
-        <td style={{ ...tdStyle, color: profitColor(bucket.reProfit), fontWeight, borderRight: sectionBorder, ...bgStyle }}>
-          {currency(bucket.reProfit)}
+        <td style={{ ...tdStyle, color: profitColor(bucket.rentalProfit), fontWeight, borderRight: sectionBorder, ...bgStyle }}>
+          {currency(bucket.rentalProfit)}
+        </td>
+        {/* Flip Inventory */}
+        <td style={{ ...tdStyle, color: expenseColor, fontWeight, borderRight: sectionBorder, ...bgStyle }}>
+          {currency(bucket.flipExpenses)}
         </td>
         {/* Overhead */}
         <td style={{ ...tdStyle, color: expenseColor, fontWeight, ...bgStyle }}>
@@ -364,9 +371,13 @@ export function ProfitSummary() {
         <td style={{ ...tdStyle, color: expenseColor, fontWeight, borderRight: sectionBorder, ...bgStyle }}>
           {currency(bucket.overhead)}
         </td>
-        {/* Taxable Net */}
+        {/* Taxable Net (excludes flip) */}
         <td style={{ ...tdStyle, color: profitColor(bucket.taxableNet), fontWeight, borderRight: sectionBorder, ...bgStyle }}>
           {currency(bucket.taxableNet)}
+        </td>
+        {/* Economic Net (includes flip cash out) */}
+        <td style={{ ...tdStyle, color: profitColor(bucket.economicNet), fontWeight, borderRight: sectionBorder, ...bgStyle }}>
+          {currency(bucket.economicNet)}
         </td>
         {/* Personal */}
         <td style={{ ...tdStyle, color: expenseColor, fontWeight, borderRight: sectionBorder, ...bgStyle }}>
@@ -386,11 +397,13 @@ export function ProfitSummary() {
       <tr>
         <th style={{ ...thGroupStyle, textAlign: 'left' }}></th>
         <th colSpan={3} style={{ ...thGroupStyle, borderRight: sectionBorder }}>Jobs (Schedule C)</th>
-        <th colSpan={3} style={{ ...thGroupStyle, borderRight: sectionBorder }}>Real Estate (Schedule E)</th>
+        <th colSpan={3} style={{ ...thGroupStyle, borderRight: sectionBorder }}>Rentals (Schedule E)</th>
+        <th style={{ ...thGroupStyle, borderRight: sectionBorder }}>Flips</th>
         <th colSpan={2} style={{ ...thGroupStyle, borderRight: sectionBorder }}>Overhead</th>
-        <th style={{ ...thGroupStyle, borderRight: sectionBorder }}>Taxable</th>
+        <th style={{ ...thGroupStyle, borderRight: sectionBorder }}>Tax Net</th>
+        <th style={{ ...thGroupStyle, borderRight: sectionBorder }}>Econ Net</th>
         <th style={{ ...thGroupStyle, borderRight: sectionBorder }}>Personal</th>
-        <th style={thGroupStyle}>Net</th>
+        <th style={thGroupStyle}>True Net</th>
       </tr>
       {/* Column headers */}
       <tr>
@@ -399,19 +412,23 @@ export function ProfitSummary() {
         <th style={thStyle}>Income</th>
         <th style={thStyle}>Expenses</th>
         <th style={{ ...thStyle, borderRight: sectionBorder }}>Profit</th>
-        {/* RE */}
+        {/* Rentals */}
         <th style={thStyle}>Income</th>
         <th style={thStyle}>Expenses</th>
         <th style={{ ...thStyle, borderRight: sectionBorder }}>Profit</th>
+        {/* Flip Inventory (capitalized, not deductible) */}
+        <th style={{ ...thStyle, borderRight: sectionBorder }} title="Capitalized inventory, not deductible until sale">Inventory</th>
         {/* Overhead */}
         <th style={thStyle}>Marketing</th>
         <th style={{ ...thStyle, borderRight: sectionBorder }}>Other</th>
-        {/* Taxable */}
-        <th style={{ ...thStyle, borderRight: sectionBorder }}>Net</th>
+        {/* Tax Net (excludes flip) */}
+        <th style={{ ...thStyle, borderRight: sectionBorder }} title="Excludes flip inventory">(No Flip)</th>
+        {/* Economic Net (includes flip cash out) */}
+        <th style={{ ...thStyle, borderRight: sectionBorder }} title="Includes flip cash outflow">(+Flip)</th>
         {/* Personal */}
         <th style={{ ...thStyle, borderRight: sectionBorder }}>Expenses</th>
         {/* True Net */}
-        <th style={thStyle}>True Net</th>
+        <th style={thStyle}>Cash Flow</th>
       </tr>
     </thead>
   );
@@ -447,7 +464,7 @@ export function ProfitSummary() {
       {/* Monthly table */}
       <div className="card" style={{ marginBottom: '1.5rem', overflowX: 'auto' }}>
         <h3 style={{ marginTop: 0 }}>Monthly Breakdown</h3>
-        <table className="table" style={{ minWidth: 1100 }}>
+        <table className="table" style={{ minWidth: 1300 }}>
           {renderTableHeader()}
           <tbody>
             {monthlyBuckets.map((m) => renderRow(m))}
@@ -459,7 +476,7 @@ export function ProfitSummary() {
       {/* Quarterly table */}
       <div className="card" style={{ overflowX: 'auto' }}>
         <h3 style={{ marginTop: 0 }}>Quarterly Summary</h3>
-        <table className="table" style={{ minWidth: 1100 }}>
+        <table className="table" style={{ minWidth: 1300 }}>
           {renderTableHeader()}
           <tbody>
             {quarterlyBuckets.map((q) => renderRow(q))}

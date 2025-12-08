@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatCurrency } from '../../utils/format';
+import { classifyLine, type ClassifiableLineInput } from '../../utils/accounts';
 import {
   ComposedChart,
   XAxis,
@@ -25,6 +26,7 @@ type CashFlowData = {
 export function AnalyticsCashFlow() {
   const [cashFlowData, setCashFlowData] = useState<CashFlowData[]>([]);
   const [cashFlowRange, setCashFlowRange] = useState<'ytd' | '12m' | 'all'>('ytd');
+  const [scope, setScope] = useState<'business' | 'rentals' | 'flips' | 'all'>('business');
 
   useEffect(() => {
     async function loadCashFlowData() {
@@ -44,31 +46,95 @@ export function AnalyticsCashFlow() {
 
         const endDate = now.toISOString().split('T')[0];
 
-        const { data: lines, error: linesErr } = await supabase
+        // For rentals scope, get rental deal IDs first (to match REI Dashboard)
+        let rentalDealIds: number[] = [];
+        if (scope === 'rentals') {
+          const { data: rentalDeals, error: dealsErr } = await supabase
+            .from('real_estate_deals')
+            .select('id')
+            .eq('type', 'rental');
+          
+          if (dealsErr) throw dealsErr;
+          rentalDealIds = (rentalDeals ?? []).map(d => d.id);
+          
+          if (rentalDealIds.length === 0) {
+            setCashFlowData([]);
+            return;
+          }
+        }
+
+        // Build query based on scope
+        let query = supabase
           .from('transaction_lines')
           .select(`
             id,
             amount,
-            accounts (
-              account_types (name)
+            purpose,
+            job_id,
+            real_estate_deal_id,
+            accounts!inner (
+              code,
+              account_types!inner (name)
             ),
             transactions!inner (date)
           `)
-          .eq('is_cleared', true)
           .gte('transactions.date', startDate)
           .lte('transactions.date', endDate);
+
+        // Rentals uses deal-based filter + cleared only (matches REI Dashboard)
+        if (scope === 'rentals') {
+          query = query
+            .in('real_estate_deal_id', rentalDealIds)
+            .eq('is_cleared', true);
+        }
+
+        const { data: lines, error: linesErr } = await query;
 
         if (linesErr) throw linesErr;
 
         const monthlyData = new Map<string, { income: number; expenses: number }>();
 
-        for (const line of (lines ?? []) as any[]) {
-          const date = line.transactions?.date;
+        for (const line of (lines ?? []) as ClassifiableLineInput[]) {
+          const date = (line as { transactions?: { date?: string } }).transactions?.date;
           if (!date) continue;
 
+          const classification = classifyLine(line);
+          const accountType = line.accounts?.account_types?.name ?? '';
+
+          // Filter by scope
+          let includeIncome = false;
+          let includeExpense = false;
+
+          switch (scope) {
+            case 'business':
+              // Job income + job/marketing/overhead expenses (Schedule C)
+              includeIncome = classification.incomeCategory === 'job';
+              includeExpense = 
+                classification.expenseCategory === 'job' ||
+                classification.expenseCategory === 'marketing' ||
+                classification.expenseCategory === 'overhead';
+              break;
+            case 'rentals':
+              // Deal-linked income/expense (already filtered by query)
+              includeIncome = accountType === 'income';
+              includeExpense = accountType === 'expense';
+              break;
+            case 'flips':
+              // Flip expenses only (capitalized costs - no income until sale)
+              includeIncome = false;
+              includeExpense = classification.expenseCategory === 'flip';
+              break;
+            case 'all':
+              // Everything
+              includeIncome = classification.incomeCategory !== null;
+              includeExpense = classification.expenseCategory !== null;
+              break;
+          }
+
           const monthKey = date.substring(0, 7);
-          const accType = line.accounts?.account_types?.name;
           const amount = Number(line.amount) || 0;
+
+          if (!includeIncome && !includeExpense) continue;
 
           if (!monthlyData.has(monthKey)) {
             monthlyData.set(monthKey, { income: 0, expenses: 0 });
@@ -76,10 +142,10 @@ export function AnalyticsCashFlow() {
 
           const monthData = monthlyData.get(monthKey)!;
 
-          if (accType === 'income') {
+          if (includeIncome) {
             monthData.income += Math.abs(amount);
-          } else if (accType === 'expense') {
-            monthData.expenses += Math.abs(amount);
+          } else if (includeExpense) {
+            monthData.expenses += amount;  // Raw amount to allow refunds to subtract
           }
         }
 
@@ -106,9 +172,9 @@ export function AnalyticsCashFlow() {
     }
 
     loadCashFlowData();
-  }, [cashFlowRange]);
+  }, [cashFlowRange, scope]);
 
-  const CashFlowTooltip = ({ active, payload, label }: any) => {
+  const CashFlowTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ payload: CashFlowData }>; label?: string }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -151,6 +217,15 @@ export function AnalyticsCashFlow() {
     { totalIncome: 0, totalExpenses: 0, totalNet: 0 }
   );
 
+  const scopeLabels = {
+    business: { income: 'Job Income', expenses: 'Job + Overhead', net: 'Job Net', chart: 'Business' },
+    rentals: { income: 'Rental Income', expenses: 'Rental Expenses', net: 'Rental NOI', chart: 'Rentals' },
+    flips: { income: 'Flip Income', expenses: 'Flip Costs', net: 'Flip Net', chart: 'Flips' },
+    all: { income: 'Total Income', expenses: 'Total Expenses', net: 'Net Cash Flow', chart: 'All' },
+  };
+
+  const labels = scopeLabels[scope];
+
   return (
     <>
       {/* Summary Cards */}
@@ -163,19 +238,25 @@ export function AnalyticsCashFlow() {
         }}
       >
         <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 0.5rem 0', color: '#555', fontSize: '14px' }}>Total Income</p>
+          <p style={{ margin: '0 0 0.5rem 0', color: '#555', fontSize: '14px' }}>
+            {labels.income}
+          </p>
           <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600, color: '#0a7a3c' }}>
             {formatCurrency(cashFlowSummary.totalIncome, 0)}
           </p>
         </div>
         <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 0.5rem 0', color: '#555', fontSize: '14px' }}>Total Expenses</p>
+          <p style={{ margin: '0 0 0.5rem 0', color: '#555', fontSize: '14px' }}>
+            {labels.expenses}
+          </p>
           <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600, color: '#b00020' }}>
             {formatCurrency(cashFlowSummary.totalExpenses, 0)}
           </p>
         </div>
         <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 0.5rem 0', color: '#555', fontSize: '14px' }}>Net Cash Flow</p>
+          <p style={{ margin: '0 0 0.5rem 0', color: '#555', fontSize: '14px' }}>
+            {labels.net}
+          </p>
           <p
             style={{
               margin: 0,
@@ -184,37 +265,61 @@ export function AnalyticsCashFlow() {
               color: cashFlowSummary.totalNet >= 0 ? '#0a7a3c' : '#b00020',
             }}
           >
-            {formatCurrency(cashFlowSummary.totalNet, 0)}
+            {formatCurrency(Math.abs(cashFlowSummary.totalNet), 0)}
           </p>
         </div>
       </div>
 
       {/* Controls */}
       <div className="card" style={{ marginBottom: '1rem', padding: '1rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <label htmlFor="cashflow-range" style={{ fontWeight: 600 }}>
-            Time Range:
-          </label>
-          <select
-            id="cashflow-range"
-            value={cashFlowRange}
-            onChange={(e) => setCashFlowRange(e.target.value as 'ytd' | '12m' | 'all')}
-            style={{
-              padding: '0.5rem',
-              borderRadius: '4px',
-              border: '1px solid #ccc',
-            }}
-          >
-            <option value="ytd">Year to Date</option>
-            <option value="12m">Last 12 Months</option>
-            <option value="all">All Time</option>
-          </select>
+        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <label htmlFor="cashflow-scope" style={{ fontWeight: 600 }}>
+              Scope:
+            </label>
+            <select
+              id="cashflow-scope"
+              value={scope}
+              onChange={(e) => setScope(e.target.value as 'business' | 'rentals' | 'flips' | 'all')}
+              style={{
+                padding: '0.5rem',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+              }}
+            >
+              <option value="business">Business (Schedule C)</option>
+              <option value="rentals">Rentals (Schedule E)</option>
+              <option value="flips">Flips (Capitalized)</option>
+              <option value="all">All (incl. Personal)</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <label htmlFor="cashflow-range" style={{ fontWeight: 600 }}>
+              Time Range:
+            </label>
+            <select
+              id="cashflow-range"
+              value={cashFlowRange}
+              onChange={(e) => setCashFlowRange(e.target.value as 'ytd' | '12m' | 'all')}
+              style={{
+                padding: '0.5rem',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+              }}
+            >
+              <option value="ytd">Year to Date</option>
+              <option value="12m">Last 12 Months</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Chart */}
       <div className="card" style={{ padding: '1rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Monthly Income vs Expenses</h3>
+        <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>
+          Monthly Income vs Expenses ({labels.chart})
+        </h3>
 
         {cashFlowData.length === 0 ? (
           <p style={{ color: '#555' }}>No cash flow data available for the selected period.</p>
@@ -254,16 +359,22 @@ export function AnalyticsCashFlow() {
           </p>
           <ul style={{ marginTop: '0.5rem', paddingLeft: '1.5rem', marginBottom: 0 }}>
             <li>
-              <strong>Green bars:</strong> Total income for the month
+              <strong>Green bars:</strong> {labels.income} for the month
             </li>
             <li>
-              <strong>Red bars:</strong> Total expenses for the month
+              <strong>Red bars:</strong> {labels.expenses} for the month
             </li>
             <li>
               <strong>Blue line:</strong> Net cash flow (income minus expenses)
             </li>
             <li>When the blue line is above zero, you're cash flow positive for that month</li>
           </ul>
+          <p style={{ marginTop: '0.5rem', fontStyle: 'italic', fontSize: '13px' }}>
+            {scope === 'business' && 'Shows flooring business only: job income, direct job costs, marketing, and overhead.'}
+            {scope === 'rentals' && 'Shows rental properties only: transactions linked to rental deals (cleared only).'}
+            {scope === 'flips' && 'Shows flip projects only: capitalized rehab costs (no income until sale).'}
+            {scope === 'all' && 'Shows everything including personal income and expenses.'}
+          </p>
         </div>
       </div>
     </>

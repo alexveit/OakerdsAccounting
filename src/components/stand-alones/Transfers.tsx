@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { todayLocalISO } from '../utils/date';
-import { formatCurrencyOptional } from '../utils/format';
-import { isBankCode, isCreditCardCode, type Purpose } from '../utils/accounts';
+import { supabase } from '../../lib/supabaseClient';
+import { todayLocalISO } from '../../utils/date';
+import { formatCurrencyOptional } from '../../utils/format';
+import { isBankCode, isCreditCardCode, type Purpose } from '../../utils/accounts';
 
 type AccountOption = {
   id: number;
@@ -23,10 +23,17 @@ type RawAccountRow = {
   account_types: { name: string; normal_side: string } | null;
 };
 
+type AccountTypeInfo = { normal_side: string };
+
+type AccountsShape = 
+  | { account_types: AccountTypeInfo | AccountTypeInfo[] | null } 
+  | { account_types: AccountTypeInfo | AccountTypeInfo[] | null }[] 
+  | null;
+
 type RawLineRow = {
   account_id: number;
   amount: number;
-  accounts: any;
+  accounts: AccountsShape;
 };
 
 // Check if account is a regular bank (codes 1000-1999)

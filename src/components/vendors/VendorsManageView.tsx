@@ -22,7 +22,12 @@ type Vendor = {
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function VendorManageView() {
+type VendorManageViewProps = {
+  initialSelectedId?: number | null;
+  onSelectionUsed?: () => void;
+};
+
+export function VendorManageView({ initialSelectedId, onSelectionUsed }: VendorManageViewProps) {
   // List state
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -46,6 +51,15 @@ export function VendorManageView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Handle initialSelectedId from parent (e.g., click from Overview)
+  useEffect(() => {
+    if (initialSelectedId != null && vendors.length > 0) {
+      setSelectedId(initialSelectedId);
+      setIsCreating(false);
+      onSelectionUsed?.();
+    }
+  }, [initialSelectedId, vendors.length, onSelectionUsed]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Data Loading
@@ -110,7 +124,7 @@ export function VendorManageView() {
     setEmail(vendor.email || '');
     setIsActive(vendor.is_active);
     setError(null);
-    setSuccess(null);
+    // Don't clear success here - it would erase the "saved" feedback
   }
 
   function startCreate() {
