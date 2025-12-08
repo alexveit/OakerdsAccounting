@@ -19,6 +19,7 @@ import { MobileContainer } from './components/mobile';
 //import { FlipDetailView } from './components/real-estate/FlipDetailView';
 import { BankImportView } from './components/bank-import/BankImportView';
 import { CarpetCalculator } from './components/stand-alones/CarpetCalculator';
+import { VersionTag } from './components/stand-alones/VersionTag';
 
 type View =
   | 'dashboard'
@@ -322,6 +323,8 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
           <span className="sidebar-icon">🚪</span>
           {!sidebarCollapsed && <span className="sidebar-label">Logout</span>}
         </button>
+        {/* Version Tag */}
+        <VersionTag collapsed={sidebarCollapsed} />
       </aside>
 
       {/* Main Content */}
