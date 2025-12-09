@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { JobsTab } from './JobsTab';
 import { PricesTab } from './PricesTab';
 import { MobileFloorCalc } from './MobileFloorCalc';
+import { VersionTag } from '../shared/VersionTag';
 import { mobileStyles as styles } from './mobileStyles';
 
 // ============================================================
@@ -56,8 +57,10 @@ export function MobileContainer() {
       {activeTab === 'calc' && <MobileFloorCalc />}
 
       {/* Footer */}
-      <div style={styles.footer}>
-        Oakerds Accounting â€¢ Mobile
+      <div style={{ ...styles.footer, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <span>Oakerds Accounting</span>
+        <span style={{ margin: '0 8px', color: '#4b5563' }}>|</span>
+        <VersionTag />
       </div>
     </div>
   );
