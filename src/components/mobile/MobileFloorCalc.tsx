@@ -48,6 +48,20 @@ export function MobileFloorCalc() {
 
   // Canvas
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [canvasWidth, setCanvasWidth] = useState(280);
+
+  // Calculate canvas width based on screen size
+  useEffect(() => {
+    function updateCanvasWidth() {
+      // Screen width minus padding (16px each side) minus a bit of safety margin
+      const width = Math.min(window.innerWidth - 48, 320);
+      setCanvasWidth(width);
+    }
+    
+    updateCanvasWidth();
+    window.addEventListener('resize', updateCanvasWidth);
+    return () => window.removeEventListener('resize', updateCanvasWidth);
+  }, []);
 
   // Draw static diagram using bin-packed positions
   const drawDiagram = useCallback(() => {
@@ -57,14 +71,13 @@ export function MobileFloorCalc() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Scale to fit mobile screen (container is ~100% width minus padding)
-    const containerWidth = canvas.parentElement?.clientWidth || 320;
-    const scale = containerWidth / ROLL_WIDTH_INCHES;
+    // Use responsive width
+    const scale = canvasWidth / ROLL_WIDTH_INCHES;
     
     // Use needsLength from bin packing result
     const needsMaxLength = carpetResult.needsLength;
     
-    canvas.width = containerWidth;
+    canvas.width = canvasWidth;
     canvas.height = needsMaxLength * scale;
 
     // Red background (waste)
@@ -105,7 +118,7 @@ export function MobileFloorCalc() {
       ctx.lineWidth = 1;
       ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
     }
-  }, [carpetResult]);
+  }, [carpetResult, canvasWidth]);
 
   useEffect(() => {
     drawDiagram();
