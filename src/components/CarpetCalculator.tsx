@@ -9,7 +9,7 @@ import {
   type HardwoodResult,
   ROLL_WIDTH_INCHES,
   ROLL_WIDTH_FEET,
-  TEST_MEASUREMENTS,
+  //TEST_MEASUREMENTS,
   formatFeetInches,
   formatDimensions,
   createMeasurement,
@@ -56,10 +56,15 @@ export function CarpetCalculator() {
   const [boxSqFt, setBoxSqFt] = useState('25');
 
   // Measurements list - pre-populate with test data
+  /*
   const [measurements, setMeasurements] = useState<Measurement[]>(() => {
     return TEST_MEASUREMENTS.map((t, i) => createMeasurement(i + 1, t.wf, t.wi, t.lf, t.li));
   });
   const [nextId, setNextId] = useState(TEST_MEASUREMENTS.length + 1);
+  */
+
+  const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [nextId, setNextId] = useState(1);
 
   // Calculation results
   const [result, setResult] = useState<CalculationResult | null>(null);

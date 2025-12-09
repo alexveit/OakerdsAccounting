@@ -92,7 +92,7 @@ function getMonthsInPeriod(selectedYear: string, earliestDate?: string): number 
  */
 function simplifyAccountName(name: string): string {
   return name
-    .replace(/^RE â€“ /, '')
+    .replace(/^RE - /, '')
     .replace(/^Expense - /, '')
     .replace(/^Income - /, '');
 }
@@ -433,7 +433,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
       minimumFractionDigits: 2,
     });
 
-  if (loading) return <p>Loading rental dataâ€¦</p>;
+  if (loading) return <p>Loading rental data...</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
 
   const propertyList = Object.values(properties);
@@ -674,7 +674,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
                       fontSize: 15,
                     }}
                   >
-                    <span>{isExpanded ? 'â–¾' : 'â–¸'}</span>
+                    <span>{isExpanded ? '▾' : '▸'}</span>
                     <span>Transactions ({property.transactions.length})</span>
                   </h4>
 
@@ -717,7 +717,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
                                       <Td>{formatLocalDate(tx.date)}</Td>
                                       <Td>
                                         <span style={{ marginRight: '0.4rem' }}>
-                                          {isMortgageExpanded ? 'â–¾' : 'â–¸'}
+                                          {isMortgageExpanded ? '▾' : '▸'}
                                         </span>
                                         {tx.description}
                                       </Td>
@@ -736,7 +736,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
                                         <Td>&nbsp;</Td>
                                         <Td>
                                           <span style={{ paddingLeft: '1.5rem', color: '#666', fontSize: 12 }}>
-                                            â”” {detail.accountName}
+                                            └ {detail.accountName}
                                           </span>
                                         </Td>
                                         <Td>&nbsp;</Td>
@@ -784,9 +784,9 @@ export function RentalOperationsView({ selectedYear }: Props) {
   );
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ------------------------------------------------------------------
 // Helper Components
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ------------------------------------------------------------------
 
 function Stat({
   label,

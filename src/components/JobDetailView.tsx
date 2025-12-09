@@ -513,7 +513,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
             fontSize: 15,
           }}
         >
-          <span>{isExpanded ? 'â–¾' : 'â–¸'}</span>
+          <span>{isExpanded ? '▼' : '▶'}</span>
           <span>Transactions</span>
         </h3>
 

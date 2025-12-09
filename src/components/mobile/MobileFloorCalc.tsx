@@ -37,10 +37,16 @@ export function MobileFloorCalc() {
   const [boxSqFt, setBoxSqFt] = useState('25');
   
   // Measurements - pre-populated with test data
+  /*
   const [measurements, setMeasurements] = useState<Measurement[]>(() => 
     TEST_MEASUREMENTS.map((t, i) => createMeasurement(i + 1, t.wf, t.wi, t.lf, t.li))
   );
   const [nextId, setNextId] = useState(TEST_MEASUREMENTS.length + 1);
+  */
+
+
+  const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [nextId, setNextId] = useState(1);
   
   // Results
   const [carpetResult, setCarpetResult] = useState<CarpetResult | null>(null);
