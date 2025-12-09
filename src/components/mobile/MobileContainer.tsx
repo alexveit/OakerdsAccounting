@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { JobsTab } from './JobsTab';
 import { PricesTab } from './PricesTab';
+import { MobileFloorCalc } from './MobileFloorCalc';
 import { mobileStyles as styles } from './mobileStyles';
 
 // ============================================================
 // TYPES
 // ============================================================
 
-type Tab = 'jobs' | 'prices';
+type Tab = 'jobs' | 'prices' | 'calc';
 
 // ============================================================
 // COMPONENT
@@ -38,15 +39,25 @@ export function MobileContainer() {
         >
           Prices
         </button>
+        <button
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'calc' ? styles.tabActive : {}),
+          }}
+          onClick={() => setActiveTab('calc')}
+        >
+          Calc
+        </button>
       </div>
 
       {/* Tab Content */}
       {activeTab === 'jobs' && <JobsTab />}
       {activeTab === 'prices' && <PricesTab />}
+      {activeTab === 'calc' && <MobileFloorCalc />}
 
       {/* Footer */}
       <div style={styles.footer}>
-        Oakerds Accounting • Mobile
+        Oakerds Accounting â€¢ Mobile
       </div>
     </div>
   );

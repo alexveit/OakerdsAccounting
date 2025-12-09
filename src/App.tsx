@@ -1,25 +1,26 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
-import { Login } from './components/stand-alones/Login';
-import { JobDetailView } from './components/stand-alones/JobDetailView';
-import { DashboardOverview } from './components/stand-alones/DashboardOverview';
+import { Login } from './components/Login';
+import { JobDetailView } from './components/JobDetailView';
+import { DashboardOverview } from './components/DashboardOverview';
 import { InstallersView } from './components/installers/InstallersView';
 import { VendorsView } from './components/vendors/VendorsView';
 import { LeadSourcesView } from './components/lead-sources/LeadSourcesView';
 import { LedgerView } from './components/ledger';
-import { ProfitSummary } from './components/stand-alones/ProfitSummary';
+import { ProfitSummary } from './components/reports/ProfitSummary';
 import { ExpenseCategoriesView } from './components/expenses/ExpensesView';
 import { NewEntryView } from './components/new-entries/NewEntryView';
-import { TaxExportView } from './components/stand-alones/TaxExportView';
+import { TaxExportView } from './components/reports/TaxExportView';
 import { REIView } from './components/real-estate/REIView';
 import { Analytics } from './components/analytics/AnalyticsView';
-import { PriceListView } from './components/stand-alones/PriceListView';
+import { PriceListView } from './components/PriceListView';
 import { MobileContainer } from './components/mobile';
 //import { FlipDetailView } from './components/real-estate/FlipDetailView';
 import { BankImportView } from './components/bank-import/BankImportView';
-import { CarpetCalculator } from './components/stand-alones/CarpetCalculator';
-import { VersionTag } from './components/stand-alones/VersionTag';
+import { CarpetCalculator } from './components/CarpetCalculator';
+import { VersionTag } from './components/shared/VersionTag';
+import { PlaidLinkView } from './components/bank-import/PlaidLinkView';
 
 type View =
   | 'dashboard'
@@ -31,6 +32,7 @@ type View =
   | 'jobDetail'
   | 'ledger'
   | 'bankImport'
+  | 'plaid'
   | 'profitSummary'
   | 'taxExport'
   | 'rei'
@@ -65,6 +67,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Financials',
     items: [
       { view: 'analytics', label: 'Analytics', icon: '📈' },
+      { view: 'plaid', label: 'Bank Sync', icon: '🔗' },
       { view: 'bankImport', label: 'Bank Import', icon: '🏦' },
       { view: 'ledger', label: 'Ledger', icon: '📒' },
       { view: 'expenses', label: 'Expenses by Category', icon: '📋' },
@@ -81,6 +84,7 @@ const NAV_SECTIONS: NavSection[] = [
 const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   dashboard: DashboardOverview,
   analytics: Analytics,
+  plaid: PlaidLinkView,
   bankImport: BankImportView,
   installers: InstallersView,
   vendors: VendorsView,

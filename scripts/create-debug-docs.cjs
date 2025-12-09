@@ -1,7 +1,6 @@
 // scripts/createDebugDocs.cjs
 // Creates a debug_docs_<timestamp> folder with a FLAT set of files
-// from src/, scripts/, db_tools/ and a folder_structure.txt tree view
-// describing the original folder/file structure.
+// Auto-discovers root directories and files to include
 // Also creates a .zip archive of the folder.
 
 // Run: npm run debug-docs
@@ -14,9 +13,53 @@ const { execSync } = require('child_process');
 const projectRoot = process.cwd();
 
 // ---- CONFIG ----
-const DIRS_TO_INCLUDE = ['src', 'scripts', 'db_tools'];
-const FILES_TO_INCLUDE = ['CODING_RULES.txt', 'README.md'];
-const FILES_TO_IGNORE = ['pg_password.txt', 'anthropic-key.txt'];
+// Directories and files to IGNORE (common dev artifacts, secrets, etc.)
+const IGNORE_PATTERNS = [
+  // Directories
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  '.vscode',
+  '.idea',
+  'coverage',
+  'debug_docs_',  // Previous debug outputs (prefix match)
+  
+  // Files
+  '.env',
+  '.env.local',
+  '.env.production',
+  '.gitignore',
+  '.eslintrc',
+  '.prettierrc',
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  'tsconfig.json',
+  'tsconfig.node.json',
+  'vite.config.ts',
+  'vite.config.js',
+  'tailwind.config.js',
+  'postcss.config.js',
+  '.npmrc',
+  
+  // Sensitive files
+  'pg_password.txt',
+  'anthropic-key.txt',
+  'plaid-recovery-code.txt',
+];
+
+// File extensions to include (empty = all non-ignored)
+const INCLUDE_EXTENSIONS = [
+  '.ts', '.tsx', '.js', '.jsx', '.cjs', '.mjs',
+  '.css', '.scss', '.less',
+  '.json',
+  '.sql',
+  '.txt', '.md',
+  '.html',
+  '.ps1', '.sh', '.bat',
+  '.svg',
+];
 
 // ---- HELPERS ----
 
@@ -27,7 +70,59 @@ function ensureDir(dirPath) {
 }
 
 /**
- * Delete all subdirectories in db_tools (keeps files like .ps1, pg_password.txt)
+ * Check if a name should be ignored
+ */
+function shouldIgnore(name) {
+  // Check exact match
+  if (IGNORE_PATTERNS.includes(name)) return true;
+  
+  // Check prefix match (for things like debug_docs_*)
+  for (const pattern of IGNORE_PATTERNS) {
+    if (pattern.endsWith('_') && name.startsWith(pattern)) return true;
+  }
+  
+  // Ignore hidden files/folders (starting with .)
+  if (name.startsWith('.')) return true;
+  
+  return false;
+}
+
+/**
+ * Check if a file extension should be included
+ */
+function shouldIncludeFile(name) {
+  const ext = path.extname(name).toLowerCase();
+  return INCLUDE_EXTENSIONS.includes(ext);
+}
+
+/**
+ * Auto-discover directories and files in project root
+ */
+function discoverRootContents() {
+  const entries = fs.readdirSync(projectRoot, { withFileTypes: true });
+  
+  const directories = [];
+  const files = [];
+  
+  for (const entry of entries) {
+    if (shouldIgnore(entry.name)) continue;
+    
+    if (entry.isDirectory()) {
+      directories.push(entry.name);
+    } else if (entry.isFile() && shouldIncludeFile(entry.name)) {
+      files.push(entry.name);
+    }
+  }
+  
+  // Sort alphabetically
+  directories.sort((a, b) => a.localeCompare(b));
+  files.sort((a, b) => a.localeCompare(b));
+  
+  return { directories, files };
+}
+
+/**
+ * Delete all subdirectories in db_tools (keeps files like .ps1)
  */
 function cleanDbToolsFolders() {
   const dbToolsPath = path.join(projectRoot, 'db_tools');
@@ -64,7 +159,7 @@ function runDbBackup() {
   try {
     execSync(`powershell -ExecutionPolicy Bypass -File "${backupScript}"`, {
       cwd: path.join(projectRoot, 'db_tools'),
-      stdio: 'inherit', // Show output in real-time
+      stdio: 'inherit',
     });
     console.log('Database backup complete.\n');
   } catch (err) {
@@ -78,7 +173,6 @@ const usedNames = new Set();
 
 /**
  * Generate a unique filename in a flat folder, avoiding collisions.
- * If "index.ts" already exists, next ones become "index__1.ts", "index__2.ts", etc.
  */
 function getUniqueName(baseName) {
   if (!usedNames.has(baseName)) {
@@ -121,14 +215,14 @@ function buildFolderTree(srcDir, baseRelative) {
   });
 
   for (const entry of entries) {
-    if (FILES_TO_IGNORE.includes(entry.name)) continue;
+    if (shouldIgnore(entry.name)) continue;
     
     const srcPath = path.join(srcDir, entry.name);
     
     if (entry.isDirectory()) {
       const childTree = buildFolderTree(srcPath, path.join(baseRelative, entry.name));
       tree.children.push(childTree);
-    } else if (entry.isFile()) {
+    } else if (entry.isFile() && shouldIncludeFile(entry.name)) {
       tree.children.push({ name: entry.name, type: 'file' });
     }
   }
@@ -164,11 +258,6 @@ function renderTree(node, prefix = '', isLast = true, isRoot = true) {
 
 /**
  * Recursively walk a source directory and copy all files into a single flat dest folder.
- *
- * @param {string} srcDir         Absolute path of source directory
- * @param {string} baseRelative   Relative path from project root (e.g. 'src', 'src/components/Button.tsx')
- * @param {string} debugRootPath  Absolute path to debug_docs_<timestamp> root
- * @param {Array}  filesMeta      Array to push file metadata objects into
  */
 function collectAndCopyFilesFlat(srcDir, baseRelative, debugRootPath, filesMeta) {
   if (!fs.existsSync(srcDir) || !fs.statSync(srcDir).isDirectory()) {
@@ -179,23 +268,23 @@ function collectAndCopyFilesFlat(srcDir, baseRelative, debugRootPath, filesMeta)
   const entries = fs.readdirSync(srcDir, { withFileTypes: true });
 
   for (const entry of entries) {
+    if (shouldIgnore(entry.name)) continue;
+    
     const srcPath = path.join(srcDir, entry.name);
-    const relPath = path.join(baseRelative, entry.name); // relative to project root
+    const relPath = path.join(baseRelative, entry.name);
 
     if (entry.isDirectory()) {
       collectAndCopyFilesFlat(srcPath, relPath, debugRootPath, filesMeta);
-    } else if (entry.isFile()) {
-      if (FILES_TO_IGNORE.includes(entry.name)) continue;
+    } else if (entry.isFile() && shouldIncludeFile(entry.name)) {
       const originalRelativePath = relPath.replace(/\\/g, '/');
       const uniqueName = getUniqueName(entry.name);
       const destPath = path.join(debugRootPath, uniqueName);
 
-      // Copy the file into the flat debug root folder
       fs.copyFileSync(srcPath, destPath);
 
       filesMeta.push({
-        originalRelativePath,         // e.g. "src/components/Button.tsx"
-        debugFileName: uniqueName,    // e.g. "Button.tsx" or "index__1.tsx"
+        originalRelativePath,
+        debugFileName: uniqueName,
       });
     }
   }
@@ -229,12 +318,19 @@ function createZipArchive(debugFolderPath, debugFolderName) {
 // ---- MAIN LOGIC ----
 
 async function createDebugDocs() {
-  // Step 1: Clean up old dump folders in db_tools
-  console.log('Cleaning up old database dumps...');
-  cleanDbToolsFolders();
+  // Step 1: Auto-discover root contents
+  console.log('Discovering project structure...');
+  const { directories, files } = discoverRootContents();
+  
+  console.log(`Found ${directories.length} directories: ${directories.join(', ')}`);
+  console.log(`Found ${files.length} root files: ${files.join(', ')}\n`);
 
-  // Step 2: Run fresh database backup
-  runDbBackup();
+  // Step 2: Clean up old dump folders in db_tools
+  if (directories.includes('db_tools')) {
+    console.log('Cleaning up old database dumps...');
+    cleanDbToolsFolders();
+    runDbBackup();
+  }
 
   // Step 3: Create debug docs folder
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -247,15 +343,15 @@ async function createDebugDocs() {
 
   const filesMeta = [];
 
-  // For each configured directory, copy all files into the flat debug folder
-  for (const dir of DIRS_TO_INCLUDE) {
+  // For each discovered directory, copy all files into the flat debug folder
+  for (const dir of directories) {
     const absSrcDir = path.join(projectRoot, dir);
-    console.log(`Including directory: ${dir}`);
+    console.log(`Including directory: ${dir}/`);
     collectAndCopyFilesFlat(absSrcDir, dir, debugFolderPath, filesMeta);
   }
 
-  // Copy individual files
-  for (const file of FILES_TO_INCLUDE) {
+  // Copy root-level files
+  for (const file of files) {
     const srcPath = path.join(projectRoot, file);
     if (fs.existsSync(srcPath)) {
       const uniqueName = getUniqueName(path.basename(file));
@@ -266,8 +362,6 @@ async function createDebugDocs() {
         debugFileName: uniqueName,
       });
       console.log(`Including file: ${file}`);
-    } else {
-      console.warn(`Skipping missing file: ${file}`);
     }
   }
 
@@ -276,24 +370,28 @@ async function createDebugDocs() {
   treeOutput += `Generated: ${new Date().toISOString()}\n`;
   treeOutput += `${'='.repeat(50)}\n\n`;
 
-  // Build tree for each included directory
-  for (const dir of DIRS_TO_INCLUDE) {
+  // Build unified tree with root/ at top
+  const rootTree = {
+    name: path.basename(projectRoot),
+    type: 'dir',
+    children: []
+  };
+
+  // Add directories as children
+  for (const dir of directories) {
     const absSrcDir = path.join(projectRoot, dir);
     if (fs.existsSync(absSrcDir)) {
       const tree = buildFolderTree(absSrcDir, dir);
-      treeOutput += renderTree(tree);
-      treeOutput += '\n';
+      rootTree.children.push(tree);
     }
   }
 
-  // Add root-level files
-  if (FILES_TO_INCLUDE.length > 0) {
-    treeOutput += 'Root files:\n';
-    FILES_TO_INCLUDE.forEach((file, i) => {
-      const connector = i === FILES_TO_INCLUDE.length - 1 ? '`-- ' : '|-- ';
-      treeOutput += `${connector}${file}\n`;
-    });
+  // Add root-level files as children
+  for (const file of files) {
+    rootTree.children.push({ name: file, type: 'file' });
   }
+
+  treeOutput += renderTree(rootTree);
 
   // Add file mapping reference (debug filename -> original path)
   treeOutput += `\n${'='.repeat(50)}\n`;
@@ -302,7 +400,6 @@ async function createDebugDocs() {
   
   for (const meta of filesMeta) {
     if (meta.debugFileName !== path.basename(meta.originalRelativePath)) {
-      // Only show mapping if name changed (collision)
       treeOutput += `${meta.debugFileName} <- ${meta.originalRelativePath}\n`;
     }
   }

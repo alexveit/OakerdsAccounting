@@ -75,3 +75,8 @@ debug_docs_*.zip
 # Anthropic Key
 # -------------------------
 anthropic-key.txt
+
+# -------------------------
+# Plaid Recovery Code
+# -------------------------
+plaid-recovery-code.txt

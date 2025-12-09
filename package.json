@@ -1,7 +1,7 @@
 {
   "name": "oakerds-accounting",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,7 @@
     "@supabase/supabase-js": "^2.81.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-plaid-link": "^4.1.1",
     "recharts": "^3.5.1",
     "xlsx": "^0.18.5"
   },
