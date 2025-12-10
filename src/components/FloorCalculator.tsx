@@ -956,6 +956,18 @@ export function FloorCalculator() {
                     {result.wasteSqFt.toFixed(2)} sf
                   </div>
                 </div>
+                {result.isFlipped && (
+                  <div style={{ 
+                    background: '#fef3c7', 
+                    border: '1px solid #f59e0b', 
+                    borderRadius: 6, 
+                    padding: '8px 12px',
+                    fontSize: 13,
+                    color: '#92400e',
+                  }}>
+                    ⚠️ <strong>Rotated 90°</strong> — Measurements were flipped (W↔L) to reduce waste. Cut carpet accordingly.
+                  </div>
+                )}
               </div>
             </>
           )}

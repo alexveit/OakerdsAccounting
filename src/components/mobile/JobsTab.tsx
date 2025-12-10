@@ -282,7 +282,7 @@ export function JobsTab() {
                     </span>
                   </div>
                 </div>
-                <div style={styles.expandHint}>{isExpanded ? 'â–² Hide' : 'â–¼ Transactions'}</div>
+                <div style={styles.expandHint}>{isExpanded ? '▲ Hide' : '▼ Transactions'}</div>
               </div>
 
               {isExpanded && (
@@ -304,7 +304,7 @@ export function JobsTab() {
                             {tx.type === 'income' ? '+' : ''}{formatCurrency(tx.amount, 0)}
                           </div>
                           <div style={{ ...styles.txCleared, color: tx.cleared ? '#10b981' : '#ef4444' }}>
-                            {tx.cleared ? 'âœ“' : 'â—‹'}
+                            {tx.cleared ? '✓' : '○'}
                           </div>
                         </div>
                       </div>

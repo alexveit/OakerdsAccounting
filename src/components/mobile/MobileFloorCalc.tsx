@@ -671,6 +671,20 @@ export function MobileFloorCalc() {
             </div>
           </div>
 
+          {carpetResult.isFlipped && (
+            <div style={{ 
+              background: '#fef3c7', 
+              border: '1px solid #f59e0b', 
+              borderRadius: 8, 
+              padding: '10px 12px',
+              fontSize: 12,
+              color: '#92400e',
+              marginBottom: 16,
+            }}>
+              ⚠️ <strong>Rotated 90°</strong> — Measurements flipped (W↔L) to reduce waste.
+            </div>
+          )}
+
           {/* Static Diagram */}
           {carpetResult.needs.length > 0 && (
             <>

@@ -31,6 +31,7 @@ export type CarpetResult = {
   usedSqFt: number;
   wasteSqFt: number;
   wastePercent: number;
+  isFlipped: boolean;  // true if measurements were rotated 90° for better yield
 };
 
 export type HardwoodResult = {
@@ -393,7 +394,6 @@ export function runBinPacking(needs: Measurement[]): { placed: PlacedPiece[]; ma
   results.push(packWithAggressiveGapFill(needs));
   
   // Strategy 8: Simulated annealing - optimize best heuristic result
-  // Only run if we have enough pieces to benefit
   if (needs.length >= 3) {
     let bestHeuristic = results[0];
     for (const result of results) {
@@ -1031,95 +1031,125 @@ export type CarpetOptions = {
  * - Splits pieces wider than 12' into standard + needs
  * - Uses bin packing to optimize needs placement
  * - Calculates total length, sq ft, and waste
+ * - Tries both original and flipped orientations, returns the better result
  */
 export function calculateCarpet(options: CarpetOptions): CarpetResult {
   const { measurements, addSlippage, steps } = options;
-  let allMeasurements = [...measurements];
+  
+  // Helper function to run full calculation on a set of measurements
+  function runCalculation(inputMeasurements: Measurement[]): CarpetResult {
+    let allMeasurements = [...inputMeasurements];
 
-  // Add steps (4' x 2' each)
-  for (let i = 0; i < steps; i++) {
-    allMeasurements.push(createMeasurement(9000 + i, 4, 0, 2, 0));
-  }
-
-  // Apply slippage (4" buffer for cutting)
-  if (addSlippage) {
-    allMeasurements = allMeasurements.map((m) => ({
-      ...m,
-      widthTotal: m.widthTotal + 4,
-      lengthTotal: m.lengthTotal + 4,
-    }));
-  }
-
-  const nextId = { value: 1000 };
-  const aggregated = aggregateSameLengths(allMeasurements, nextId);
-
-  const standard: Measurement[] = [];
-  const needsRaw: Measurement[] = [];
-
-  // Split into standard (12' wide) and needs (remainder)
-  for (const m of aggregated) {
-    let remainingWidth = m.widthTotal;
-
-    // While remaining width > 12', split off 12' wide standard pieces
-    while (remainingWidth > ROLL_WIDTH_INCHES) {
-      standard.push({
-        ...m,
-        id: nextId.value++,
-        widthFeet: ROLL_WIDTH_FEET,
-        widthInches: 0,
-        widthTotal: ROLL_WIDTH_INCHES,
-      });
-      remainingWidth -= ROLL_WIDTH_INCHES;
+    // Add steps (4' x 2' each)
+    for (let i = 0; i < steps; i++) {
+      allMeasurements.push(createMeasurement(9000 + i, 4, 0, 2, 0));
     }
 
-    // Whatever is left goes to needs (or standards if exactly 12')
-    if (remainingWidth > 0) {
-      const piece: Measurement = {
+    // Apply slippage (4" buffer for cutting)
+    if (addSlippage) {
+      allMeasurements = allMeasurements.map((m) => ({
         ...m,
-        id: nextId.value++,
-        widthFeet: Math.floor(remainingWidth / 12),
-        widthInches: remainingWidth % 12,
-        widthTotal: remainingWidth,
-      };
+        widthTotal: m.widthTotal + 4,
+        lengthTotal: m.lengthTotal + 4,
+      }));
+    }
 
-      if (remainingWidth === ROLL_WIDTH_INCHES) {
-        standard.push(piece);
-      } else {
-        needsRaw.push(piece);
+    const nextId = { value: 1000 };
+    const aggregated = aggregateSameLengths(allMeasurements, nextId);
+
+    const standard: Measurement[] = [];
+    const needsRaw: Measurement[] = [];
+
+    // Split into standard (12' wide) and needs (remainder)
+    for (const m of aggregated) {
+      let remainingWidth = m.widthTotal;
+
+      // While remaining width > 12', split off 12' wide standard pieces
+      while (remainingWidth > ROLL_WIDTH_INCHES) {
+        standard.push({
+          ...m,
+          id: nextId.value++,
+          widthFeet: ROLL_WIDTH_FEET,
+          widthInches: 0,
+          widthTotal: ROLL_WIDTH_INCHES,
+        });
+        remainingWidth -= ROLL_WIDTH_INCHES;
+      }
+
+      // Whatever is left goes to needs (or standards if exactly 12')
+      if (remainingWidth > 0) {
+        const piece: Measurement = {
+          ...m,
+          id: nextId.value++,
+          widthFeet: Math.floor(remainingWidth / 12),
+          widthInches: remainingWidth % 12,
+          widthTotal: remainingWidth,
+        };
+
+        if (remainingWidth === ROLL_WIDTH_INCHES) {
+          standard.push(piece);
+        } else {
+          needsRaw.push(piece);
+        }
       }
     }
+
+    // Calculate actual area used (before slippage adjustment for true comparison)
+    const usedSqInches = allMeasurements.reduce(
+      (sum, m) => sum + m.widthTotal * m.lengthTotal,
+      0
+    );
+    const usedSqFt = usedSqInches / 144;
+
+    // Calculate lengths
+    const standardLength = standard.reduce((sum, m) => sum + m.lengthTotal, 0);
+    const { placed: needs, maxLength: needsLength } = runBinPacking(needsRaw);
+    const totalLength = standardLength + needsLength;
+
+    // Calculate totals
+    const totalSqFt = (ROLL_WIDTH_INCHES * totalLength) / 144;
+    const totalSqYd = totalSqFt / 9;
+    const wasteSqFt = totalSqFt - usedSqFt;
+    const wastePercent = totalSqFt > 0 ? (wasteSqFt / totalSqFt) * 100 : 0;
+
+    return {
+      standard,
+      needs,
+      standardLength,
+      needsLength,
+      totalLength,
+      totalSqFt,
+      totalSqYd,
+      usedSqFt,
+      wasteSqFt,
+      wastePercent,
+      isFlipped: false,  // Will be overridden if flipped result is better
+    };
   }
-
-  // Calculate actual area used (before slippage adjustment for true comparison)
-  const usedSqInches = allMeasurements.reduce(
-    (sum, m) => sum + m.widthTotal * m.lengthTotal,
-    0
-  );
-  const usedSqFt = usedSqInches / 144;
-
-  // Calculate lengths
-  const standardLength = standard.reduce((sum, m) => sum + m.lengthTotal, 0);
-  const { placed: needs, maxLength: needsLength } = runBinPacking(needsRaw);
-  const totalLength = standardLength + needsLength;
-
-  // Calculate totals
-  const totalSqFt = (ROLL_WIDTH_INCHES * totalLength) / 144;
-  const totalSqYd = totalSqFt / 9;
-  const wasteSqFt = totalSqFt - usedSqFt;
-  const wastePercent = totalSqFt > 0 ? (wasteSqFt / totalSqFt) * 100 : 0;
-
-  return {
-    standard,
-    needs,
-    standardLength,
-    needsLength,
-    totalLength,
-    totalSqFt,
-    totalSqYd,
-    usedSqFt,
-    wasteSqFt,
-    wastePercent,
-  };
+  
+  // Run with original measurements
+  const originalResult = runCalculation(measurements);
+  
+  // Create flipped measurements (swap width and length) on raw input
+  const flippedMeasurements: Measurement[] = measurements.map(m => ({
+    ...m,
+    widthFeet: m.lengthFeet,
+    widthInches: m.lengthInches,
+    widthTotal: m.lengthTotal,
+    lengthFeet: m.widthFeet,
+    lengthInches: m.widthInches,
+    lengthTotal: m.widthTotal,
+  }));
+  
+  // Run with flipped measurements
+  const flippedResult = runCalculation(flippedMeasurements);
+  
+  // Return whichever has less total length (less waste)
+  if (flippedResult.totalLength < originalResult.totalLength) {
+    return { ...flippedResult, isFlipped: true };
+  }
+  
+  return originalResult;
 }
 
 // ============================================================================
