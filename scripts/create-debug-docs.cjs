@@ -1,4 +1,4 @@
-// scripts/createDebugDocs.cjs
+// scripts/create-debug-docs.cjs
 // Creates a debug_docs_<timestamp> folder with a FLAT set of files
 // Auto-discovers root directories and files to include
 // Also creates a .zip archive of the folder.
@@ -10,56 +10,15 @@ const path = require('path');
 const archiver = require('archiver');
 const { execSync } = require('child_process');
 
+// Import shared tree utilities
+const {
+  generateFileTree,
+  discoverRootContents,
+  shouldIgnore,
+  shouldIncludeFile,
+} = require('./file-tree.cjs');
+
 const projectRoot = process.cwd();
-
-// ---- CONFIG ----
-// Directories and files to IGNORE (common dev artifacts, secrets, etc.)
-const IGNORE_PATTERNS = [
-  // Directories
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  '.vscode',
-  '.idea',
-  'coverage',
-  'debug_docs_',  // Previous debug outputs (prefix match)
-  
-  // Files
-  '.env',
-  '.env.local',
-  '.env.production',
-  '.gitignore',
-  '.eslintrc',
-  '.prettierrc',
-  'package-lock.json',
-  'yarn.lock',
-  'pnpm-lock.yaml',
-  'tsconfig.json',
-  'tsconfig.node.json',
-  'vite.config.ts',
-  'vite.config.js',
-  'tailwind.config.js',
-  'postcss.config.js',
-  '.npmrc',
-  
-  // Sensitive files
-  'pg_password.txt',
-  'anthropic-key.txt',
-  'plaid-recovery-code.txt',
-];
-
-// File extensions to include (empty = all non-ignored)
-const INCLUDE_EXTENSIONS = [
-  '.ts', '.tsx', '.js', '.jsx', '.cjs', '.mjs',
-  '.css', '.scss', '.less',
-  '.json',
-  '.sql',
-  '.txt', '.md',
-  '.html',
-  '.ps1', '.sh', '.bat',
-  '.svg',
-];
 
 // ---- HELPERS ----
 
@@ -67,58 +26,6 @@ function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
-}
-
-/**
- * Check if a name should be ignored
- */
-function shouldIgnore(name) {
-  // Check exact match
-  if (IGNORE_PATTERNS.includes(name)) return true;
-  
-  // Check prefix match (for things like debug_docs_*)
-  for (const pattern of IGNORE_PATTERNS) {
-    if (pattern.endsWith('_') && name.startsWith(pattern)) return true;
-  }
-  
-  // Ignore hidden files/folders (starting with .)
-  if (name.startsWith('.')) return true;
-  
-  return false;
-}
-
-/**
- * Check if a file extension should be included
- */
-function shouldIncludeFile(name) {
-  const ext = path.extname(name).toLowerCase();
-  return INCLUDE_EXTENSIONS.includes(ext);
-}
-
-/**
- * Auto-discover directories and files in project root
- */
-function discoverRootContents() {
-  const entries = fs.readdirSync(projectRoot, { withFileTypes: true });
-  
-  const directories = [];
-  const files = [];
-  
-  for (const entry of entries) {
-    if (shouldIgnore(entry.name)) continue;
-    
-    if (entry.isDirectory()) {
-      directories.push(entry.name);
-    } else if (entry.isFile() && shouldIncludeFile(entry.name)) {
-      files.push(entry.name);
-    }
-  }
-  
-  // Sort alphabetically
-  directories.sort((a, b) => a.localeCompare(b));
-  files.sort((a, b) => a.localeCompare(b));
-  
-  return { directories, files };
 }
 
 /**
@@ -196,67 +103,6 @@ function getUniqueName(baseName) {
 }
 
 /**
- * Build a nested object representing the folder structure
- */
-function buildFolderTree(srcDir, baseRelative) {
-  const tree = { name: path.basename(srcDir), type: 'dir', children: [] };
-  
-  if (!fs.existsSync(srcDir) || !fs.statSync(srcDir).isDirectory()) {
-    return tree;
-  }
-
-  const entries = fs.readdirSync(srcDir, { withFileTypes: true });
-  
-  // Sort: directories first, then files, both alphabetically
-  entries.sort((a, b) => {
-    if (a.isDirectory() && !b.isDirectory()) return -1;
-    if (!a.isDirectory() && b.isDirectory()) return 1;
-    return a.name.localeCompare(b.name);
-  });
-
-  for (const entry of entries) {
-    if (shouldIgnore(entry.name)) continue;
-    
-    const srcPath = path.join(srcDir, entry.name);
-    
-    if (entry.isDirectory()) {
-      const childTree = buildFolderTree(srcPath, path.join(baseRelative, entry.name));
-      tree.children.push(childTree);
-    } else if (entry.isFile() && shouldIncludeFile(entry.name)) {
-      tree.children.push({ name: entry.name, type: 'file' });
-    }
-  }
-  
-  return tree;
-}
-
-/**
- * Render a folder tree object to a string with box-drawing characters
- */
-function renderTree(node, prefix = '', isLast = true, isRoot = true) {
-  let result = '';
-  
-  if (isRoot) {
-    result += `${node.name}/\n`;
-  } else {
-    const connector = isLast ? '`-- ' : '|-- ';
-    const suffix = node.type === 'dir' ? '/' : '';
-    result += `${prefix}${connector}${node.name}${suffix}\n`;
-  }
-  
-  if (node.children && node.children.length > 0) {
-    const childPrefix = isRoot ? '' : prefix + (isLast ? '    ' : '|   ');
-    
-    node.children.forEach((child, index) => {
-      const childIsLast = index === node.children.length - 1;
-      result += renderTree(child, childPrefix, childIsLast, false);
-    });
-  }
-  
-  return result;
-}
-
-/**
  * Recursively walk a source directory and copy all files into a single flat dest folder.
  */
 function collectAndCopyFilesFlat(srcDir, baseRelative, debugRootPath, filesMeta) {
@@ -320,7 +166,7 @@ function createZipArchive(debugFolderPath, debugFolderName) {
 async function createDebugDocs() {
   // Step 1: Auto-discover root contents
   console.log('Discovering project structure...');
-  const { directories, files } = discoverRootContents();
+  const { directories, files } = discoverRootContents(projectRoot);
   
   console.log(`Found ${directories.length} directories: ${directories.join(', ')}`);
   console.log(`Found ${files.length} root files: ${files.join(', ')}\n`);
@@ -365,33 +211,8 @@ async function createDebugDocs() {
     }
   }
 
-  // Build and write folder structure tree
-  let treeOutput = `Project: ${path.basename(projectRoot)}\n`;
-  treeOutput += `Generated: ${new Date().toISOString()}\n`;
-  treeOutput += `${'='.repeat(50)}\n\n`;
-
-  // Build unified tree with root/ at top
-  const rootTree = {
-    name: path.basename(projectRoot),
-    type: 'dir',
-    children: []
-  };
-
-  // Add directories as children
-  for (const dir of directories) {
-    const absSrcDir = path.join(projectRoot, dir);
-    if (fs.existsSync(absSrcDir)) {
-      const tree = buildFolderTree(absSrcDir, dir);
-      rootTree.children.push(tree);
-    }
-  }
-
-  // Add root-level files as children
-  for (const file of files) {
-    rootTree.children.push({ name: file, type: 'file' });
-  }
-
-  treeOutput += renderTree(rootTree);
+  // Generate file tree using shared module
+  let treeOutput = generateFileTree(projectRoot, { includeHeader: true });
 
   // Add file mapping reference (debug filename -> original path)
   treeOutput += `\n${'='.repeat(50)}\n`;

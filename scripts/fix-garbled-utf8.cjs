@@ -27,9 +27,29 @@ const REPLACEMENTS = [
   
   // Checkmarks and circles
   { garbled: 'âœ"', replace: '✓' },
+  { garbled: 'âœ“', replace: '✓' },
   { garbled: 'âœ•', replace: '✕' },
   { garbled: 'â—‹', replace: '○' },
   { garbled: 'â—', replace: '●' },
+  
+  // Emojis (4-byte UTF-8 sequences)
+  { garbled: 'ðŸ"Š', replace: '📊' },
+  { garbled: 'ðŸ"§', replace: '🔧' },
+  { garbled: "ðŸ'·", replace: '👷' },
+  { garbled: 'ðŸª™', replace: '🪙' },
+  { garbled: 'ðŸ"£', replace: '📣' },
+  { garbled: "ðŸ'²", replace: '💲' },
+  { garbled: 'ðŸ§®', replace: '🧮' },
+  { garbled: 'ðŸ"ˆ', replace: '📈' },
+  { garbled: 'ðŸ"—', replace: '🔗' },
+  { garbled: 'ðŸ¦', replace: '🏦' },
+  { garbled: 'ðŸ"\'', replace: '📒' },
+  { garbled: 'ðŸ"‹', replace: '📋' },
+  { garbled: "ðŸ'°", replace: '💰' },
+  { garbled: 'ðŸ"„', replace: '📄' },
+  { garbled: 'ðŸ ', replace: '🏠' },
+  { garbled: 'ðŸšª', replace: '🚪' },
+  { garbled: 'ðŸ"¨', replace: '🔨' },
   
   // Menu/UI
   { garbled: 'â˜°', replace: '☰' },
@@ -66,6 +86,11 @@ const REPLACEMENTS = [
   { garbled: 'Â·', replace: '·' },
   { garbled: 'Ã—', replace: '×' },
   { garbled: 'Ã·', replace: '÷' },
+
+  // New patterns discovered this session
+  { garbled: 'â€"', replace: '–' },      // en-dash (different encoding)
+  { garbled: 'âš ', replace: '⚠' },     // warning sign
+  { garbled: 'â† ', replace: '← ' },    // left arrow
 ];
 
 // Track stats

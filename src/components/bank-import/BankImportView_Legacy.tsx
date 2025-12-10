@@ -60,6 +60,7 @@ export function BankImportView() {
   const [commitResult, setCommitResult] = useState<{ cleared: number; created: number; tipAdjusted: number } | null>(null);
 
   // Restore state from localStorage on mount
+  // Restore state from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -71,6 +72,12 @@ export function BankImportView() {
           setSelectedAccountId(parsed.selectedAccountId || '');
           setWarnings(parsed.warnings || []);
           setHiddenStats(parsed.hiddenStats || { bankPending: 0, alreadyCleared: 0 });
+          // Restore pendingTransactionsMap from array
+          if (parsed.pendingTransactionsArray) {
+            const map = new Map<number, PendingTransaction>();
+            parsed.pendingTransactionsArray.forEach((tx: PendingTransaction) => map.set(tx.line_id, tx));
+            setPendingTransactionsMap(map);
+          }
           setProcessingState('review');
         }
       }
@@ -89,13 +96,14 @@ export function BankImportView() {
           selectedAccountId,
           warnings,
           hiddenStats,
+          pendingTransactionsArray: Array.from(pendingTransactionsMap.values()),
           savedAt: new Date().toISOString(),
         }));
       } catch (e) {
         console.warn('Failed to save bank import state:', e);
       }
     }
-  }, [reviewTransactions, referenceData, selectedAccountId, warnings, hiddenStats, processingState]);
+  }, [reviewTransactions, referenceData, selectedAccountId, warnings, hiddenStats, processingState, pendingTransactionsMap]);
 
   // Clear saved state after successful commit or manual clear
   function clearSavedState() {
@@ -429,40 +437,25 @@ export function BankImportView() {
 
       for (const tx of selected) {
         // Mark as cleared: only for posted bank transactions matching pending DB entries
-        if (tx.bank_status === 'posted' && tx.match_type === 'matched_pending' && tx.matched_line_id) {
+        if (tx.bank_status === 'posted' && tx.match_type === 'matched_pending' && tx.matched_transaction_id) {
+          // Mark ALL lines for this transaction as cleared
           const { error: clearErr } = await supabase
             .from('transaction_lines')
             .update({ is_cleared: true })
-            .eq('id', tx.matched_line_id);
+            .eq('transaction_id', tx.matched_transaction_id);
 
           if (clearErr) throw clearErr;
           clearedCount++;
         } else if (tx.match_type === 'tip_adjustment' && tx.matched_transaction_id && tx.original_amount) {
-          // Tip adjustment: scale all lines and mark as cleared
+          // Tip adjustment: scale all lines atomically and mark as cleared
           const scaleFactor = Math.abs(tx.amount) / Math.abs(tx.original_amount);
           
-          // Get all lines for this transaction
-          const { data: lines, error: fetchErr } = await supabase
-            .from('transaction_lines')
-            .select('id, amount')
-            .eq('transaction_id', tx.matched_transaction_id);
+          const { error: tipErr } = await supabase.rpc('adjust_tip_transaction', {
+            p_transaction_id: tx.matched_transaction_id,
+            p_scale_factor: scaleFactor,
+          });
           
-          if (fetchErr) throw fetchErr;
-          if (!lines || lines.length === 0) {
-            throw new Error(`No lines found for transaction_id ${tx.matched_transaction_id}`);
-          }
-
-          // Update each line with scaled amount and mark as cleared
-          for (const line of lines) {
-            const newAmount = Number((line.amount * scaleFactor).toFixed(2));
-            const { error: updateErr } = await supabase
-              .from('transaction_lines')
-              .update({ amount: newAmount, is_cleared: true })
-              .eq('id', line.id);
-            
-            if (updateErr) throw updateErr;
-          }
-          
+          if (tipErr) throw tipErr;
           tipAdjustedCount++;
         } else if (tx.match_type === 'new') {
           const categoryAccountId = tx.override_account_id ?? tx.suggested_account_id;
@@ -481,7 +474,7 @@ export function BankImportView() {
           const isCleared = tx.override_is_cleared ?? (tx.bank_status === 'posted');
           
           // Build line object, only including optional fields if they have values
-          const buildLine = (acctId: number, amt: number) => {
+          const buildLine = (acctId: number, amt: number, isCategoryLine: boolean) => {
             const line: Record<string, any> = {
               account_id: acctId,
               amount: amt,
@@ -489,14 +482,17 @@ export function BankImportView() {
               is_cleared: isCleared,
             };
             if (jobId) line.job_id = jobId;
-            if (vendorId) line.vendor_id = vendorId;
-            if (installerId) line.installer_id = installerId;
+            // Only attach vendor/installer to the category line, not the cash line
+            if (isCategoryLine) {
+              if (vendorId) line.vendor_id = vendorId;
+              if (installerId) line.installer_id = installerId;
+            }
             return line;
           };
 
           const lines = isExpense
-            ? [buildLine(categoryAccountId, absAmount), buildLine(accountId, -absAmount)]
-            : [buildLine(accountId, absAmount), buildLine(categoryAccountId, -absAmount)];
+            ? [buildLine(categoryAccountId, absAmount, true), buildLine(accountId, -absAmount, false)]
+            : [buildLine(accountId, absAmount, false), buildLine(categoryAccountId, -absAmount, true)];
 
           console.log('Creating transaction:', { date: tx.date, description, purpose, lines });
 

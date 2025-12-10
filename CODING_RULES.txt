@@ -348,7 +348,7 @@ Example:
 
 WHEN EDITING FILES WITH UNICODE/EMOJI CONTENT
 - NEVER use shell commands (sed, cat >, awk) on files containing emojis or special characters
-- Shell tools corrupt multi-byte UTF-8 sequences (emojis become garbled like ðŸ"Š)
+- Shell tools corrupt multi-byte UTF-8 sequences (emojis become garbled like Ã°Å¸"Å )
 - ALWAYS use the str_replace tool for targeted edits
 - OR provide clean code snippets for manual paste
 
@@ -360,7 +360,7 @@ This applies especially to:
 - Any UI component with emoji icons
 - Files with non-ASCII characters in strings
 
-If you see garbled characters like ðŸ"Š instead of 📊, the file was corrupted
+If you see garbled characters like Ã°Å¸"Å  instead of ðŸ“Š, the file was corrupted
 by shell commands and needs to be restored from source control.
 
 --------------------------------------------------------------------------------
@@ -442,28 +442,43 @@ MANAGE COMPONENT
   }, [initialSelectedId, items.length, onSelectionUsed]);
 
 --------------------------------------------------------------------------------
-17. SEARCHABLE SELECT WITH QUICK-CREATE
+17. ENTITY SELECT COMPONENTS (Job, Vendor, Installer)
 --------------------------------------------------------------------------------
 
-For dropdowns that allow creating new items inline:
+USE WRAPPER COMPONENTS - NOT INLINE SEARCHABLESELECT
+- Import from: '../shared' (VendorSelect, InstallerSelect, JobSelect)
+- Wrappers handle: data loading, options mapping, quick-create (vendors)
+- Parent only manages: value (number | null) and onChange
 
-  <SearchableSelect
-    options={vendorOptions}
-    value={selectedVendorId}
-    onChange={(val) => setSelectedVendorId(val)}
-    allowCreate
-    onCreateNew={async (name) => {
-      const { data } = await supabase
-        .from('vendors')
-        .insert({ name, nick_name: name })
-        .select('id')
-        .single();
-      // Update local state immediately so new item appears
-      setVendors(prev => [...prev, { id: data.id, name }]);
-      return data?.id ?? null;
-    }}
-    createLabel="Create vendor"
-  />
+  // GOOD - one line, consistent everywhere
+  <VendorSelect value={vendorId} onChange={setVendorId} />
+  <InstallerSelect value={installerId} onChange={setInstallerId} />
+  <JobSelect value={jobId} onChange={setJobId} />
+
+  // BAD - duplicated in every component
+  const [vendors, setVendors] = useState([]);
+  useEffect(() => { /* load vendors */ }, []);
+  const vendorOptions = vendors.map(v => ({ value: v.id, label: v.nick_name }));
+  <SearchableSelect options={vendorOptions} ... />
+
+STATE TYPE FOR ENTITY IDS
+- Use: number | null (not string)
+- Wrapper components expect this type signature
+- No String/Number conversion needed
+
+  const [vendorId, setVendorId] = useState<number | null>(null);
+
+OPTIONAL PROPS
+- placeholder: custom placeholder text
+- emptyLabel: label for "none selected" option (default: "None")
+- disabled: disable the select
+
+SEARCHABLESELECT CLICK HANDLER
+- Use onMouseDown with preventDefault, NOT onClick
+- onClick has race condition with input blur events
+- Pattern applies to dropdown option selection:
+
+  onMouseDown={(e) => { e.preventDefault(); handleOptionClick(option.value); }}
 
 --------------------------------------------------------------------------------
 18. COMMON BUG PATTERNS TO AVOID
@@ -523,11 +538,11 @@ EXPENSE DISPLAY
   <span style={{ color: red }}>{currency(expense)}</span>
 
 ASCII SEPARATORS IN UI
-- Use pipe | or hyphen - instead of middle dot (·) or bullet
-- Middle dots get garbled across systems (Â· instead of ·)
+- Use pipe | or hyphen - instead of middle dot (Â·) or bullet
+- Middle dots get garbled across systems (Ã‚Â· instead of Â·)
 
   # BAD
-  Margin: 13.4% · Avg: $5,947 · Count: 104
+  Margin: 13.4% Â· Avg: $5,947 Â· Count: 104
   
   # GOOD
   Margin: 13.4% | Avg: $5,947 | Count: 104
@@ -562,5 +577,50 @@ PURPOSE FIELD
 - Removed from Bank Import for consistency with NewTransactionForm
 - Default to 'business' for all imported transactions
 - User can edit in Ledger if needed
+
+--------------------------------------------------------------------------------
+22. MODAL EDIT RESULTS - RETURNING DISPLAY VALUES
+--------------------------------------------------------------------------------
+
+When a modal edits entity relationships (job, vendor, installer), return
+display names in the result so parent can update UI without refetching.
+
+MODAL RESULT TYPE
+- Include both IDs (for database) and display names (for UI)
+
+  export type EditModalResult = {
+    // ... other fields
+    jobName: string | null;
+    vendorInstaller: string;  // combined display string
+  };
+
+MODAL SAVE HANDLER
+- After saving to DB, fetch display names for changed entities
+- Build result object with names, not just IDs
+
+  // Fetch names for UI
+  let jobName = null;
+  if (editJobId) {
+    const { data } = await supabase.from('jobs').select('name').eq('id', editJobId).single();
+    jobName = data?.name ?? null;
+  }
+  
+  onSave(txId, { ...result, jobName, vendorInstaller });
+
+PARENT UPDATE HANDLER
+- Spread result values directly into row state
+
+  const handleEditSave = (txId: number, result: EditModalResult) => {
+    setRows(prev => prev.map(r => 
+      r.transaction_id === txId
+        ? { ...r, job_name: result.jobName, vendor_installer: result.vendorInstaller }
+        : r
+    ));
+  };
+
+WHY THIS PATTERN
+- Avoids full data refetch after every edit
+- Keeps UI responsive
+- Modal already has the data, just needs to return it
 
 ================================================================================

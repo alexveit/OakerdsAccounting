@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { NewRealEstateDealForm } from './NewRealEstateDealForm';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -62,11 +63,19 @@ type Job = {
   name: string;
 };
 
+type DealsManageViewProps = {
+  initialSelectedId?: number | null;
+  onSelectionUsed?: () => void;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function DealEditView() {
+export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsManageViewProps) {
+  // Mode: create vs edit
+  const [isCreating, setIsCreating] = useState(false);
+
   // Deal selection
   const [deals, setDeals] = useState<DealSummary[]>([]);
   const [selectedDealId, setSelectedDealId] = useState<number | null>(null);
@@ -154,6 +163,15 @@ export function DealEditView() {
     loadAccounts();
     loadJobs();
   }, []);
+
+  // Handle initialSelectedId from parent (e.g., click from Overview)
+  useEffect(() => {
+    if (initialSelectedId != null && deals.length > 0) {
+      setSelectedDealId(initialSelectedId);
+      setIsCreating(false);
+      onSelectionUsed?.();
+    }
+  }, [initialSelectedId, deals.length, onSelectionUsed]);
 
   // Load selected deal details
   useEffect(() => {
@@ -415,51 +433,117 @@ export function DealEditView() {
   const isFinanced = !!(originalLoanAmount || assetAccountId || loanAccountId);
   const selectedDeal = deals.find((d) => d.id === selectedDealId);
 
+  // Handler for when a new deal is created
+  function handleDealCreated() {
+    setIsCreating(false);
+    // Reload deals list
+    async function reload() {
+      const { data } = await supabase
+        .from('real_estate_deals')
+        .select('id, nickname, address, type, status')
+        .order('nickname', { ascending: true });
+      setDeals((data || []) as DealSummary[]);
+    }
+    reload();
+  }
+
   return (
     <div>
-      <h3 style={{ marginTop: 0 }}>Edit Deal</h3>
-
-      {/* Deal Selector */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ ...labelStyle, maxWidth: 400 }}>
-          <span style={{ fontWeight: 500 }}>Select a deal to edit:</span>
-          <select
-            value={selectedDealId ?? ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSelectedDealId(val ? Number(val) : null);
-              setError(null);
-              setSuccess(null);
-              setShowArchiveConfirm(false);
-            }}
-            style={{ padding: '0.5rem', fontSize: 14 }}
-          >
-            <option value="">— Choose a deal —</option>
-            {deals.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.nickname} ({d.type}) — {d.status}
-              </option>
-            ))}
-          </select>
-        </label>
-        {loadingDeals && (
-          <div style={{ fontSize: 13, color: '#666', marginTop: '0.5rem' }}>
-            Loading deals…
-          </div>
-        )}
-      </div>
-
-      {/* No deal selected */}
-      {!selectedDealId && !loadingDeals && (
-        <div
+      {/* Mode toggle buttons */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+        <button
+          type="button"
+          onClick={() => {
+            setIsCreating(false);
+            setSelectedDealId(null);
+          }}
           style={{
-            padding: '2rem',
-            textAlign: 'center',
-            color: '#666',
-            background: '#f9f9f9',
-            borderRadius: 8,
+            padding: '0.5rem 1rem',
+            fontSize: 14,
+            fontWeight: isCreating ? 400 : 600,
+            backgroundColor: isCreating ? '#f5f5f5' : '#1976d2',
+            color: isCreating ? '#333' : '#fff',
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'pointer',
           }}
         >
+          Edit Existing
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setIsCreating(true);
+            setSelectedDealId(null);
+            setError(null);
+            setSuccess(null);
+          }}
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: 14,
+            fontWeight: isCreating ? 600 : 400,
+            backgroundColor: isCreating ? '#1976d2' : '#f5f5f5',
+            color: isCreating ? '#fff' : '#333',
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'pointer',
+          }}
+        >
+          + Create New
+        </button>
+      </div>
+
+      {/* Create New Deal Form */}
+      {isCreating && (
+        <div className="card" style={{ padding: '1rem' }}>
+          <NewRealEstateDealForm onCreated={handleDealCreated} />
+        </div>
+      )}
+
+      {/* Edit Existing Deal */}
+      {!isCreating && (
+        <>
+          {/* Deal Selector */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{ ...labelStyle, maxWidth: 400 }}>
+              <span style={{ fontWeight: 500 }}>Select a deal to edit:</span>
+              <select
+                value={selectedDealId ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedDealId(val ? Number(val) : null);
+                  setError(null);
+                  setSuccess(null);
+                  setShowArchiveConfirm(false);
+                }}
+                style={{ padding: '0.5rem', fontSize: 14 }}
+              >
+                <option value="">-- Choose a deal --</option>
+                {deals.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.nickname} ({d.type}) -- {d.status}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {loadingDeals && (
+              <div style={{ fontSize: 13, color: '#666', marginTop: '0.5rem' }}>
+                Loading deals...
+              </div>
+            )}
+          </div>
+
+          {/* No deal selected */}
+          {!selectedDealId && !loadingDeals && (
+            <div
+              style={{
+                padding: '2rem',
+                textAlign: 'center',
+                color: '#666',
+                background: '#f9f9f9',
+                borderRadius: 8,
+              }}
+            >
           Select a deal above to view and edit its details.
         </div>
       )}
@@ -927,7 +1011,7 @@ export function DealEditView() {
                   fontSize: 14,
                 }}
               >
-                {saving ? 'Saving…' : 'Save Changes'}
+                {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -948,6 +1032,11 @@ export function DealEditView() {
           Deal ID: {selectedDealId}
         </div>
       )}
+        </>
+      )}
     </div>
   );
 }
+
+// Backward compatibility alias
+export { DealsManageView as DealEditView };

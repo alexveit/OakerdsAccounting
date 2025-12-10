@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "debug-docs": "node scripts/create-debug-docs.cjs",
+    "tree": "node scripts/file-tree.cjs",
     "fix-garbled-utf8": "node scripts/fix-garbled-utf8.cjs"
   },
   "dependencies": {

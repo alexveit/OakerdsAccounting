@@ -157,10 +157,6 @@ export function SearchableSelect({
 
   const inputStyle: CSSProperties = {
     width: '100%',
-    padding: '0.25rem 0.5rem',
-    fontSize: 13,
-    border: '1px solid #ddd',
-    borderRadius: 4,
     backgroundColor: disabled ? '#f5f5f5' : '#fff',
     cursor: disabled ? 'not-allowed' : 'text',
   };
@@ -181,16 +177,16 @@ export function SearchableSelect({
   };
 
   const optionStyle = (isHighlighted: boolean, isSelected: boolean): CSSProperties => ({
-    padding: '0.4rem 0.5rem',
-    fontSize: 13,
+    padding: '0.5rem 0.75rem',
+    fontSize: '0.9375rem',
     cursor: 'pointer',
     backgroundColor: isHighlighted ? '#e5e7eb' : isSelected ? '#f3f4f6' : '#fff',
     borderBottom: '1px solid #f3f4f6',
   });
 
   const createOptionStyle = (isHighlighted: boolean): CSSProperties => ({
-    padding: '0.4rem 0.5rem',
-    fontSize: 13,
+    padding: '0.5rem 0.75rem',
+    fontSize: '0.9375rem',
     cursor: isCreating ? 'wait' : 'pointer',
     backgroundColor: isHighlighted ? '#dcfce7' : '#f0fdf4',
     borderBottom: '1px solid #f3f4f6',
@@ -217,7 +213,7 @@ export function SearchableSelect({
           {/* "None" option */}
           <div
             style={optionStyle(highlightedIndex === 0, value === null || value === '')}
-            onClick={() => handleOptionClick(null)}
+            onMouseDown={(e) => { e.preventDefault(); handleOptionClick(null); }}
             onMouseEnter={() => setHighlightedIndex(0)}
           >
             <em style={{ color: '#999' }}>{emptyLabel}</em>
@@ -228,7 +224,7 @@ export function SearchableSelect({
             <div
               key={option.value}
               style={optionStyle(highlightedIndex === index + 1, String(option.value) === String(value))}
-              onClick={() => handleOptionClick(option.value)}
+              onMouseDown={(e) => { e.preventDefault(); handleOptionClick(option.value); }}
               onMouseEnter={() => setHighlightedIndex(index + 1)}
             >
               {option.label}
@@ -239,7 +235,7 @@ export function SearchableSelect({
           {showCreateOption && (
             <div
               style={createOptionStyle(highlightedIndex === totalItems - 1)}
-              onClick={handleCreateNew}
+              onMouseDown={(e) => { e.preventDefault(); handleCreateNew(); }}
               onMouseEnter={() => setHighlightedIndex(totalItems - 1)}
             >
               {isCreating ? 'Creating...' : `+ ${createLabel} "${trimmedSearch}"`}

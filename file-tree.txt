@@ -1,0 +1,131 @@
+Project: OakerdsAccounting
+Generated: 2025-12-09T22:26:45.672Z
+==================================================
+
+OakerdsAccounting/
+|-- db_tools/
+|   |-- oakerds_dev_dump_20251209_161427/
+|   |   |-- logic_app_public.sql
+|   |   |-- sample_data.sql
+|   |   `-- schema_core.sql
+|   `-- my_db_backup.ps1
+|-- public/
+|   |-- OakerdsLogo.svg
+|   `-- vite.svg
+|-- scripts/
+|   |-- create-debug-docs.cjs
+|   |-- file-tree.cjs
+|   `-- fix-garbled-utf8.cjs
+|-- src/
+|   |-- assets/
+|   |   `-- react.svg
+|   |-- components/
+|   |   |-- analytics/
+|   |   |   |-- AnalyticsBalances.tsx
+|   |   |   |-- AnalyticsCashFlow.tsx
+|   |   |   |-- AnalyticsExpenses.tsx
+|   |   |   `-- AnalyticsView.tsx
+|   |   |-- bank-import/
+|   |   |   |-- bankImportTypes.ts
+|   |   |   |-- BankImportView_Legacy.tsx
+|   |   |   |-- BankImportView.tsx
+|   |   |   |-- index.ts
+|   |   |   |-- PlaidLinkView.tsx
+|   |   |   `-- PlaidTransactionReview.tsx
+|   |   |-- expenses/
+|   |   |   |-- ExpensesDetail.tsx
+|   |   |   |-- ExpensesSummary.tsx
+|   |   |   `-- ExpensesView.tsx
+|   |   |-- installers/
+|   |   |   |-- InstallersManageView.tsx
+|   |   |   |-- InstallersOverview.tsx
+|   |   |   `-- InstallersView.tsx
+|   |   |-- lead-sources/
+|   |   |   |-- LeadSourcesManageView.tsx
+|   |   |   |-- LeadSourcesOverview.tsx
+|   |   |   `-- LeadSourcesView.tsx
+|   |   |-- ledger/
+|   |   |   |-- index.ts
+|   |   |   |-- LedgerClearModal.tsx
+|   |   |   |-- LedgerEditModal.tsx
+|   |   |   |-- LedgerFilters.tsx
+|   |   |   |-- LedgerTable.tsx
+|   |   |   |-- LedgerView.tsx
+|   |   |   |-- Transfers.tsx
+|   |   |   |-- types.ts
+|   |   |   `-- utils.ts
+|   |   |-- mobile/
+|   |   |   |-- index.ts
+|   |   |   |-- JobsTab.tsx
+|   |   |   |-- MobileContainer.tsx
+|   |   |   |-- MobileFloorCalc.tsx
+|   |   |   |-- mobileStyles.ts
+|   |   |   `-- PricesTab.tsx
+|   |   |-- new-entries/
+|   |   |   |-- NewEntryView.tsx
+|   |   |   |-- NewJobForm.tsx
+|   |   |   `-- NewTransactionForm.tsx
+|   |   |-- real-estate/
+|   |   |   |-- DealEditView.tsx
+|   |   |   |-- DealsOverview.tsx
+|   |   |   |-- DealsView.tsx
+|   |   |   |-- FlipDetailView.tsx
+|   |   |   |-- FlipSummary.tsx
+|   |   |   |-- FlipsView.tsx
+|   |   |   |-- NewFlipTransaction.tsx
+|   |   |   |-- NewRealEstateDealForm.tsx
+|   |   |   |-- REIView.tsx
+|   |   |   |-- RentalOperationsView.tsx
+|   |   |   |-- RentalsView.tsx
+|   |   |   `-- WholesaleOperationsView.tsx
+|   |   |-- reports/
+|   |   |   |-- ProfitSummary.tsx
+|   |   |   `-- TaxExportView.tsx
+|   |   |-- shared/
+|   |   |   |-- index.ts
+|   |   |   |-- InstallerSelect.tsx
+|   |   |   |-- JobSelect.tsx
+|   |   |   |-- SearchableSelect.tsx
+|   |   |   |-- VendorSelect.tsx
+|   |   |   `-- VersionTag.tsx
+|   |   |-- vendors/
+|   |   |   |-- VendorsManageView.tsx
+|   |   |   |-- VendorsOverview.tsx
+|   |   |   `-- VendorsView.tsx
+|   |   |-- CarpetCalculator.tsx
+|   |   |-- DashboardOverview.tsx
+|   |   |-- JobDetailView.tsx
+|   |   |-- Login.tsx
+|   |   `-- PriceListView.tsx
+|   |-- lib/
+|   |   `-- supabaseClient.ts
+|   |-- utils/
+|   |   |-- accounts.ts
+|   |   |-- date.ts
+|   |   |-- floorCalculations.ts
+|   |   |-- format.ts
+|   |   `-- mortgageAmortization.ts
+|   |-- App.tsx
+|   |-- index.css
+|   |-- main.tsx
+|   `-- vite-env.d.ts
+|-- supabase/
+|   `-- functions/
+|       |-- bank-import/
+|       |   `-- index.ts
+|       |-- plaid-create-link-token/
+|       |   |-- deno.json
+|       |   `-- index.ts
+|       |-- plaid-exchange-token/
+|       |   |-- deno.json
+|       |   `-- index.ts
+|       `-- plaid-sync-transactions/
+|           |-- deno.json
+|           `-- index.ts
+|-- assessment.txt
+|-- CODING_RULES.txt
+|-- eslint.config.js
+|-- index.html
+|-- package.json
+|-- README.md
+`-- tsconfig.app.json

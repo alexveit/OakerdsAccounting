@@ -197,15 +197,15 @@ export function PlaidTransactionReview({ transactions, onComplete }: Props) {
         const amount = Math.abs(tx.amount);
         const isExpense = tx.amount > 0;
 
-        // Create transaction
+        // Create transaction with bank tracking fields
         const { data: txData, error: txError } = await supabase
           .from('transactions')
           .insert({
             date: tx.date,
             description: assignment.description,
-            job_id: assignment.job_id,
-            vendor_id: assignment.vendor_id,
-            source: 'plaid',
+            bank_description: tx.name,
+            plaid_transaction_id: tx.plaid_transaction_id,
+            bank_date: tx.date,
           })
           .select('id')
           .single();
@@ -213,17 +213,27 @@ export function PlaidTransactionReview({ transactions, onComplete }: Props) {
         if (txError) throw txError;
 
         // Create transaction lines (double-entry)
+        // vendor/job/installer only on category line, not cash line
+        const categoryLine = {
+          transaction_id: txData.id,
+          account_id: assignment.account_id,
+          amount: isExpense ? amount : -amount,
+          job_id: assignment.job_id,
+          vendor_id: assignment.vendor_id,
+          purpose: 'business',
+          is_cleared: !tx.pending,
+        };
+        const cashLine = {
+          transaction_id: txData.id,
+          account_id: 1, // Account 1 = Checking
+          amount: isExpense ? -amount : amount,
+          purpose: 'business',
+          is_cleared: !tx.pending,
+        };
+
         const lines = isExpense
-          ? [
-              // Expense: Debit expense account, Credit checking
-              { transaction_id: txData.id, account_id: assignment.account_id, amount: amount },
-              { transaction_id: txData.id, account_id: 1, amount: -amount }, // Account 1 = Checking
-            ]
-          : [
-              // Income: Debit checking, Credit income/account
-              { transaction_id: txData.id, account_id: 1, amount: amount },
-              { transaction_id: txData.id, account_id: assignment.account_id, amount: -amount },
-            ];
+          ? [categoryLine, cashLine]
+          : [cashLine, categoryLine];
 
         const { error: lineError } = await supabase
           .from('transaction_lines')

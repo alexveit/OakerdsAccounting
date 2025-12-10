@@ -57,7 +57,7 @@ interface ParsedTransaction {
   match_type: 'matched_pending' | 'matched_cleared' | 'new' | 'tip_adjustment';
   matched_line_id: number | null;
   matched_transaction_id: number | null;
-  original_amount: number | null; // For tip adjustments - the DB amount before tip
+  original_amount: number | null;
   match_confidence: 'high' | 'medium' | 'low';
   suggested_account_id: number | null;
   suggested_account_code: string | null;
@@ -85,6 +85,15 @@ serve(async (req) => {
   }
 
   try {
+    // Auth check - require valid Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (!ANTHROPIC_API_KEY) {
       throw new Error('ANTHROPIC_API_KEY not configured');
     }
@@ -105,7 +114,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
+        max_tokens: 16384,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       }),

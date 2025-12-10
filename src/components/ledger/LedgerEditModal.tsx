@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { VendorSelect } from '../shared/VendorSelect';
+import { InstallerSelect } from '../shared/InstallerSelect';
+import { JobSelect } from '../shared/JobSelect';
 import type { LedgerRow, AccountSelectOption } from './types';
 
 export type EditModalResult = {
@@ -11,6 +14,8 @@ export type EditModalResult = {
   cashAccountId: number;
   cashAccountLabel: string | null;
   categoryAccountLabel: string | null;
+  jobName: string | null;
+  vendorInstaller: string;
 };
 
 type LedgerEditModalProps = {
@@ -37,6 +42,11 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
   // Transfer-specific state
   const [editToAccountId, setEditToAccountId] = useState<number | null>(null);
   const [isTransfer, setIsTransfer] = useState(false);
+
+  // Job/vendor/installer IDs only - components handle their own data loading
+  const [editJobId, setEditJobId] = useState<number | null>(null);
+  const [editVendorId, setEditVendorId] = useState<number | null>(null);
+  const [editInstallerId, setEditInstallerId] = useState<number | null>(null);
   
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +143,24 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
           );
           setEditCashAccountId(cashLine?.account_id ?? null);
           setEditCategoryAccountId(categoryLine?.account_id ?? null);
+        }
+
+        // Get current job/vendor/installer from category line (where they belong)
+        const { data: detailLines } = await supabase
+          .from('transaction_lines')
+          .select('job_id, vendor_id, installer_id, accounts ( account_types ( name ) )')
+          .eq('transaction_id', row.transaction_id);
+        
+        // Find the category line (income/expense) to get job/vendor/installer
+        const catLine = (detailLines ?? []).find((l: any) => {
+          const typeName = l.accounts?.account_types?.name;
+          return typeName === 'income' || typeName === 'expense';
+        }) as { job_id: number | null; vendor_id: number | null; installer_id: number | null } | undefined;
+        
+        if (catLine) {
+          setEditJobId(catLine.job_id);
+          setEditVendorId(catLine.vendor_id);
+          setEditInstallerId(catLine.installer_id);
         }
 
         setLoading(false);
@@ -241,6 +269,8 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
           cashAccountId: editCashAccountId!,
           cashAccountLabel: fromLabel,
           categoryAccountLabel: toLabel, // For transfers, this shows the "to" account
+          jobName: null,
+          vendorInstaller: '',
         });
       } else {
         // Regular transaction
@@ -265,13 +295,16 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
 
         if (cashUpdateErr) throw cashUpdateErr;
 
-        // Update category line (amount + account) if different line
+        // Update category line (amount + account + job/vendor/installer) if different line
         if (categoryLine.id !== cashLine.id) {
           const { error: catUpdateErr } = await supabase
             .from('transaction_lines')
             .update({
               amount: targetCategoryAmount,
               account_id: editCategoryAccountId,
+              job_id: editJobId,
+              vendor_id: editVendorId,
+              installer_id: editInstallerId,
             })
             .eq('id', categoryLine.id);
 
@@ -282,6 +315,25 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
         const newCashLabel = cashAccountOptions.find((a) => a.id === editCashAccountId)?.label ?? null;
         const newCategoryLabel =
           categoryAccountOptions.find((a) => a.id === editCategoryAccountId)?.label ?? null;
+        
+        // Fetch job/vendor/installer names from DB for UI update
+        let newJobName: string | null = null;
+        let vendorName: string | null = null;
+        let installerName: string | null = null;
+
+        if (editJobId) {
+          const { data: jobData } = await supabase.from('jobs').select('name').eq('id', editJobId).single();
+          newJobName = jobData?.name ?? null;
+        }
+        if (editVendorId) {
+          const { data: vendorData } = await supabase.from('vendors').select('nick_name').eq('id', editVendorId).single();
+          vendorName = vendorData?.nick_name ?? null;
+        }
+        if (editInstallerId) {
+          const { data: instData } = await supabase.from('installers').select('first_name, last_name').eq('id', editInstallerId).single();
+          installerName = instData ? `${instData.first_name ?? ''} ${instData.last_name ?? ''}`.trim() : null;
+        }
+        const newVendorInstaller = [vendorName, installerName].filter(Boolean).join(' / ');
 
         onSave(txId, {
           date: newDate,
@@ -290,6 +342,8 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
           cashAccountId: editCashAccountId!,
           cashAccountLabel: newCashLabel,
           categoryAccountLabel: newCategoryLabel,
+          jobName: newJobName,
+          vendorInstaller: newVendorInstaller,
         });
       }
     } catch (err: unknown) {
@@ -480,6 +534,37 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Job/Vendor/Installer */}
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <label style={{ display: 'block', marginBottom: 2 }}>
+                    Job <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span>
+                  </label>
+                  <JobSelect
+                    value={editJobId}
+                    onChange={setEditJobId}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <label style={{ display: 'block', marginBottom: 2 }}>
+                    Vendor <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span>
+                  </label>
+                  <VendorSelect
+                    value={editVendorId}
+                    onChange={setEditVendorId}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <label style={{ display: 'block', marginBottom: 2 }}>
+                    Installer <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span>
+                  </label>
+                  <InstallerSelect
+                    value={editInstallerId}
+                    onChange={setEditInstallerId}
+                  />
                 </div>
               </>
             )}

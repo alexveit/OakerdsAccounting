@@ -470,6 +470,8 @@ export function LedgerView() {
               cash_account: result.cashAccountLabel,
               cash_account_id: result.cashAccountId,
               type_label: result.categoryAccountLabel,
+              job_name: result.jobName,
+              vendor_installer: result.vendorInstaller,
               updated_at: new Date().toISOString(),
             }
           : r

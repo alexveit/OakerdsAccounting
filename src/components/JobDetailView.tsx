@@ -556,7 +556,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
                           maximumFractionDigits: 2,
                         })}
                       </Td>
-                      <Td align="center">{row.cleared ? 'âœ“' : ''}</Td>
+                      <Td align="center">{row.cleared ? '✓' : ''}</Td>
                     </tr>
                   ))}
                 </tbody>

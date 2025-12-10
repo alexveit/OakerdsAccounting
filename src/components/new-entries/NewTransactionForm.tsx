@@ -1,25 +1,13 @@
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import type { FormEvent } from 'react';
 import { todayLocalISO } from '../../utils/date';
 import { computeMortgageSplit } from '../../utils/mortgageAmortization';
 import { isCashAccount, compareAccountsForSort, ACCOUNT_CODES } from '../../utils/accounts';
-
-type Job = {
-  id: number;
-  name: string;
-};
-
-type Vendor = {
-  id: number;
-  nick_name: string;
-};
-
-type Installer = {
-  id: number;
-  first_name: string;
-  last_name: string | null;
-};
+import { SearchableSelect, type SelectOption } from '../shared/SearchableSelect';
+import { VendorSelect } from '../shared/VendorSelect';
+import { InstallerSelect } from '../shared/InstallerSelect';
+import { JobSelect } from '../shared/JobSelect';
 
 type Account = {
   id: number;
@@ -68,7 +56,7 @@ type RealEstateDeal = {
 
 type TxType = 'income' | 'expense';
 type ExpenseKind = 'material' | 'labor' | 'other';
-type CostType = 'L' | 'M' | 'S' | '';
+type CostType = 'L' | 'M' | 'S' | 'I' | 'H' | '';
 
 // Raw shape from Supabase accounts query
 type RawAccountData = {
@@ -101,9 +89,6 @@ export function NewTransactionForm({
   initialJobId,
   onTransactionSaved,
 }: NewTransactionFormProps) {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [installers, setInstallers] = useState<Installer[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [realEstateDeals, setRealEstateDeals] = useState<RealEstateDeal[]>([]);
   const [rehabCategories, setRehabCategories] = useState<RehabCategory[]>([]);
@@ -113,10 +98,8 @@ export function NewTransactionForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // form state
-  const [linkToJob, setLinkToJob] = useState<boolean>(!!initialJobId);
-  const [jobId, setJobId] = useState<string>(initialJobId != null ? String(initialJobId) : '');
-  const [linkToDeal, setLinkToDeal] = useState<boolean>(false);
+  // form state - IDs are number | null for wrapper components
+  const [jobId, setJobId] = useState<number | null>(initialJobId ?? null);
   const [dealId, setDealId] = useState<string>('');
 
   const [date, setDate] = useState<string>(() => todayLocalISO());
@@ -128,8 +111,8 @@ export function NewTransactionForm({
   const [rehabCategoryId, setRehabCategoryId] = useState<string>('');
   const [costType, setCostType] = useState<CostType>('');
 
-  const [vendorId, setVendorId] = useState<string>('');
-  const [installerId, setInstallerId] = useState<string>('');
+  const [vendorId, setVendorId] = useState<number | null>(null);
+  const [installerId, setInstallerId] = useState<number | null>(null);
 
   const [cashAccountId, setCashAccountId] = useState<string>('');
   const [categoryAccountId, setCategoryAccountId] = useState<string>('');
@@ -155,35 +138,6 @@ export function NewTransactionForm({
       setLoading(true);
       setError(null);
       try {
-        // Jobs
-        const { data: jobsData, error: jobsErr } = await supabase
-          .from('jobs')
-          .select('id, name, status, start_date');
-        if (jobsErr) throw jobsErr;
-        const openJobs = (jobsData ?? []).filter((j) => j.status !== 'closed');
-        const sortedOpenJobs = openJobs.sort((a, b) => {
-          const da = a.start_date ? new Date(a.start_date).getTime() : 0;
-          const db = b.start_date ? new Date(b.start_date).getTime() : 0;
-          return db - da;
-        });
-        setJobs(sortedOpenJobs);
-
-        // Vendors
-        const { data: vendorsData, error: vendorsErr } = await supabase
-          .from('vendors')
-          .select('id, nick_name')
-          .order('nick_name', { ascending: true });
-        if (vendorsErr) throw vendorsErr;
-        setVendors((vendorsData ?? []) as Vendor[]);
-
-        // Installers
-        const { data: installersData, error: installersErr } = await supabase
-          .from('installers')
-          .select('id, first_name, last_name')
-          .order('first_name', { ascending: true });
-        if (installersErr) throw installersErr;
-        setInstallers((installersData ?? []) as Installer[]);
-
         // Accounts
         const { data: accountsData, error: accountsErr } = await supabase
           .from('accounts')
@@ -231,8 +185,7 @@ export function NewTransactionForm({
 
   useEffect(() => {
     if (initialJobId != null) {
-      setLinkToJob(true);
-      setJobId(String(initialJobId));
+      setJobId(initialJobId);
     }
   }, [initialJobId]);
 
@@ -255,12 +208,11 @@ export function NewTransactionForm({
     return !cashAccounts.some((c) => c.id === a.id);
   });
 
+  // For income/refund: show both income AND expense accounts (refunds reduce expenses)
+  // For expense: show expense accounts and balance sheet non-cash
   const categoryAccounts = txType === 'income'
-    ? incomeAccounts
+    ? [...incomeAccounts, ...expenseAccounts]
     : [...expenseAccounts, ...balanceSheetNonCash];
-
-  const [categoryTypeahead, setCategoryTypeahead] = useState('');
-  const [lastCategoryTypeTime, setLastCategoryTypeTime] = useState<number>(0);
 
   const sortedCategoryAccounts = [...categoryAccounts].sort((a, b) => {
     const purposeRank = (p: Account['purpose_default'] | null | undefined) => {
@@ -274,28 +226,21 @@ export function NewTransactionForm({
     return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
   });
 
-  function handleCategoryKeyDown(e: KeyboardEvent<HTMLSelectElement>) {
-    const key = e.key;
-    if (key.length !== 1 || e.altKey || e.metaKey || e.ctrlKey) return;
-    e.preventDefault();
-    const now = Date.now();
-    let buffer = now - lastCategoryTypeTime > 800 ? key : categoryTypeahead + key;
-    buffer = buffer.toLowerCase();
-    setCategoryTypeahead(buffer);
-    setLastCategoryTypeTime(now);
-    const currentIndex = sortedCategoryAccounts.findIndex((a) => String(a.id) === categoryAccountId);
-    const startIndex = currentIndex >= 0 ? currentIndex + 1 : 0;
-    const ordered = [...sortedCategoryAccounts.slice(startIndex), ...sortedCategoryAccounts.slice(0, startIndex)];
-    const match = ordered.find((a) => {
-      const label = `${a.code ? `${a.code} - ` : ''}${a.name}`.toLowerCase();
-      return label.includes(buffer);
-    });
-    if (match) setCategoryAccountId(String(match.id));
-  }
-
-  function formatInstaller(i: Installer) {
-    return `${i.first_name} ${i.last_name ?? ''}`.trim();
-  }
+  // SelectOption arrays for SearchableSelect
+  const cashAccountOptions: SelectOption[] = cashAccounts.map((a) => ({
+    value: a.id,
+    label: `${a.code ? `${a.code} - ` : ''}${a.name}${a.account_types?.name === 'liability' ? ' (card)' : ''}`,
+    searchText: `${a.code ?? ''} ${a.name}`.toLowerCase(),
+  }));
+  const categoryAccountOptions: SelectOption[] = sortedCategoryAccounts.map((a) => ({
+    value: a.id,
+    label: `${a.code ? `${a.code} - ` : ''}${a.name}`,
+    searchText: `${a.code ?? ''} ${a.name}`.toLowerCase(),
+  }));
+  const dealOptions: SelectOption[] = realEstateDeals.map((d) => ({
+    value: d.id,
+    label: `${d.nickname}${d.type ? ` (${d.type})` : ''}`,
+  }));
 
   function purposeForAccount(accountId: number): 'business' | 'personal' | 'mixed' {
     const acc = accounts.find((a) => a.id === accountId);
@@ -307,7 +252,7 @@ export function NewTransactionForm({
 
   const selectedDeal = dealId ? realEstateDeals.find((d) => d.id === Number(dealId)) : null;
   const isFlipDeal = selectedDeal?.type === 'flip';
-  const effectiveExpenseKind: ExpenseKind = linkToJob && txType === 'expense' ? expenseKind : 'other';
+  const effectiveExpenseKind: ExpenseKind = jobId && txType === 'expense' ? expenseKind : 'other';
 
   const isDateFuture = (() => {
     if (!date) return false;
@@ -380,17 +325,15 @@ export function NewTransactionForm({
     const amt = Number(amount);
 
     // Validation
-    if (linkToJob && !jobId) { setError('Job is required.'); return; }
-    if (linkToDeal && !dealId) { setError('Deal is required.'); return; }
     if (!cashAccountId) { setError('Pay from / deposit to account is required.'); return; }
-    if (!categoryAccountId && !isMortgagePayment && !(linkToDeal && isFlipDeal && txType === 'expense')) {
+    if (!categoryAccountId && !isMortgagePayment && !(dealId && isFlipDeal && txType === 'expense')) {
       setError('Category is required.');
       return;
     }
     if (!amt || amt <= 0) { setError('Amount must be greater than 0.'); return; }
 
     // Flip expense validation
-    if (linkToDeal && isFlipDeal && txType === 'expense' && !isMortgagePayment) {
+    if (dealId && isFlipDeal && txType === 'expense' && !isMortgagePayment) {
       if (!rehabCategoryId) { setError('Rehab category is required for flip expenses.'); return; }
       if (!costType) { setError('Cost type (L/M/S) is required for flip expenses.'); return; }
     }
@@ -426,7 +369,7 @@ export function NewTransactionForm({
     }
 
     // Flip expense direct insert
-    if (linkToDeal && isFlipDeal && txType === 'expense') {
+    if (dealId && isFlipDeal && txType === 'expense') {
       try {
         setSaving(true);
         await handleFlipExpenseSubmit(amt);
@@ -440,7 +383,7 @@ export function NewTransactionForm({
     }
 
     // Flip income/refund
-    if (linkToDeal && isFlipDeal && txType === 'income') {
+    if (dealId && isFlipDeal && txType === 'income') {
       try {
         setSaving(true);
         await handleFlipIncomeSubmit(amt);
@@ -456,10 +399,16 @@ export function NewTransactionForm({
     // Standard transaction
     setSaving(true);
     try {
-      const job_id = linkToJob && jobId ? Number(jobId) : null;
-      const real_estate_deal_id = linkToDeal && dealId ? Number(dealId) : null;
-      const vendor_id = effectiveExpenseKind === 'material' && vendorId ? Number(vendorId) : null;
-      const installer_id = effectiveExpenseKind === 'labor' && installerId ? Number(installerId) : null;
+      const job_id = jobId;
+      const real_estate_deal_id = dealId ? Number(dealId) : null;
+      // For job expenses: vendor for materials, installer for labor
+      // For general expenses: use whatever is selected
+      const vendor_id = jobId
+        ? (effectiveExpenseKind === 'material' ? vendorId : null)
+        : vendorId;
+      const installer_id = jobId
+        ? (effectiveExpenseKind === 'labor' ? installerId : null)
+        : installerId;
       const cash_id = Number(cashAccountId);
       const category_id_normal = Number(categoryAccountId);
 
@@ -475,7 +424,7 @@ export function NewTransactionForm({
 
       if (txType === 'income') {
         line1 = { account_id: cash_id, amount: amt, job_id, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
-        line2 = { account_id: category_id_normal, amount: -amt, job_id, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
+        line2 = { account_id: category_id_normal, amount: -amt, job_id, vendor_id, installer_id, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
       } else {
         line1 = { account_id: category_id_normal, amount: amt, job_id, vendor_id, installer_id, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
         line2 = { account_id: cash_id, amount: -amt, job_id, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
@@ -505,17 +454,24 @@ export function NewTransactionForm({
     const real_estate_deal_id = Number(dealId);
     const cash_id = Number(cashAccountId);
     const rehab_category_id = Number(rehabCategoryId);
-    const vendor_id = vendorId ? Number(vendorId) : null;
-    const installer_id = installerId ? Number(installerId) : null;
+    const vendor_id = vendorId;
+    const installer_id = installerId;
 
-    // Determine expense account based on cost type using code lookup
-    const laborAccount = accounts.find(a => a.code === ACCOUNT_CODES.FLIP_REHAB_LABOR);
-    const materialsAccount = accounts.find(a => a.code === ACCOUNT_CODES.FLIP_REHAB_MATERIALS);
-    const expenseAccountId = costType === 'L' && laborAccount ? laborAccount.id : materialsAccount?.id;
+    // Determine expense account based on cost type
+    const costTypeToAccountCode: Record<string, string> = {
+      'L': ACCOUNT_CODES.FLIP_REHAB_LABOR,
+      'M': ACCOUNT_CODES.FLIP_REHAB_MATERIALS,
+      'S': ACCOUNT_CODES.FLIP_SERVICES,
+      'I': ACCOUNT_CODES.FLIP_INTEREST,
+      'H': ACCOUNT_CODES.FLIP_HOLDING_COSTS,
+    };
+    const accountCode = costTypeToAccountCode[costType];
+    const expenseAccount = accounts.find(a => a.code === accountCode);
 
-    if (!expenseAccountId) {
-      throw new Error('Could not find flip rehab expense account. Check account codes.');
+    if (!expenseAccount) {
+      throw new Error(`Could not find account for cost type ${costType}. Check account codes.`);
     }
+    const expenseAccountId = expenseAccount.id;
 
     // Build lines for create_transaction_multi
     const lines = [
@@ -558,8 +514,8 @@ export function NewTransactionForm({
     const real_estate_deal_id = Number(dealId);
     const cash_id = Number(cashAccountId);
     const rehab_category_id = rehabCategoryId ? Number(rehabCategoryId) : null;
-    const vendor_id = vendorId ? Number(vendorId) : null;
-    const installer_id = installerId ? Number(installerId) : null;
+    const vendor_id = vendorId;
+    const installer_id = installerId;
 
     // For income/refunds, use the selected category or materials account (by code)
     const materialsAccount = accounts.find(a => a.code === ACCOUNT_CODES.FLIP_REHAB_MATERIALS);
@@ -577,8 +533,6 @@ export function NewTransactionForm({
         real_estate_deal_id,
         rehab_category_id,
         cost_type: costType || null,
-        vendor_id,
-        installer_id,
         purpose: 'business',
         is_cleared: isCleared,
       },
@@ -588,6 +542,8 @@ export function NewTransactionForm({
         real_estate_deal_id,
         rehab_category_id,
         cost_type: costType || null,
+        vendor_id,
+        installer_id,
         purpose: 'business',
         is_cleared: isCleared,
       },
@@ -609,8 +565,8 @@ export function NewTransactionForm({
   function resetFormFields() {
     setAmount('');
     setDescription('');
-    setVendorId('');
-    setInstallerId('');
+    setVendorId(null);
+    setInstallerId(null);
     setIsCleared(false);
     setRehabCategoryId('');
     setCostType('');
@@ -621,7 +577,7 @@ export function NewTransactionForm({
     try {
       setSaving(true);
       setError(null);
-      const real_estate_deal_id = linkToDeal && dealId ? Number(dealId) : null;
+      const real_estate_deal_id = dealId ? Number(dealId) : null;
       if (!real_estate_deal_id) { setError('Deal required.'); setSaving(false); return; }
       const deal = realEstateDeals.find((d) => d.id === real_estate_deal_id);
       if (!deal) { setError('Deal not found.'); setSaving(false); return; }
@@ -701,58 +657,43 @@ export function NewTransactionForm({
       {success && <p style={{ color: 'green' }}>{success}</p>}
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {/* Job linkage */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <input type="checkbox" checked={linkToJob} onChange={(e) => setLinkToJob(e.target.checked)} />
-          Relates to a job?
+        {/* Job - always visible, optional */}
+        <label>
+          Job <span style={{ color: '#999', fontWeight: 'normal', fontSize: 12 }}>(optional)</span>
+          <JobSelect
+            value={jobId}
+            onChange={setJobId}
+          />
         </label>
 
-        {linkToJob && (
-          <label>
-            Job
-            <select value={jobId} onChange={(e) => setJobId(e.target.value)}>
-              <option value="">Select job...</option>
-              {jobs.map((j) => <option key={j.id} value={j.id}>{j.name}</option>)}
-            </select>
-          </label>
-        )}
-
-        {/* Deal linkage */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <input type="checkbox" checked={linkToDeal} onChange={(e) => {
-            setLinkToDeal(e.target.checked);
-            if (!e.target.checked) { setDealId(''); setIsMortgagePayment(false); setRehabCategoryId(''); setCostType(''); }
-          }} />
-          Relates to a real estate deal?
+        {/* Real Estate Deal - always visible, optional */}
+        <label>
+          Real Estate Deal <span style={{ color: '#999', fontWeight: 'normal', fontSize: 12 }}>(optional)</span>
+          <SearchableSelect
+            options={dealOptions}
+            value={dealId ? Number(dealId) : null}
+            onChange={(val) => { 
+              setDealId(val ? String(val) : ''); 
+              if (!val) { setIsMortgagePayment(false); setRehabCategoryId(''); setCostType(''); }
+            }}
+            placeholder="Type to search deals..."
+            emptyLabel="None"
+          />
         </label>
 
-        {linkToDeal && (
-          <label>
-            Real estate deal
-            <select value={dealId} onChange={(e) => { setDealId(e.target.value); setRehabCategoryId(''); setCostType(''); }}>
-              <option value="">Select deal...</option>
-              {realEstateDeals.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.nickname}{d.address ? ` - ${d.address}` : ''}{d.type ? ` (${d.type})` : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        {/* Mortgage toggle (non-flip only) */}
-        {linkToDeal && txType === 'expense' && !isFlipDeal && (
+        {/* Mortgage toggle (rental deals only) */}
+        {dealId && txType === 'expense' && !isFlipDeal && (
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <input type="checkbox" checked={isMortgagePayment} onChange={(e) => {
               setIsMortgagePayment(e.target.checked);
               if (!e.target.checked) { setMortgageInterest(''); setMortgageEscrow(''); setUseAutoSplit(true); }
-            }} disabled={!dealId} />
+            }} />
             This is a mortgage payment (PITI split)
           </label>
         )}
 
         {/* Mortgage panel */}
-        {linkToDeal && txType === 'expense' && isMortgagePayment && !isFlipDeal && (
+        {dealId && txType === 'expense' && isMortgagePayment && !isFlipDeal && (
           <div style={{ padding: '0.75rem', border: '1px solid #ddd', borderRadius: 8, background: '#fafafa' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
               <input type="checkbox" checked={useAutoSplit} onChange={(e) => { setUseAutoSplit(e.target.checked); if (e.target.checked) { setMortgageInterest(''); setMortgageEscrow(''); } }} disabled={!canAutoSplit} />
@@ -768,7 +709,7 @@ export function NewTransactionForm({
         )}
 
         {/* FLIP EXPENSE FIELDS */}
-        {linkToDeal && isFlipDeal && txType === 'expense' && (
+        {dealId && isFlipDeal && txType === 'expense' && (
           <div style={{ padding: '0.75rem', border: '1px solid #ddd', borderRadius: 8, background: '#f5f5dc' }}>
             <div style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: 14 }}>Flip Expense Details</div>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.5rem' }}>
@@ -794,25 +735,29 @@ export function NewTransactionForm({
                   <option value="L">L - Labor</option>
                   <option value="M">M - Material</option>
                   <option value="S">S - Service</option>
+                  <option value="I">I - Interest</option>
+                  <option value="H">H - Holding Cost</option>
                 </select>
               </label>
             </div>
-            {(costType === 'M' || costType === 'S') && (
+            {(costType === 'M' || costType === 'S' || costType === 'H') && (
               <label style={{ marginTop: '0.5rem', display: 'block' }}>
                 Vendor
-                <select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
-                  <option value="">Select vendor...</option>
-                  {vendors.map((v) => <option key={v.id} value={v.id}>{v.nick_name}</option>)}
-                </select>
+                <VendorSelect
+                  value={vendorId}
+                  onChange={setVendorId}
+                  emptyLabel="Select vendor..."
+                />
               </label>
             )}
             {costType === 'L' && (
               <label style={{ marginTop: '0.5rem', display: 'block' }}>
                 Installer
-                <select value={installerId} onChange={(e) => setInstallerId(e.target.value)}>
-                  <option value="">Select installer...</option>
-                  {installers.map((i) => <option key={i.id} value={i.id}>{formatInstaller(i)}</option>)}
-                </select>
+                <InstallerSelect
+                  value={installerId}
+                  onChange={setInstallerId}
+                  emptyLabel="Select installer..."
+                />
               </label>
             )}
           </div>
@@ -835,7 +780,7 @@ export function NewTransactionForm({
         </label>
 
         {/* Job expense kind */}
-        {txType === 'expense' && linkToJob && !isMortgagePayment && (
+        {txType === 'expense' && jobId && !isMortgagePayment && (
           <label>
             Expense kind
             <select value={expenseKind} onChange={(e) => setExpenseKind(e.target.value as ExpenseKind)}>
@@ -847,40 +792,79 @@ export function NewTransactionForm({
         )}
 
         {/* Job vendor/installer */}
-        {txType === 'expense' && linkToJob && effectiveExpenseKind === 'material' && !isMortgagePayment && (
-          <label>Vendor<select value={vendorId} onChange={(e) => setVendorId(e.target.value)}><option value="">Select...</option>{vendors.map((v) => <option key={v.id} value={v.id}>{v.nick_name}</option>)}</select></label>
+        {txType === 'expense' && jobId && effectiveExpenseKind === 'material' && !isMortgagePayment && (
+          <label>
+            Vendor
+            <VendorSelect
+              value={vendorId}
+              onChange={setVendorId}
+              emptyLabel="Select..."
+            />
+          </label>
         )}
-        {txType === 'expense' && linkToJob && effectiveExpenseKind === 'labor' && !isMortgagePayment && (
-          <label>Installer<select value={installerId} onChange={(e) => setInstallerId(e.target.value)}><option value="">Select...</option>{installers.map((i) => <option key={i.id} value={i.id}>{formatInstaller(i)}</option>)}</select></label>
+        {txType === 'expense' && jobId && effectiveExpenseKind === 'labor' && !isMortgagePayment && (
+          <label>
+            Installer
+            <InstallerSelect
+              value={installerId}
+              onChange={setInstallerId}
+              emptyLabel="Select..."
+            />
+          </label>
         )}
 
         {/* Cash account */}
         <label>
           Pay from / deposit to
-          <select value={cashAccountId} onChange={(e) => setCashAccountId(e.target.value)}>
-            <option value="">Select account...</option>
-            {cashAccounts.map((a) => {
-              const isCard = a.account_types?.name === 'liability';
-              return <option key={a.id} value={a.id}>{a.code ? `${a.code} - ` : ''}{a.name}{isCard ? ' (card)' : ''}</option>;
-            })}
-          </select>
+          <SearchableSelect
+            options={cashAccountOptions}
+            value={cashAccountId ? Number(cashAccountId) : null}
+            onChange={(val) => setCashAccountId(val ? String(val) : '')}
+            placeholder="Type to search accounts..."
+            emptyLabel="Select account..."
+          />
         </label>
 
         {/* Category (hide for flip expenses) */}
-        {!isMortgagePayment && !(linkToDeal && isFlipDeal && txType === 'expense') && (
+        {!isMortgagePayment && !(dealId && isFlipDeal && txType === 'expense') && (
           <label>
             Category
-            <select value={categoryAccountId} onChange={(e) => setCategoryAccountId(e.target.value)} onKeyDown={handleCategoryKeyDown}>
-              <option value="">Select category...</option>
-              {sortedCategoryAccounts.map((a) => <option key={a.id} value={a.id}>{a.code ? `${a.code} - ` : ''}{a.name}</option>)}
-            </select>
+            <SearchableSelect
+              options={categoryAccountOptions}
+              value={categoryAccountId ? Number(categoryAccountId) : null}
+              onChange={(val) => setCategoryAccountId(val ? String(val) : '')}
+              placeholder="Type to search categories..."
+              emptyLabel="Select category..."
+            />
           </label>
         )}
 
-        {linkToDeal && isFlipDeal && txType === 'expense' && costType && (
+        {dealId && isFlipDeal && txType === 'expense' && costType && (
           <div style={{ fontSize: 12, color: '#666', marginTop: '-0.5rem' }}>
-            Account: {costType === 'L' ? 'RE - Flip Rehab Labor' : 'RE - Flip Rehab Materials'}
+            Account: {
+              { L: 'RE – Flip Rehab Labor', M: 'RE – Flip Rehab Materials', S: 'RE – Flip Services', I: 'RE – Flip Interest', H: 'RE – Flip Holding Costs' }[costType]
+            }
           </div>
+        )}
+
+        {/* Vendor/Installer for general transactions (not job, not flip) */}
+        {!jobId && !(dealId && isFlipDeal) && !isMortgagePayment && (
+          <>
+            <label>
+              Vendor <span style={{ color: '#999', fontWeight: 'normal', fontSize: 12 }}>(optional)</span>
+              <VendorSelect
+                value={vendorId}
+                onChange={setVendorId}
+              />
+            </label>
+            <label>
+              Installer <span style={{ color: '#999', fontWeight: 'normal', fontSize: 12 }}>(optional)</span>
+              <InstallerSelect
+                value={installerId}
+                onChange={setInstallerId}
+              />
+            </label>
+          </>
         )}
 
         <label>Description<input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. HD materials, Bruno framing..." /></label>

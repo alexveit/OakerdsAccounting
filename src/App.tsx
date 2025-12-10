@@ -12,12 +12,15 @@ import { ProfitSummary } from './components/reports/ProfitSummary';
 import { ExpenseCategoriesView } from './components/expenses/ExpensesView';
 import { NewEntryView } from './components/new-entries/NewEntryView';
 import { TaxExportView } from './components/reports/TaxExportView';
-import { REIView } from './components/real-estate/REIView';
+import { RentalsView } from './components/real-estate/RentalsView';
+import { FlipsView } from './components/real-estate/FlipsView';
+import { DealsView } from './components/real-estate/DealsView';
 import { Analytics } from './components/analytics/AnalyticsView';
 import { PriceListView } from './components/PriceListView';
 import { MobileContainer } from './components/mobile';
 //import { FlipDetailView } from './components/real-estate/FlipDetailView';
-import { BankImportView } from './components/bank-import/BankImportView';
+//import { BankImportView } from './components/bank-import/BankImportView';
+import { BankImportView } from './components/bank-import/BankImportView_Legacy';
 import { CarpetCalculator } from './components/CarpetCalculator';
 import { VersionTag } from './components/shared/VersionTag';
 import { PlaidLinkView } from './components/bank-import/PlaidLinkView';
@@ -35,7 +38,9 @@ type View =
   | 'plaid'
   | 'profitSummary'
   | 'taxExport'
-  | 'rei'
+  | 'rentals'
+  | 'flips'
+  | 'deals'
   | 'analytics'
   | 'priceList'
   | 'carpetCalc';
@@ -57,7 +62,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { view: 'jobDetail', label: 'Jobs', icon: '🔧' },
       { view: 'installers', label: 'Installers', icon: '👷' },
-      { view: 'vendors', label: 'Vendors', icon: '🪙' },
+      { view: 'vendors', label: 'Vendors', icon: '🏪' },
       { view: 'leadSources', label: 'Lead Sources', icon: '📣' },
       { view: 'priceList', label: 'Price List', icon: '💲' },
       { view: 'carpetCalc', label: 'Carpet Calculator', icon: '🧮' },
@@ -77,7 +82,11 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Real Estate',
-    items: [{ view: 'rei', label: 'REI Dashboard', icon: '🏠' }],
+    items: [
+      { view: 'rentals', label: 'Rentals', icon: '🏠' },
+      { view: 'flips', label: 'Flips', icon: '🔨' },
+      { view: 'deals', label: 'Manage Deals', icon: '📋' },
+    ],
   },
 ];
 
@@ -95,7 +104,9 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   ledger: LedgerView,
   profitSummary: ProfitSummary,
   taxExport: TaxExportView,
-  rei: REIView,
+  rentals: RentalsView,
+  flips: FlipsView,
+  deals: DealsView,
   priceList: PriceListView,
   carpetCalc: CarpetCalculator,
 };
@@ -268,7 +279,7 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
           className={`sidebar-new-entry ${view === 'entry' ? 'sidebar-new-entry--active' : ''}`}
           onClick={() => handleNavClick('entry')}
         >
-          <span className="sidebar-icon">➕</span>
+          <span className="sidebar-icon">+</span>
           {!sidebarCollapsed && <span>New Entry</span>}
         </button>
 
