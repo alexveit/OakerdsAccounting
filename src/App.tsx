@@ -21,7 +21,7 @@ import { MobileContainer } from './components/mobile';
 //import { FlipDetailView } from './components/real-estate/FlipDetailView';
 //import { BankImportView } from './components/bank-import/BankImportView';
 import { BankImportView } from './components/bank-import/BankImportView_Legacy';
-import { CarpetCalculator } from './components/CarpetCalculator';
+import { FloorCalculator } from './components/FloorCalculator';
 import { VersionTag } from './components/shared/VersionTag';
 import { PlaidLinkView } from './components/bank-import/PlaidLinkView';
 
@@ -65,7 +65,7 @@ const NAV_SECTIONS: NavSection[] = [
       { view: 'vendors', label: 'Vendors', icon: '🏪' },
       { view: 'leadSources', label: 'Lead Sources', icon: '📣' },
       { view: 'priceList', label: 'Price List', icon: '💲' },
-      { view: 'carpetCalc', label: 'Carpet Calculator', icon: '🧮' },
+      { view: 'carpetCalc', label: 'Floor Calculator', icon: '🧮' },
     ],
   },
   {
@@ -108,7 +108,7 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   flips: FlipsView,
   deals: DealsView,
   priceList: PriceListView,
-  carpetCalc: CarpetCalculator,
+  carpetCalc: FloorCalculator,
 };
 
 function shouldShowMobileView(): boolean {
@@ -170,11 +170,60 @@ function App() {
 
 // Separate component for the authenticated app to avoid hooks issues
 function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
-  const [view, setView] = useState<View>('dashboard');
+  // Get initial view from URL hash, default to dashboard
+  const getViewFromHash = (): View => {
+    const hash = window.location.hash.slice(1); // remove #
+    const validViews: View[] = [
+      'dashboard', 'installers', 'vendors', 'leadSources', 'expenses',
+      'entry', 'jobDetail', 'ledger', 'bankImport', 'plaid', 'profitSummary',
+      'taxExport', 'rentals', 'flips', 'deals', 'analytics', 'priceList', 'carpetCalc'
+    ];
+    return validViews.includes(hash as View) ? (hash as View) : 'dashboard';
+  };
+
+  // Find which section contains a view
+  const getSectionForView = (viewName: View): string | null => {
+    for (const section of NAV_SECTIONS) {
+      if (section.title && section.items.some(item => item.view === viewName)) {
+        return section.title;
+      }
+    }
+    return null;
+  };
+
+  // Get initial collapsed state - expand section containing current view
+  const getInitialCollapsedSections = (): Set<string> => {
+    const allSections = new Set(['Operations', 'Financials', 'Real Estate']);
+    const currentView = getViewFromHash();
+    const activeSection = getSectionForView(currentView);
+    if (activeSection) {
+      allSections.delete(activeSection);
+    }
+    return allSections;
+  };
+
+  const [view, setView] = useState<View>(getViewFromHash);
   const [initialJobIdForEntry, setInitialJobIdForEntry] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(['Operations', 'Financials', 'Real Estate']));
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(getInitialCollapsedSections);
+
+  // Sync URL hash when view changes
+  useEffect(() => {
+    const newHash = view === 'dashboard' ? '' : `#${view}`;
+    if (window.location.hash !== newHash && window.location.hash !== `#${view}`) {
+      window.history.pushState(null, '', newHash || window.location.pathname);
+    }
+  }, [view]);
+
+  // Listen for browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      setView(getViewFromHash());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     setMobileMenuOpen(false);

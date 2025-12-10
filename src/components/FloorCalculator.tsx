@@ -1,4 +1,4 @@
-// src/components/stand-alones/CarpetCalculator.tsx
+// src/components/FloorCalculator.tsx
 // Desktop floor calculator - uses shared calculation module
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -7,12 +7,14 @@ import {
   type PlacedPiece,
   type CarpetResult,
   type HardwoodResult,
+  type BulkParseResult,
   ROLL_WIDTH_INCHES,
   ROLL_WIDTH_FEET,
   //TEST_MEASUREMENTS,
   formatFeetInches,
   formatDimensions,
   createMeasurement,
+  parseBulkMeasurements,
   calculateCarpet,
   calculateHardwood,
 } from '../utils/floorCalculations';
@@ -36,9 +38,27 @@ type CalculationResult = CarpetResult & {
 // COMPONENT
 // ============================================================================
 
-export function CarpetCalculator() {
+export function FloorCalculator() {
+  // localStorage key for persisting calculator state
+  const STORAGE_KEY = 'oakerds_floor_calc';
+
+  // Load persisted state from localStorage
+  const loadPersistedState = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to load calculator state:', e);
+    }
+    return null;
+  };
+
+  const persistedState = loadPersistedState();
+
   // Mode toggle
-  const [mode, setMode] = useState<'carpet' | 'hardwood'>('carpet');
+  const [mode, setMode] = useState<'carpet' | 'hardwood'>(persistedState?.mode || 'carpet');
 
   // Input refs
   const widthFeetRef = useRef<HTMLInputElement>(null);
@@ -48,36 +68,57 @@ export function CarpetCalculator() {
   const [widthInches, setWidthInches] = useState('');
   const [lengthFeet, setLengthFeet] = useState('');
   const [lengthInches, setLengthInches] = useState('');
-  const [stepCount, setStepCount] = useState('');
-  const [addSlippage, setAddSlippage] = useState(true);
+  const [stepCount, setStepCount] = useState(persistedState?.stepCount || '');
+  const [addSlippage, setAddSlippage] = useState(persistedState?.addSlippage ?? true);
 
   // Hardwood options
-  const [wastePercent, setWastePercent] = useState('7');
-  const [boxSqFt, setBoxSqFt] = useState('25');
+  const [wastePercent, setWastePercent] = useState(persistedState?.wastePercent || '7');
+  const [boxSqFt, setBoxSqFt] = useState(persistedState?.boxSqFt || '25');
 
-  // Measurements list - pre-populate with test data
-  /*
-  const [measurements, setMeasurements] = useState<Measurement[]>(() => {
-    return TEST_MEASUREMENTS.map((t, i) => createMeasurement(i + 1, t.wf, t.wi, t.lf, t.li));
-  });
-  const [nextId, setNextId] = useState(TEST_MEASUREMENTS.length + 1);
-  */
+  // Measurements list
+  const [measurements, setMeasurements] = useState<Measurement[]>(persistedState?.measurements || []);
+  const [nextId, setNextId] = useState(persistedState?.nextId || 1);
 
-  const [measurements, setMeasurements] = useState<Measurement[]>([]);
-  const [nextId, setNextId] = useState(1);
+  // Bulk entry
+  const [bulkText, setBulkText] = useState('');
+  const [showBulkEntry, setShowBulkEntry] = useState(false);
+  const [bulkPreview, setBulkPreview] = useState<BulkParseResult | null>(null);
 
-  // Calculation results
-  const [result, setResult] = useState<CalculationResult | null>(null);
-  const [needsMaxLength, setNeedsMaxLength] = useState(0);
-  const [standardLength, setStandardLength] = useState(0);
+  // Calculation results - load from persisted state
+  const [result, setResult] = useState<CalculationResult | null>(persistedState?.result || null);
+  const [needsMaxLength, setNeedsMaxLength] = useState(persistedState?.needsMaxLength || 0);
+  const [standardLength, setStandardLength] = useState(persistedState?.standardLength || 0);
+  const [isCalculating, setIsCalculating] = useState(false);
 
   // Hardwood results
-  const [hardwoodResult, setHardwoodResult] = useState<HardwoodResult | null>(null);
+  const [hardwoodResult, setHardwoodResult] = useState<HardwoodResult | null>(persistedState?.hardwoodResult || null);
 
   // Canvas drag state
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // Persist state to localStorage whenever relevant values change
+  useEffect(() => {
+    const stateToSave = {
+      mode,
+      stepCount,
+      addSlippage,
+      wastePercent,
+      boxSqFt,
+      measurements,
+      nextId,
+      result,
+      needsMaxLength,
+      standardLength,
+      hardwoodResult,
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    } catch (e) {
+      console.error('Failed to save calculator state:', e);
+    }
+  }, [mode, stepCount, addSlippage, wastePercent, boxSqFt, measurements, nextId, result, needsMaxLength, standardLength, hardwoodResult]);
 
   // -------------------------------------------------------------------------
   // INPUT HANDLERS
@@ -134,6 +175,33 @@ export function CarpetCalculator() {
     setHardwoodResult(null);
   }
 
+  function handleBulkPreview() {
+    if (!bulkText.trim()) {
+      setBulkPreview(null);
+      return;
+    }
+    const result = parseBulkMeasurements(bulkText, nextId);
+    setBulkPreview(result);
+  }
+
+  function handleBulkAdd() {
+    if (!bulkPreview || bulkPreview.valid.length === 0) {
+      alert('No valid measurements to add');
+      return;
+    }
+    
+    setMeasurements((prev) => [...prev, ...bulkPreview.valid]);
+    setNextId((prev) => prev + bulkPreview.valid.length);
+    setBulkText('');
+    setBulkPreview(null);
+    setShowBulkEntry(false);
+  }
+
+  function handleBulkClear() {
+    setBulkText('');
+    setBulkPreview(null);
+  }
+
   function handleCalculate() {
     if (measurements.length === 0) {
       alert('Please add some measurements first');
@@ -151,27 +219,33 @@ export function CarpetCalculator() {
       return;
     }
 
-    // Carpet mode - use shared calculation
-    const carpetResult = calculateCarpet({
-      measurements,
-      addSlippage,
-      steps: parseInt(stepCount) || 0,
-    });
+    // Carpet mode - show loading state, then calculate
+    setIsCalculating(true);
+    
+    // Use setTimeout to allow UI to update before heavy calculation
+    setTimeout(() => {
+      const carpetResult = calculateCarpet({
+        measurements,
+        addSlippage,
+        steps: parseInt(stepCount) || 0,
+      });
 
-    setNeedsMaxLength(carpetResult.needsLength);
-    setStandardLength(carpetResult.standardLength);
+      setNeedsMaxLength(carpetResult.needsLength);
+      setStandardLength(carpetResult.standardLength);
 
-    // Extend result with aliases for compatibility
-    const extendedResult: CalculationResult = {
-      ...carpetResult,
-      standardLengthInches: carpetResult.standardLength,
-      needsLengthInches: carpetResult.needsLength,
-      totalLengthInches: carpetResult.totalLength,
-      wasteSqYd: carpetResult.wasteSqFt / 9,
-    };
+      // Extend result with aliases for compatibility
+      const extendedResult: CalculationResult = {
+        ...carpetResult,
+        standardLengthInches: carpetResult.standardLength,
+        needsLengthInches: carpetResult.needsLength,
+        totalLengthInches: carpetResult.totalLength,
+        wasteSqYd: carpetResult.wasteSqFt / 9,
+      };
 
-    setResult(extendedResult);
-    setHardwoodResult(null);
+      setResult(extendedResult);
+      setHardwoodResult(null);
+      setIsCalculating(false);
+    }, 10);
   }
 
   // -------------------------------------------------------------------------
@@ -597,7 +671,106 @@ export function CarpetCalculator() {
                 <button style={secondaryButtonStyle} onClick={handleClear}>
                   Clear All
                 </button>
+                <button 
+                  style={secondaryButtonStyle} 
+                  onClick={() => setShowBulkEntry(!showBulkEntry)}
+                >
+                  {showBulkEntry ? 'Hide Bulk' : 'Bulk Entry'}
+                </button>
               </div>
+              
+              {/* Bulk Entry Section */}
+              {showBulkEntry && (
+                <div style={{ marginTop: 12, padding: 12, background: '#f3f4f6', borderRadius: 6 }}>
+                  <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                    Paste measurements (comma or newline separated):<br/>
+                    <code style={{ fontSize: 11 }}>LR 11.6x13.6, BR 10.3*12, Hall 5'6"x8'0"</code>
+                  </div>
+                  <textarea
+                    value={bulkText}
+                    onChange={(e) => {
+                      setBulkText(e.target.value);
+                      setBulkPreview(null); // Clear preview on edit
+                    }}
+                    placeholder="11.6x13.6, 10.3x12&#10;8.6x9.3"
+                    rows={4}
+                    style={{
+                      width: '100%',
+                      padding: 8,
+                      fontSize: 14,
+                      fontFamily: 'monospace',
+                      border: '1px solid #d1d5db',
+                      borderRadius: 4,
+                      resize: 'vertical',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button style={buttonStyle} onClick={handleBulkPreview}>
+                      Preview
+                    </button>
+                    {bulkPreview && bulkPreview.valid.length > 0 && (
+                      <button style={{ ...buttonStyle, background: '#22c55e' }} onClick={handleBulkAdd}>
+                        Add {bulkPreview.validCount} Measurement{bulkPreview.validCount !== 1 ? 's' : ''}
+                      </button>
+                    )}
+                    <button style={secondaryButtonStyle} onClick={handleBulkClear}>
+                      Clear
+                    </button>
+                  </div>
+                  
+                  {/* Preview Results */}
+                  {bulkPreview && (
+                    <div style={{ marginTop: 12, fontSize: 13 }}>
+                      {/* Summary */}
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: 16, 
+                        padding: 8, 
+                        background: '#fff', 
+                        borderRadius: 4,
+                        marginBottom: 8 
+                      }}>
+                        <span style={{ color: '#22c55e' }}>✓ {bulkPreview.validCount} valid</span>
+                        {bulkPreview.errorCount > 0 && (
+                          <span style={{ color: '#ef4444' }}>✗ {bulkPreview.errorCount} errors</span>
+                        )}
+                        {bulkPreview.warningCount > 0 && (
+                          <span style={{ color: '#f59e0b' }}>⚠ {bulkPreview.warningCount} warnings</span>
+                        )}
+                      </div>
+                      
+                      {/* Entry list */}
+                      <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                        {bulkPreview.entries.map((entry, i) => (
+                          <div 
+                            key={i} 
+                            style={{ 
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '4px 8px',
+                              background: entry.error ? '#fef2f2' : entry.warning ? '#fffbeb' : '#f0fdf4',
+                              borderRadius: 4,
+                              marginBottom: 2,
+                              fontSize: 12,
+                            }}
+                          >
+                            <span style={{ fontFamily: 'monospace', color: '#666' }}>{entry.raw}</span>
+                            {entry.error ? (
+                              <span style={{ color: '#ef4444' }}>✗ {entry.error}</span>
+                            ) : entry.measurement ? (
+                              <span style={{ color: entry.warning ? '#f59e0b' : '#22c55e' }}>
+                                → {formatDimensions(entry.measurement)}
+                                {entry.warning && <span style={{ marginLeft: 4 }}>⚠</span>}
+                              </span>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Hardwood Results - inline 2x2 grid */}
@@ -696,10 +869,18 @@ export function CarpetCalculator() {
 
           {/* Calculate Button */}
           <button
-            style={{ ...buttonStyle, width: '100%', padding: 16, fontSize: 16 }}
+            style={{ 
+              ...buttonStyle, 
+              width: '100%', 
+              padding: 16, 
+              fontSize: 16,
+              opacity: isCalculating ? 0.7 : 1,
+              cursor: isCalculating ? 'wait' : 'pointer',
+            }}
             onClick={handleCalculate}
+            disabled={isCalculating}
           >
-            Calculate
+            {isCalculating ? 'Optimizing...' : 'Calculate'}
           </button>
         </div>
 

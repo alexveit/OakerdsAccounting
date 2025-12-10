@@ -7,10 +7,12 @@ import {
   type Measurement,
   type CarpetResult,
   type HardwoodResult,
+  type BulkParseResult,
   ROLL_WIDTH_INCHES,
   TEST_MEASUREMENTS,
   formatFeetInches,
   createMeasurement,
+  parseBulkMeasurements,
   calculateCarpet,
   calculateHardwood,
 } from '../../utils/floorCalculations';
@@ -20,8 +22,26 @@ import {
 // ============================================================================
 
 export function MobileFloorCalc() {
+  // localStorage key for persisting calculator state
+  const STORAGE_KEY = 'oakerds_mobile_floor_calc';
+
+  // Load persisted state from localStorage
+  const loadPersistedState = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to load calculator state:', e);
+    }
+    return null;
+  };
+
+  const persistedState = loadPersistedState();
+
   // Mode
-  const [mode, setMode] = useState<'carpet' | 'hardwood'>('carpet');
+  const [mode, setMode] = useState<'carpet' | 'hardwood'>(persistedState?.mode || 'carpet');
   
   // Inputs
   const widthFeetRef = useRef<HTMLInputElement>(null);
@@ -31,26 +51,24 @@ export function MobileFloorCalc() {
   const [lengthInches, setLengthInches] = useState('');
   
   // Options
-  const [stepCount, setStepCount] = useState('');
-  const [addSlippage, setAddSlippage] = useState(true);
-  const [wastePercent, setWastePercent] = useState('7');
-  const [boxSqFt, setBoxSqFt] = useState('25');
+  const [stepCount, setStepCount] = useState(persistedState?.stepCount || '');
+  const [addSlippage, setAddSlippage] = useState(persistedState?.addSlippage ?? true);
+  const [wastePercent, setWastePercent] = useState(persistedState?.wastePercent || '7');
+  const [boxSqFt, setBoxSqFt] = useState(persistedState?.boxSqFt || '25');
   
-  // Measurements - pre-populated with test data
-  /*
-  const [measurements, setMeasurements] = useState<Measurement[]>(() => 
-    TEST_MEASUREMENTS.map((t, i) => createMeasurement(i + 1, t.wf, t.wi, t.lf, t.li))
-  );
-  const [nextId, setNextId] = useState(TEST_MEASUREMENTS.length + 1);
-  */
-
-
-  const [measurements, setMeasurements] = useState<Measurement[]>([]);
-  const [nextId, setNextId] = useState(1);
+  // Measurements
+  const [measurements, setMeasurements] = useState<Measurement[]>(persistedState?.measurements || []);
+  const [nextId, setNextId] = useState(persistedState?.nextId || 1);
   
-  // Results
-  const [carpetResult, setCarpetResult] = useState<CarpetResult | null>(null);
-  const [hardwoodResult, setHardwoodResult] = useState<HardwoodResult | null>(null);
+  // Bulk entry
+  const [bulkText, setBulkText] = useState('');
+  const [showBulkEntry, setShowBulkEntry] = useState(false);
+  const [bulkPreview, setBulkPreview] = useState<BulkParseResult | null>(null);
+  
+  // Results - load from persisted state
+  const [carpetResult, setCarpetResult] = useState<CarpetResult | null>(persistedState?.carpetResult || null);
+  const [hardwoodResult, setHardwoodResult] = useState<HardwoodResult | null>(persistedState?.hardwoodResult || null);
+  const [isCalculating, setIsCalculating] = useState(false);
 
   // Canvas
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -68,6 +86,26 @@ export function MobileFloorCalc() {
     window.addEventListener('resize', updateCanvasWidth);
     return () => window.removeEventListener('resize', updateCanvasWidth);
   }, []);
+
+  // Persist state to localStorage whenever relevant values change
+  useEffect(() => {
+    const stateToSave = {
+      mode,
+      stepCount,
+      addSlippage,
+      wastePercent,
+      boxSqFt,
+      measurements,
+      nextId,
+      carpetResult,
+      hardwoodResult,
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    } catch (e) {
+      console.error('Failed to save calculator state:', e);
+    }
+  }, [mode, stepCount, addSlippage, wastePercent, boxSqFt, measurements, nextId, carpetResult, hardwoodResult]);
 
   // Draw static diagram using bin-packed positions
   const drawDiagram = useCallback(() => {
@@ -169,6 +207,33 @@ export function MobileFloorCalc() {
     setHardwoodResult(null);
   }
 
+  function handleBulkPreview() {
+    if (!bulkText.trim()) {
+      setBulkPreview(null);
+      return;
+    }
+    const result = parseBulkMeasurements(bulkText, nextId);
+    setBulkPreview(result);
+  }
+
+  function handleBulkAdd() {
+    if (!bulkPreview || bulkPreview.valid.length === 0) {
+      alert('No valid measurements to add');
+      return;
+    }
+    
+    setMeasurements(prev => [...prev, ...bulkPreview.valid]);
+    setNextId(prev => prev + bulkPreview.valid.length);
+    setBulkText('');
+    setBulkPreview(null);
+    setShowBulkEntry(false);
+  }
+
+  function handleBulkClear() {
+    setBulkText('');
+    setBulkPreview(null);
+  }
+
   function handleCalculate() {
     if (measurements.length === 0) return;
 
@@ -181,13 +246,19 @@ export function MobileFloorCalc() {
       setHardwoodResult(result);
       setCarpetResult(null);
     } else {
-      const result = calculateCarpet({
-        measurements,
-        addSlippage,
-        steps: parseInt(stepCount) || 0,
-      });
-      setCarpetResult(result);
-      setHardwoodResult(null);
+      // Carpet mode - show loading state, then calculate
+      setIsCalculating(true);
+      
+      setTimeout(() => {
+        const result = calculateCarpet({
+          measurements,
+          addSlippage,
+          steps: parseInt(stepCount) || 0,
+        });
+        setCarpetResult(result);
+        setHardwoodResult(null);
+        setIsCalculating(false);
+      }, 10);
     }
   }
 
@@ -332,10 +403,123 @@ export function MobileFloorCalc() {
         />
         <span style={{ color: '#6b7280' }}>"</span>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
         <button style={primaryBtn} onClick={handleAdd}>Add</button>
         <button style={secondaryBtn} onClick={handleClear}>Clear</button>
+        <button 
+          style={secondaryBtn} 
+          onClick={() => setShowBulkEntry(!showBulkEntry)}
+        >
+          {showBulkEntry ? 'Hide' : 'Bulk'}
+        </button>
       </div>
+      
+      {/* Bulk Entry Section */}
+      {showBulkEntry && (
+        <div style={{ 
+          marginBottom: 16, 
+          padding: 12, 
+          background: '#1f2937', 
+          borderRadius: 8,
+          border: '1px solid #374151' 
+        }}>
+          <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8 }}>
+            Paste measurements (comma or newline separated):<br/>
+            <code style={{ color: '#60a5fa' }}>LR 11.6x13.6, BR 10.3*12</code>
+          </div>
+          <textarea
+            value={bulkText}
+            onChange={(e) => {
+              setBulkText(e.target.value);
+              setBulkPreview(null);
+            }}
+            placeholder="11.6x13.6, 10.3x12&#10;8.6x9.3"
+            rows={3}
+            style={{
+              width: '100%',
+              padding: 10,
+              fontSize: 14,
+              fontFamily: 'monospace',
+              backgroundColor: '#111827',
+              color: '#f3f4f6',
+              border: '1px solid #374151',
+              borderRadius: 6,
+              resize: 'vertical',
+            }}
+          />
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button style={{ ...primaryBtn, flex: 1 }} onClick={handleBulkPreview}>
+              Preview
+            </button>
+            <button style={{ ...secondaryBtn, flex: 1 }} onClick={handleBulkClear}>
+              Clear
+            </button>
+          </div>
+          
+          {/* Preview Results */}
+          {bulkPreview && (
+            <div style={{ marginTop: 12 }}>
+              {/* Summary */}
+              <div style={{ 
+                display: 'flex', 
+                gap: 12, 
+                padding: 8, 
+                background: '#111827', 
+                borderRadius: 6,
+                marginBottom: 8,
+                fontSize: 12 
+              }}>
+                <span style={{ color: '#4ade80' }}>✓ {bulkPreview.validCount}</span>
+                {bulkPreview.errorCount > 0 && (
+                  <span style={{ color: '#f87171' }}>✗ {bulkPreview.errorCount}</span>
+                )}
+                {bulkPreview.warningCount > 0 && (
+                  <span style={{ color: '#fbbf24' }}>⚠ {bulkPreview.warningCount}</span>
+                )}
+              </div>
+              
+              {/* Entry list */}
+              <div style={{ maxHeight: 150, overflowY: 'auto' }}>
+                {bulkPreview.entries.map((entry, i) => (
+                  <div 
+                    key={i} 
+                    style={{ 
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '6px 8px',
+                      background: entry.error ? '#450a0a' : entry.warning ? '#422006' : '#052e16',
+                      borderRadius: 4,
+                      marginBottom: 2,
+                      fontSize: 11,
+                    }}
+                  >
+                    <span style={{ fontFamily: 'monospace', color: '#9ca3af' }}>{entry.raw}</span>
+                    {entry.error ? (
+                      <span style={{ color: '#f87171' }}>✗</span>
+                    ) : entry.measurement ? (
+                      <span style={{ color: entry.warning ? '#fbbf24' : '#4ade80' }}>
+                        {formatFeetInches(entry.measurement.widthTotal)}×{formatFeetInches(entry.measurement.lengthTotal)}
+                        {entry.warning && ' ⚠'}
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Add button */}
+              {bulkPreview.valid.length > 0 && (
+                <button 
+                  style={{ ...primaryBtn, width: '100%', marginTop: 8, background: '#22c55e' }} 
+                  onClick={handleBulkAdd}
+                >
+                  Add {bulkPreview.validCount} Measurement{bulkPreview.validCount !== 1 ? 's' : ''}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Options */}
       <div style={sectionTitle}>Options</div>
@@ -414,10 +598,18 @@ export function MobileFloorCalc() {
 
       {/* Calculate Button */}
       <button
-        style={{ ...primaryBtn, width: '100%', padding: 16, fontSize: 16, marginBottom: 16 }}
+        style={{ 
+          ...primaryBtn, 
+          width: '100%', 
+          padding: 16, 
+          fontSize: 16, 
+          marginBottom: 16,
+          opacity: isCalculating ? 0.7 : 1,
+        }}
         onClick={handleCalculate}
+        disabled={isCalculating}
       >
-        Calculate
+        {isCalculating ? 'Optimizing...' : 'Calculate'}
       </button>
 
       {/* Carpet Results */}

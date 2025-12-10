@@ -33,27 +33,44 @@ const REPLACEMENTS = [
   { garbled: 'â—', replace: '●' },
   
   // Emojis (4-byte UTF-8 sequences)
-  { garbled: 'ðŸ"Š', replace: '📊' },
-  { garbled: 'ðŸ"§', replace: '🔧' },
-  { garbled: "ðŸ'·", replace: '👷' },
-  { garbled: 'ðŸª™', replace: '🪙' },
-  { garbled: 'ðŸ"£', replace: '📣' },
-  { garbled: "ðŸ'²", replace: '💲' },
-  { garbled: 'ðŸ§®', replace: '🧮' },
-  { garbled: 'ðŸ"ˆ', replace: '📈' },
-  { garbled: 'ðŸ"—', replace: '🔗' },
-  { garbled: 'ðŸ¦', replace: '🏦' },
-  { garbled: 'ðŸ"\'', replace: '📒' },
-  { garbled: 'ðŸ"‹', replace: '📋' },
-  { garbled: "ðŸ'°", replace: '💰' },
-  { garbled: 'ðŸ"„', replace: '📄' },
-  { garbled: 'ðŸ ', replace: '🏠' },
-  { garbled: 'ðŸšª', replace: '🚪' },
-  { garbled: 'ðŸ"¨', replace: '🔨' },
+  { garbled: 'ðŸ"Š', replace: '📊' }, // Dashboard
+  { garbled: 'ðŸ“Š', replace: '📊' }, // Dashboard
+  { garbled: 'ðŸ"§', replace: '🔧' }, // Jobs
+  { garbled: 'ðŸ”§', replace: '🔧' }, // Jobs
+  { garbled: "ðŸ'·", replace: '👷' }, // Installers
+  { garbled: 'ðŸ‘·', replace: '👷' }, // Installers
+  { garbled: 'ðŸª™', replace: '🏪' }, // Vendors
+  { garbled: 'ðŸª', replace: '🏪' }, // Vendors
+  { garbled: 'ðŸ"£', replace: '📣' }, // Lead Sources
+  { garbled: 'ðŸ“£', replace: '📣' }, // Lead Sources
+  { garbled: "ðŸ'²", replace: '💲' }, // Price List
+  { garbled: 'ðŸ’²', replace: '💲' }, // Price List
+  { garbled: 'ðŸ§®', replace: '🧮' }, // Floor Calculator
+  { garbled: 'ðŸ"ˆ', replace: '📈' }, // Analytics
+  { garbled: 'ðŸ“ˆ', replace: '📈' }, // Analytics
+  { garbled: 'ðŸ"—', replace: '🔗' }, // Bank Sync
+  { garbled: 'ðŸ”—', replace: '🔗' }, // Bank Sync
+  { garbled: 'ðŸ¦', replace: '🏦' }, // Bank Import
+  { garbled: 'ðŸ¦', replace: '🏦' }, // Bank Import
+  { garbled: 'ðŸ"\'', replace: '📒' }, // Ledger
+  { garbled: 'ðŸ“’', replace: '📒' }, // Ledger
+  { garbled: 'ðŸ"‹', replace: '📋' }, // Expenses by Category
+  { garbled: 'ðŸ“‹', replace: '📋' }, // Expenses by Category
+  { garbled: "ðŸ'°", replace: '💰' }, // Profit Summary
+  { garbled: 'ðŸ’°', replace: '💰' }, // Profit Summary
+  { garbled: 'ðŸ"„', replace: '📄' }, // Tax Exports
+  { garbled: 'ðŸ“„', replace: '📄' }, // Tax Exports
+  { garbled: 'ðŸ ', replace: '🏠' }, // Rentals
+  { garbled: 'ðŸ ', replace: '🏠' }, // Rentals
+  { garbled: 'ðŸ"¨', replace: '🔨' }, // Flips
+  { garbled: 'ðŸ”¨', replace: '🔨' }, // Flips
+  { garbled: 'ðŸ“‹', replace: '📋' }, // Manage Deals
+  { garbled: 'ðŸšª', replace: '🚪' }, // Log out
   
   // Menu/UI
   { garbled: 'â˜°', replace: '☰' },
-  { garbled: 'âž•', replace: '+' },
+  //{ garbled: 'âž•', replace: '+' },
+  { garbled: 'âž•', replace: '➕' },
   { garbled: 'âž–', replace: '-' },
   
   // Punctuation
@@ -166,7 +183,7 @@ console.log(`Replacements:   ${totalReplacements}`);
 console.log('─────────────────────────────────');
 
 if (filesModified > 0) {
-  console.log('\n✓ Done! Review changes with: git diff');
+  console.log('Done! Review changes with: git diff');
 } else {
-  console.log('\n✓ No garbled characters found.');
+  console.log('No garbled characters found.');
 }
