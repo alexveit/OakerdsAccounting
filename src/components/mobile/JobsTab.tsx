@@ -84,7 +84,7 @@ export function JobsTab() {
         const { data: jobsData, error: jobsErr } = await supabase
           .from('jobs')
           .select('id, name, address, status, start_date')
-          .order('created_at', { ascending: false });
+          .order('start_date', { ascending: false });
 
         if (jobsErr) throw jobsErr;
 
@@ -282,7 +282,7 @@ export function JobsTab() {
                     </span>
                   </div>
                 </div>
-                <div style={styles.expandHint}>{isExpanded ? '▲ Hide' : '▼ Transactions'}</div>
+                <div style={styles.expandHint}>{isExpanded ? 'â–² Hide' : 'â–¼ Transactions'}</div>
               </div>
 
               {isExpanded && (
@@ -304,7 +304,7 @@ export function JobsTab() {
                             {tx.type === 'income' ? '+' : ''}{formatCurrency(tx.amount, 0)}
                           </div>
                           <div style={{ ...styles.txCleared, color: tx.cleared ? '#10b981' : '#ef4444' }}>
-                            {tx.cleared ? '✓' : '○'}
+                            {tx.cleared ? 'âœ“' : 'â—‹'}
                           </div>
                         </div>
                       </div>
