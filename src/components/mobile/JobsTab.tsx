@@ -220,7 +220,10 @@ export function JobsTab() {
 
           const ccBalances: CcBalance[] = Array.from(ccUnclearedByAccount.entries())
             .filter(([, amt]) => amt > 0)
-            .map(([accountName, unclearedAmount]) => ({ accountName, unclearedAmount }))
+            .map(([accountName, amt]) => ({ 
+              accountName, 
+              unclearedAmount: Math.round(amt * 100) / 100  // Fix floating point precision
+            }))
             .sort((a, b) => b.unclearedAmount - a.unclearedAmount);
 
           return {
@@ -337,7 +340,7 @@ export function JobsTab() {
                           border: '1px solid #fecaca',
                         }}
                       >
-                        💳 {cc.accountName}: ${cc.unclearedAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        💳 {cc.accountName}: ${cc.unclearedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ))}
                   </div>
@@ -406,7 +409,6 @@ export function JobsTab() {
           );
         })}
       </div>
-
       {filteredJobs.length === 0 && (
         <div style={styles.empty}>No jobs found</div>
       )}

@@ -652,8 +652,8 @@ export function NewTransactionForm({
   };
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto' }}>
-      <h2 style={{ margin: 0, marginBottom: '0.75rem' }}>New Transaction</h2>
+    <div>
+      <h3 style={{ margin: 0, marginBottom: '0.75rem' }}>New Transaction</h3>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
       {success && <p style={{ color: 'green' }}>{success}</p>}

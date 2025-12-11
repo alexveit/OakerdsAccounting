@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient';
-import type { Session } from '@supabase/supabase-js';
 import { Login } from './components/Login';
 import { JobDetailView } from './components/JobDetailView';
 import { DashboardOverview } from './components/DashboardOverview';
@@ -24,6 +23,7 @@ import { BankImportView } from './components/bank-import/BankImportView_Legacy';
 import { FloorCalculator } from './components/FloorCalculator';
 import { VersionTag } from './components/shared/VersionTag';
 import { PlaidLinkView } from './components/bank-import/PlaidLinkView';
+import PrivacyPolicy from './components/PrivacyPolicy';
 
 type View =
   | 'dashboard'
@@ -43,7 +43,8 @@ type View =
   | 'deals'
   | 'analytics'
   | 'priceList'
-  | 'floorCalc';
+  | 'floorCalc'
+  | 'privacy';
 
 type NavSection = {
   title: string | null;
@@ -109,6 +110,7 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   deals: DealsView,
   priceList: PriceListView,
   floorCalc: FloorCalculator,
+  privacy: PrivacyPolicy,
 };
 
 function shouldShowMobileView(): boolean {
@@ -116,30 +118,81 @@ function shouldShowMobileView(): boolean {
   return params.get('m') === '1' || params.get('mobile') === '1';
 }
 
+// ============================================================================
+// MAIN APP COMPONENT - WITH MFA/AAL CHECKING
+// ============================================================================
+
+type AuthState = 'loading' | 'unauthenticated' | 'needs-mfa' | 'authenticated';
+
 function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Public routes (no auth required)
+  if (window.location.pathname === '/privacy') {
+    return <PrivacyPolicy />;
+  }
+
+  const [authState, setAuthState] = useState<AuthState>('loading');
   const [isMobileView] = useState(shouldShowMobileView);
 
-  // Check for existing session on mount
+  // Check auth and MFA status
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    async function checkAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setAuthState('unauthenticated');
+        return;
+      }
+
+      // Session exists - check MFA status
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      
+      const hasVerifiedFactors = (factors?.totp?.length ?? 0) > 0;
+      const isAAL2 = aalData?.currentLevel === 'aal2';
+
+      // If user has MFA enrolled but hasn't verified this session
+      if (hasVerifiedFactors && !isAAL2) {
+        setAuthState('needs-mfa');
+        return;
+      }
+
+      // If user has no MFA enrolled, they need to enroll
+      if (!hasVerifiedFactors) {
+        setAuthState('needs-mfa');
+        return;
+      }
+
+      // Fully authenticated (has factors AND is AAL2)
+      setAuthState('authenticated');
+    }
+
+    checkAuth();
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+      if (!session) {
+        setAuthState('unauthenticated');
+        return;
+      }
+
+      // For MFA_CHALLENGE_VERIFIED, we're fully authenticated
+      if (_event === 'MFA_CHALLENGE_VERIFIED') {
+        setAuthState('authenticated');
+        return;
+      }
+
+      // For other events (SIGNED_IN, TOKEN_REFRESHED), re-run full check
+      // Use setTimeout to avoid blocking the auth state change callback
+      setTimeout(() => checkAuth(), 0);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   // Show loading while checking auth
-  if (loading) {
+  if (authState === 'loading') {
     return (
       <div
         style={{
@@ -154,21 +207,24 @@ function App() {
     );
   }
 
-  // Show login if not authenticated
-  if (!session) {
-    return <Login onLogin={() => {}} />;
+  // Show login if not authenticated OR if MFA enrollment/verification is needed
+  if (authState === 'unauthenticated' || authState === 'needs-mfa') {
+    return <Login onLogin={() => setAuthState('authenticated')} />;
   }
 
-  // Mobile view (authenticated)
+  // Mobile view (fully authenticated with MFA)
   if (isMobileView) {
     return <MobileContainer />;
   }
 
-  // Main app (authenticated)
+  // Main app (fully authenticated with MFA)
   return <AuthenticatedApp onLogout={() => supabase.auth.signOut()} />;
 }
 
-// Separate component for the authenticated app to avoid hooks issues
+// ============================================================================
+// AUTHENTICATED APP COMPONENT
+// ============================================================================
+
 function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<View>(() => {
     try {

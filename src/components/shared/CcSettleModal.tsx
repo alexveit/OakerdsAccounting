@@ -61,7 +61,7 @@ export function CcSettleModal({
     onNavigateToTransfer({
       toAccountId: cc.accountId,
       toAccountName: cc.accountName,
-      amount: cc.unclearedAmount,
+      amount: Math.round(cc.unclearedAmount * 100) / 100, // Fix floating point precision
       description: `CC settle: ${entityName}`,
       lineIdsToSettle: cc.lineIds,
     });

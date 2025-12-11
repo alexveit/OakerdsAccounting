@@ -617,7 +617,7 @@ export function LedgerView({ onNavigateToTransfer }: LedgerViewProps) {
       return;
     }
     
-    const totalAmount = selectedRows.reduce((sum, r) => sum + Math.abs(r.amount), 0);
+    const totalAmount = Math.round(selectedRows.reduce((sum, r) => sum + Math.abs(r.amount), 0) * 100) / 100;
 
     const ccBalance: CcBalance = {
       accountId: firstRow.cash_account_id,

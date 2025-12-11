@@ -1,20 +1,11 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { NewTransactionForm } from './NewTransactionForm';
 import { NewJobForm } from './NewJobForm';
 import { Transfers } from '../ledger/Transfers';
-import { formatCurrency } from '../../utils/format';
-import { isBankCode, isCreditCardCode } from '../../utils/accounts';
+import { BalancesCard, type AccountBalance } from '../shared/BalancesCard';
 
 type EntryTab = 'transaction' | 'job' | 'transfer';
-
-type AccountBalance = {
-  account_id: number;
-  account_name: string;
-  account_code: string | null;
-  account_type: string;
-  balance: number;
-};
 
 type RawAccountBalanceRow = {
   account_id: number;
@@ -90,90 +81,6 @@ export function NewEntryView({
     void loadAccounts();
   }, []);
 
-  // Filter into banks and credit cards (exclude RE assets)
-  const bankAccounts = allAccounts.filter((a) => isBankCode(a.account_code));
-  const creditCardAccounts = allAccounts.filter((a) => isCreditCardCode(a.account_code));
-
-  const bankTotal = bankAccounts.reduce((sum, a) => sum + a.balance, 0);
-  const cardTotal = creditCardAccounts.reduce((sum, a) => sum + a.balance, 0);
-
-  const gap = '0.75rem';
-
-  const thStyle: CSSProperties = {
-    textAlign: 'left',
-    borderBottom: '1px solid #ddd',
-    padding: '3px 4px',
-    fontSize: 12,
-    fontWeight: 600,
-  };
-  const tdStyle: CSSProperties = {
-    padding: '3px 4px',
-    borderBottom: '1px solid #f2f2f2',
-    fontSize: 13,
-  };
-  const totalRowStyle: CSSProperties = {
-    ...tdStyle,
-    fontWeight: 600,
-    borderTop: '2px solid #ccc',
-    borderBottom: 'none',
-    paddingTop: '6px',
-  };
-
-  const renderAccountTable = (
-    accounts: AccountBalance[],
-    total: number,
-    isCard = false
-  ) => {
-    if (loadingAccounts) {
-      return <p style={{ fontSize: 13, color: '#777' }}>Loading...</p>;
-    }
-    if (accountsError) {
-      return <p style={{ color: 'red', fontSize: 13 }}>Error: {accountsError}</p>;
-    }
-    if (accounts.length === 0) {
-      return <p style={{ fontSize: 13, color: '#777' }}>No accounts found.</p>;
-    }
-
-    return (
-      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-        <thead>
-          <tr>
-            <th style={thStyle}>Account</th>
-            <th style={{ ...thStyle, textAlign: 'right' }}>Balance</th>
-          </tr>
-        </thead>
-        <tbody>
-          {accounts.map((acc) => (
-            <tr key={acc.account_id}>
-              <td style={tdStyle}>{acc.account_name}</td>
-              <td
-                style={{
-                  ...tdStyle,
-                  textAlign: 'right',
-                  color: isCard && acc.balance < 0 ? '#b00020' : undefined,
-                }}
-              >
-                {formatCurrency(acc.balance, 2)}
-              </td>
-            </tr>
-          ))}
-          <tr>
-            <td style={totalRowStyle}>Total</td>
-            <td
-              style={{
-                ...totalRowStyle,
-                textAlign: 'right',
-                color: isCard ? '#b00020' : (total >= 0 ? '#0a7a3c' : '#b00020'),
-              }}
-            >
-              {formatCurrency(total, 2)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    );
-  };
-
   return (
     <div>
       <h2 style={{ margin: 0, marginBottom: '0.75rem' }}>New Entry</h2>
@@ -203,47 +110,31 @@ export function NewEntryView({
         </button>
       </div>
 
-      {/* Content */}
+      {/* Content - centered */}
       <div
         style={{
           display: 'flex',
-          flexDirection: tab === 'transaction' ? 'row' : 'column',
-          alignItems: 'flex-start',
-          gap,
+          justifyContent: 'center',
           marginTop: '0.75rem',
         }}
       >
         {tab === 'transaction' && (
-          <>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
             {/* LEFT: New Transaction Form */}
-            <div style={{ flex: '0 0 auto' }}>
-              <div className="card" style={{ padding: '1rem' }}>
-                <NewTransactionForm
-                  initialJobId={initialJobId ?? null}
-                  onTransactionSaved={loadAccounts}
-                />
-              </div>
+            <div className="card" style={{ padding: '1rem', maxWidth: 480 }}>
+              <NewTransactionForm
+                initialJobId={initialJobId ?? null}
+                onTransactionSaved={loadAccounts}
+              />
             </div>
 
-            {/* RIGHT: Account Balances */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap }}>
-              {/* Cash & Banks Card */}
-              <div className="card" style={{ minWidth: 260 }}>
-                <h3 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: 15 }}>
-                  Cash &amp; Banks
-                </h3>
-                {renderAccountTable(bankAccounts, bankTotal, false)}
-              </div>
-
-              {/* Credit Cards Card */}
-              <div className="card" style={{ minWidth: 260 }}>
-                <h3 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: 15 }}>
-                  Credit Cards
-                </h3>
-                {renderAccountTable(creditCardAccounts, cardTotal, true)}
-              </div>
-            </div>
-          </>
+            {/* RIGHT: Balances Card */}
+            <BalancesCard
+              accounts={allAccounts}
+              loading={loadingAccounts}
+              error={accountsError}
+            />
+          </div>
         )}
         
         {tab === 'transfer' && (
@@ -251,7 +142,6 @@ export function NewEntryView({
             className="card"
             style={{
               maxWidth: 900,
-              margin: '0 auto',
               padding: '1rem',
             }}
           >
@@ -268,7 +158,6 @@ export function NewEntryView({
             className="card"
             style={{
               maxWidth: 560,
-              margin: '0 auto',
               padding: '1rem',
             }}
           >

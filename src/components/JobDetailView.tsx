@@ -404,7 +404,7 @@ export function JobDetailView({
       return;
     }
 
-    const totalAmount = selectedRows.reduce((sum, r) => sum + Math.abs(r.amount), 0);
+    const totalAmount = Math.round(selectedRows.reduce((sum, r) => sum + Math.abs(r.amount), 0) * 100) / 100;
     const lineIds = selectedRows.map((r) => r.lineId).filter((id): id is number => id !== null);
 
     const ccBalance: CcBalance = {
@@ -1034,9 +1034,9 @@ export function JobDetailView({
                       const remainingLineIds = cc.lineIds.filter((id) => !settledLineIds.has(id));
                       if (remainingLineIds.length === 0) return null;
                       // Recalculate amount from remaining rows
-                      const remainingAmount = jobDataItem.ledgerRows
+                      const remainingAmount = Math.round(jobDataItem.ledgerRows
                         .filter((r) => r.lineId !== null && remainingLineIds.includes(r.lineId))
-                        .reduce((sum, r) => sum + Math.abs(r.amount), 0);
+                        .reduce((sum, r) => sum + Math.abs(r.amount), 0) * 100) / 100;
                       return { ...cc, lineIds: remainingLineIds, unclearedAmount: remainingAmount };
                     })
                     .filter((cc): cc is CcBalance => cc !== null),

@@ -76,7 +76,7 @@ export function computeCcBalances(lines: CcTrackableLine[]): CcBalance[] {
     .map(([accountId, data]) => ({
       accountId,
       accountName: data.accountName,
-      unclearedAmount: data.amount,
+      unclearedAmount: Math.round(data.amount * 100) / 100, // Fix floating point precision
       lineIds: data.lineIds,
     }))
     .sort((a, b) => b.unclearedAmount - a.unclearedAmount);

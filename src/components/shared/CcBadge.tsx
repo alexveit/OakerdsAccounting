@@ -36,8 +36,8 @@ export function CcBadge({ cc, onClick }: Props) {
       title={`Click to settle ${cc.accountName}`}
     >
       💳 {cc.accountName}: ${cc.unclearedAmount.toLocaleString(undefined, { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 0 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
       })}
     </button>
   );

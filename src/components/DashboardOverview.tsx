@@ -10,14 +10,7 @@ import {
   classifyLine,
   type ClassifiableLineInput,
 } from '../utils/accounts';
-
-type AccountBalance = {
-  account_id: number;
-  account_name: string;
-  account_code: string | null;
-  account_type: string;
-  balance: number;
-};
+import { BalancesCard, type AccountBalance } from './shared/BalancesCard';
 
 type RealEstateDeal = {
   id: number;
@@ -380,96 +373,12 @@ export function DashboardOverview() {
         </div>
 
         {/* Balances Card */}
-        <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Balances</h3>
-          
-          {/* Assets */}
-          <div style={sectionLabelStyle}><span>Assets</span></div>
-          {cashAccounts.map((acc) => (
-            <div key={acc.account_id} style={rowStyle}>
-              <span style={{ color: '#555' }}>{acc.account_name}</span>
-              <span style={{ color: Number(acc.balance) >= 0 ? green : red }}>{currency(Number(acc.balance), 2)}</span>
-            </div>
-          ))}
-          <div style={subtotalStyle}>
-            <span>Cash Total</span>
-            <span style={{ color: totalCash >= 0 ? green : red }}>{currency(totalCash)}</span>
-          </div>
-          
-          <div style={dividerStyle} />
-          
-          {/* Business Cards */}
-          <div style={sectionLabelStyle}><span>Business Cards</span></div>
-          {bizCardAccounts.map((acc) => (
-            <div key={acc.account_id} style={rowStyle}>
-              <span style={{ color: '#555' }}>{acc.account_name}</span>
-              <span style={{ color: red }}>{currency(Number(acc.balance), 2)}</span>
-            </div>
-          ))}
-          
-          <div style={dividerStyle} />
-          
-          {/* Personal Cards */}
-          <div style={sectionLabelStyle}><span>Personal Cards</span></div>
-          {personalCardAccounts.map((acc) => (
-            <div key={acc.account_id} style={rowStyle}>
-              <span style={{ color: '#555' }}>{acc.account_name}</span>
-              <span style={{ color: red }}>{currency(Number(acc.balance), 2)}</span>
-            </div>
-          ))}
-          
-          <div style={subtotalStyle}>
-            <span>Cards Total</span>
-            <span style={{ color: red }}>{currency(totalAllCards)}</span>
-          </div>
-          
-          {/* HELOC */}
-          {helocAccounts.length > 0 && (
-            <>
-              <div style={dividerStyle} />
-              <div style={sectionLabelStyle}><span>Lines of Credit</span></div>
-              {helocAccounts.map((acc) => (
-                <div key={acc.account_id} style={rowStyle}>
-                  <span style={{ color: '#555' }}>{acc.account_name}</span>
-                  <span style={{ color: red }}>{currency(Number(acc.balance), 2)}</span>
-                </div>
-              ))}
-            </>
-          )}
-          
-          {/* Personal Debt */}
-          {personalDebtAccounts.length > 0 && (
-            <>
-              <div style={dividerStyle} />
-              <div style={sectionLabelStyle}><span>Personal Debt</span></div>
-              {personalDebtAccounts.map((acc) => (
-                <div key={acc.account_id} style={rowStyle}>
-                  <span style={{ color: '#555' }}>{acc.account_name}</span>
-                  <span style={{ color: red }}>{currency(Number(acc.balance), 2)}</span>
-                </div>
-              ))}
-            </>
-          )}
-          
-          <div style={thickDividerStyle} />
-          
-          <div style={totalStyle}>
-            <span>Liquid Net</span>
-            <span style={{ color: liquidNet >= 0 ? green : red }}>{currency(Math.abs(liquidNet))}</span>
-          </div>
-          
-          <div style={rowStyle}>
-            <span>RE Equity</span>
-            <span style={{ color: totalEquity >= 0 ? green : red }}>{currency(totalEquity)}</span>
-          </div>
-          
-          <div style={dividerStyle} />
-          
-          <div style={{ ...totalStyle, fontSize: 16 }}>
-            <span>Net Worth</span>
-            <span style={{ color: totalNetWorth >= 0 ? green : red }}>{currency(totalNetWorth)}</span>
-          </div>
-        </div>
+        <BalancesCard
+          accounts={accountBalances}
+          loading={loading}
+          showNetWorth={true}
+          reEquity={totalEquity}
+        />
 
         {/* Real Estate Card */}
         <div className="card">
