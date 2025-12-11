@@ -23,6 +23,8 @@ import { LedgerEditModal, type EditModalResult } from './LedgerEditModal';
 import { LedgerClearModal } from './LedgerClearModal';
 import { LedgerFilters } from './LedgerFilters';
 import { LedgerTable } from './LedgerTable';
+import { CcSettleModal } from '../shared/CcSettleModal';
+import type { CcBalance, CcSettleTransferParams } from '../../utils/ccTracking';
 
 // Raw shape from Supabase query
 type RawTransactionLine = {
@@ -30,6 +32,7 @@ type RawTransactionLine = {
   transaction_id: number;
   amount: number;
   is_cleared: boolean;
+  cc_settled: boolean;
   created_at: string;
   account_id: number;
   job_id: number | null;
@@ -59,7 +62,11 @@ type RawAccount = {
   code: string | null;
 };
 
-export function LedgerView() {
+type LedgerViewProps = {
+  onNavigateToTransfer?: (params: CcSettleTransferParams) => void;
+};
+
+export function LedgerView({ onNavigateToTransfer }: LedgerViewProps) {
   const [allRows, setAllRows] = useState<LedgerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +96,11 @@ export function LedgerView() {
   // Clear-transaction modal state
   const [clearTarget, setClearTarget] = useState<LedgerRow | null>(null);
 
+  // CC settle selection state
+  const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
+  const [ccSettleTarget, setCcSettleTarget] = useState<CcBalance | null>(null);
+  const [ccSettleError, setCcSettleError] = useState<string | null>(null);
+
   // ---------- load ledger ----------
   async function loadLedger() {
     setLoading(true);
@@ -110,6 +122,7 @@ export function LedgerView() {
           transaction_id,
           amount,
           is_cleared,
+          cc_settled,
           created_at,
           account_id,
           job_id,
@@ -211,6 +224,10 @@ export function LedgerView() {
         const isCleared = lines.every((l) => !!l.is_cleared);
         const updatedAt: string = tx?.updated_at ?? createdAt;
 
+        // CC tracking: check if cash line is a liability (credit card)
+        const isCcTransaction = cashLine.accounts?.account_types?.name === 'liability';
+        const ccSettled = isCcTransaction ? !!cashLine.cc_settled : true;
+
         // Collect all account IDs and codes from all lines
         const allAccountIds: number[] = [];
         const allAccountCodes: (number | null)[] = [];
@@ -237,6 +254,8 @@ export function LedgerView() {
           type_label: typeLabel,
           amount,
           is_cleared: isCleared,
+          isCcTransaction,
+          ccSettled,
           all_account_ids: allAccountIds,
           all_account_codes: allAccountCodes,
         });
@@ -529,6 +548,107 @@ export function LedgerView() {
     setRowActionError(message);
   }
 
+  // ---------- CC settle selection ----------
+  function handleToggleSelect(lineId: number) {
+    setSelectedLineIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(lineId)) {
+        next.delete(lineId);
+      } else {
+        next.add(lineId);
+      }
+      return next;
+    });
+    setCcSettleError(null);
+  }
+
+  function handleSelectAllUnsettledCc(lineIds: number[]) {
+    if (lineIds.length === 0) {
+      // Deselect all on current page
+      const pageLineIds = new Set(pageRows.map((r) => r.line_id));
+      setSelectedLineIds((prev) => {
+        const next = new Set(prev);
+        pageLineIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    } else {
+      // Select all provided
+      setSelectedLineIds((prev) => {
+        const next = new Set(prev);
+        lineIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+    setCcSettleError(null);
+  }
+
+  function handleSettleSelectedCc() {
+    setCcSettleError(null);
+
+    if (selectedLineIds.size === 0) {
+      setCcSettleError('No CC lines selected');
+      return;
+    }
+
+    // Get selected rows from allRows (not just pageRows)
+    const selectedRows = allRows.filter((r) => selectedLineIds.has(r.line_id));
+
+    // Validate all are unsettled CC
+    const nonCcRows = selectedRows.filter((r) => !r.isCcTransaction || r.ccSettled);
+    if (nonCcRows.length > 0) {
+      setCcSettleError('Selection includes non-CC or already settled transactions');
+      return;
+    }
+
+    // Validate all from same CC account
+    const uniqueAccountIds = new Set(selectedRows.map((r) => r.cash_account_id));
+    if (uniqueAccountIds.size > 1) {
+      const accountNames = [...new Set(selectedRows.map((r) => r.cash_account))].join(', ');
+      setCcSettleError(`Selected lines are from different credit cards: ${accountNames}`);
+      return;
+    }
+
+    // Build CcBalance for modal
+    const firstRow = selectedRows[0];
+    
+    // Null safety - should never happen for valid CC transactions
+    if (firstRow.cash_account_id === null || firstRow.cash_account === null) {
+      setCcSettleError('Invalid CC transaction: missing account information');
+      return;
+    }
+    
+    const totalAmount = selectedRows.reduce((sum, r) => sum + Math.abs(r.amount), 0);
+
+    const ccBalance: CcBalance = {
+      accountId: firstRow.cash_account_id,
+      accountName: firstRow.cash_account,
+      unclearedAmount: totalAmount,
+      lineIds: selectedRows.map((r) => r.line_id),
+    };
+
+    setCcSettleTarget(ccBalance);
+  }
+
+  async function handleCcSettled() {
+    // Refresh data and clear selection
+    await loadLedger();
+    setSelectedLineIds(new Set());
+    setCcSettleTarget(null);
+  }
+
+  function handleNavigateToTransfer(params: CcSettleTransferParams) {
+    setCcSettleTarget(null);
+    setSelectedLineIds(new Set());
+    
+    if (onNavigateToTransfer) {
+      onNavigateToTransfer(params);
+    } else {
+      // Fallback if prop not provided
+      console.log('Navigate to transfer:', params);
+      alert(`Transfer navigation not available.\n\nTo account: ${params.toAccountName}\nAmount: $${params.amount.toFixed(2)}`);
+    }
+  }
+
   // ---------- JSX ----------
   return (
     <div>
@@ -566,6 +686,64 @@ export function LedgerView() {
               endIndex={endIndex}
             />
 
+            {/* CC Settle action bar */}
+            {selectedLineIds.size > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '8px 12px',
+                  marginBottom: 8,
+                  background: '#f0f9ff',
+                  borderRadius: 4,
+                }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 500 }}>
+                  {selectedLineIds.size} CC transaction{selectedLineIds.size !== 1 ? 's' : ''} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSettleSelectedCc}
+                  style={{
+                    background: '#2563eb',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    padding: '4px 12px',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Settle Selected CC
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedLineIds(new Set());
+                    setCcSettleError(null);
+                  }}
+                  style={{
+                    background: 'transparent',
+                    color: '#666',
+                    border: '1px solid #ccc',
+                    borderRadius: 4,
+                    padding: '4px 12px',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Clear Selection
+                </button>
+              </div>
+            )}
+
+            {ccSettleError && (
+              <p style={{ color: '#dc2626', fontSize: 13, margin: '0 0 8px 0' }}>
+                {ccSettleError}
+              </p>
+            )}
+
             {totalCount === 0 && (
               <p style={{ fontSize: 13, color: '#777' }}>No transactions found for this selection.</p>
             )}
@@ -586,6 +764,9 @@ export function LedgerView() {
                 onEdit={openEditModal}
                 onDelete={(row) => void handleDelete(row)}
                 onMarkCleared={handleMarkClearedFromLedger}
+                selectedLineIds={selectedLineIds}
+                onToggleSelect={handleToggleSelect}
+                onSelectAllUnsettledCc={handleSelectAllUnsettledCc}
               />
             )}
           </>
@@ -608,6 +789,17 @@ export function LedgerView() {
             onClose={() => setClearTarget(null)}
             onSuccess={() => void handleClearSuccess()}
             onError={handleClearError}
+          />
+        )}
+
+        {/* CC settle modal */}
+        {ccSettleTarget && (
+          <CcSettleModal
+            entityName="Selected Transactions"
+            cc={ccSettleTarget}
+            onClose={() => setCcSettleTarget(null)}
+            onSettled={() => void handleCcSettled()}
+            onNavigateToTransfer={handleNavigateToTransfer}
           />
         )}
       </div>

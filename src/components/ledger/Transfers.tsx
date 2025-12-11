@@ -36,6 +36,14 @@ type RawLineRow = {
   accounts: AccountsShape;
 };
 
+export type InitialTransferParams = {
+  toAccountId: number;
+  toAccountName: string;
+  amount: number;
+  description: string;
+  lineIdsToSettle: number[];
+};
+
 // Check if account is a regular bank (codes 1000-1999)
 function isBankAccount(acc: AccountOption): boolean {
   if (isBankCode(acc.code)) return true;
@@ -48,18 +56,29 @@ function isCreditCardAccount(acc: AccountOption): boolean {
   return isCreditCardCode(acc.code);
 }
 
-export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void }) {
+export function Transfers({
+  onTransferSaved,
+  initialTransfer,
+  onTransferComplete,
+}: {
+  onTransferSaved?: () => void;
+  initialTransfer?: InitialTransferParams | null;
+  onTransferComplete?: () => void;
+}) {
   const [allAccounts, setAllAccounts] = useState<AccountOption[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [accountsError, setAccountsError] = useState<string | null>(null);
 
   const [date, setDate] = useState(todayLocalISO());
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(initialTransfer?.description ?? '');
   const [fromAccountId, setFromAccountId] = useState('');
-  const [toAccountId, setToAccountId] = useState('');
-  const [amount, setAmount] = useState('');
+  const [toAccountId, setToAccountId] = useState(initialTransfer ? String(initialTransfer.toAccountId) : '');
+  const [amount, setAmount] = useState(initialTransfer ? String(initialTransfer.amount) : '');
   const [purpose, setPurpose] = useState<Purpose>('business');
   const [isCleared, setIsCleared] = useState(false);
+
+  // Track if we've applied initial values (to prevent description override)
+  const [initialApplied, setInitialApplied] = useState(!!initialTransfer);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -176,7 +195,10 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
   }, []);
 
   // Generate default description based on selected accounts
+  // Skip if we have initial transfer description
   useEffect(() => {
+    if (initialApplied) return;
+
     const fromAcc = allAccounts.find((a) => a.id === Number(fromAccountId));
     const toAcc = allAccounts.find((a) => a.id === Number(toAccountId));
 
@@ -187,7 +209,7 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
     } else {
       setDescription('');
     }
-  }, [fromAccountId, toAccountId, allAccounts]);
+  }, [fromAccountId, toAccountId, allAccounts, initialApplied]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -250,8 +272,27 @@ export function Transfers({ onTransferSaved }: { onTransferSaved?: () => void })
         throw new Error(rpcError.message || 'Could not create transfer transaction.');
       }
 
+      // If this was a CC settle transfer, mark the lines as settled
+      if (initialTransfer?.lineIdsToSettle?.length) {
+        const { error: settleError } = await supabase
+          .from('transaction_lines')
+          .update({ cc_settled: true })
+          .in('id', initialTransfer.lineIdsToSettle);
+
+        if (settleError) {
+          console.error('Failed to mark lines as settled', settleError);
+          // Don't throw - transfer was successful, just log the error
+        }
+
+        // Clear the initial transfer state
+        if (onTransferComplete) {
+          onTransferComplete();
+        }
+      }
+
       setSaveSuccess('Transfer saved.');
       setAmount('');
+      setInitialApplied(false); // Allow auto-description on next transfer
 
       if (onTransferSaved) {
         onTransferSaved();

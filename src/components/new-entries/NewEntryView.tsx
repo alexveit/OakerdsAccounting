@@ -24,8 +24,24 @@ type RawAccountBalanceRow = {
   balance: number;
 };
 
-export function NewEntryView({ initialJobId }: { initialJobId?: number | null }) {
-  const [tab, setTab] = useState<EntryTab>('transaction');
+export type InitialTransferParams = {
+  toAccountId: number;
+  toAccountName: string;
+  amount: number;
+  description: string;
+  lineIdsToSettle: number[];
+};
+
+export function NewEntryView({
+  initialJobId,
+  initialTransfer,
+  onTransferComplete,
+}: {
+  initialJobId?: number | null;
+  initialTransfer?: InitialTransferParams | null;
+  onTransferComplete?: () => void;
+}) {
+  const [tab, setTab] = useState<EntryTab>(initialTransfer ? 'transfer' : 'transaction');
 
   const [allAccounts, setAllAccounts] = useState<AccountBalance[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
@@ -239,7 +255,11 @@ export function NewEntryView({ initialJobId }: { initialJobId?: number | null })
               padding: '1rem',
             }}
           >
-            <Transfers onTransferSaved={loadAccounts} />
+            <Transfers
+              onTransferSaved={loadAccounts}
+              initialTransfer={initialTransfer}
+              onTransferComplete={onTransferComplete}
+            />
           </div>
         )}
 

@@ -18,6 +18,10 @@ export type LedgerRow = {
   type_label: string | null;
   amount: number;
   is_cleared: boolean;
+  /** True if this is a credit card (liability) transaction */
+  isCcTransaction: boolean;
+  /** True if CC charge has been settled */
+  ccSettled: boolean;
   /** All account IDs touched by this transaction (for filtering) */
   all_account_ids: number[];
   /** All account codes touched by this transaction (for filtering) */

@@ -423,11 +423,13 @@ export function NewTransactionForm({
       let line2: TransactionLineInput;
 
       if (txType === 'income') {
-        line1 = { account_id: cash_id, amount: amt, job_id, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
+        // Income: cash line (debit) has no job_id, category line (credit) has job_id
+        line1 = { account_id: cash_id, amount: amt, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
         line2 = { account_id: category_id_normal, amount: -amt, job_id, vendor_id, installer_id, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
       } else {
+        // Expense: category line (debit) has job_id, cash line (credit) has no job_id
         line1 = { account_id: category_id_normal, amount: amt, job_id, vendor_id, installer_id, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
-        line2 = { account_id: cash_id, amount: -amt, job_id, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
+        line2 = { account_id: cash_id, amount: -amt, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: txPurpose, is_cleared: isCleared };
       }
 
       const lines = [line1, line2];
@@ -842,7 +844,7 @@ export function NewTransactionForm({
         {dealId && isFlipDeal && txType === 'expense' && costType && (
           <div style={{ fontSize: 12, color: '#666', marginTop: '-0.5rem' }}>
             Account: {
-              { L: 'RE – Flip Rehab Labor', M: 'RE – Flip Rehab Materials', S: 'RE – Flip Services', I: 'RE – Flip Interest', H: 'RE – Flip Holding Costs' }[costType]
+              { L: 'RE â€“ Flip Rehab Labor', M: 'RE â€“ Flip Rehab Materials', S: 'RE â€“ Flip Services', I: 'RE â€“ Flip Interest', H: 'RE â€“ Flip Holding Costs' }[costType]
             }
           </div>
         )}

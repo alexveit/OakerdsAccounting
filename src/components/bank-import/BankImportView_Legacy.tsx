@@ -481,9 +481,9 @@ export function BankImportView() {
               purpose,
               is_cleared: isCleared,
             };
-            if (jobId) line.job_id = jobId;
-            // Only attach vendor/installer to the category line, not the cash line
+            // Only attach job/vendor/installer to the category line, not the cash line
             if (isCategoryLine) {
+              if (jobId) line.job_id = jobId;
               if (vendorId) line.vendor_id = vendorId;
               if (installerId) line.installer_id = installerId;
             }
@@ -594,13 +594,13 @@ export function BankImportView() {
   // Convert reference data to SelectOption arrays for SearchableSelect
   const expenseAccountOptions: SelectOption[] = (referenceData?.expenseAccounts ?? []).map((acc) => ({
     value: acc.id,
-    label: `${acc.code} – ${acc.name}`,
+    label: `${acc.code} â€“ ${acc.name}`,
     searchText: `${acc.code} ${acc.name}`,
   }));
 
   const incomeAccountOptions: SelectOption[] = (referenceData?.incomeAccounts ?? []).map((acc) => ({
     value: acc.id,
-    label: `${acc.code} – ${acc.name}`,
+    label: `${acc.code} â€“ ${acc.name}`,
     searchText: `${acc.code} ${acc.name}`,
   }));
 
@@ -647,7 +647,7 @@ export function BankImportView() {
 
       {commitResult && (
         <div style={{ background: '#d4edda', color: '#155724', padding: '0.75rem', borderRadius: 4, marginBottom: '1rem' }}>
-          ✓ Committed: {[
+          âœ“ Committed: {[
             commitResult.cleared > 0 && `${commitResult.cleared} marked cleared`,
             commitResult.tipAdjusted > 0 && `${commitResult.tipAdjusted} tip adjustments`,
             commitResult.created > 0 && `${commitResult.created} new transactions`,
@@ -668,7 +668,7 @@ export function BankImportView() {
             {processingSteps.map((step, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <span style={{ width: 20, textAlign: 'center' }}>
-                  {step.status === 'done' ? '✓' : step.status === 'active' ? <span style={{ display: 'inline-block', animation: 'pulse 1s infinite' }}>●</span> : '○'}
+                  {step.status === 'done' ? 'âœ“' : step.status === 'active' ? <span style={{ display: 'inline-block', animation: 'pulse 1s infinite' }}>â—</span> : 'â—‹'}
                 </span>
                 <span style={{ color: step.status === 'done' ? '#0a7a3c' : step.status === 'active' ? '#2563eb' : '#999', fontWeight: step.status === 'active' ? 600 : 400 }}>
                   {step.label}
@@ -688,7 +688,7 @@ export function BankImportView() {
             <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Account</label>
             <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)} style={{ padding: '0.5rem', fontSize: 14, minWidth: 300 }}>
               <option value="">Select account...</option>
-              {accounts.map((acc) => <option key={acc.id} value={acc.id}>{acc.code ? `${acc.code} – ${acc.name}` : acc.name}</option>)}
+              {accounts.map((acc) => <option key={acc.id} value={acc.id}>{acc.code ? `${acc.code} â€“ ${acc.name}` : acc.name}</option>)}
             </select>
           </div>
 
@@ -738,7 +738,7 @@ export function BankImportView() {
           {/* Mark as Cleared */}
           {toMarkCleared.length > 0 && (
             <div style={{ ...cardStyle, marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: 15, color: '#0a7a3c' }}>✓ Mark as Cleared ({toMarkCleared.length})</h3>
+              <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: 15, color: '#0a7a3c' }}>âœ“ Mark as Cleared ({toMarkCleared.length})</h3>
               <div style={{ fontSize: 12, color: '#666', marginBottom: '0.5rem' }}>Posted bank transactions matching pending ledger entries. Click to expand.</div>
               {reviewTransactions.map((tx, idx) => ({ tx, idx })).filter(({ tx }) => tx.bank_status === 'posted' && tx.match_type === 'matched_pending').map(({ tx, idx }) => {
                 const isExpanded = expandedMatches.has(idx);
@@ -754,12 +754,12 @@ export function BankImportView() {
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description}</span>
                       <span style={{ textAlign: 'right', color: tx.amount < 0 ? '#b00020' : '#0a7a3c', fontWeight: 500 }}>{formatCurrency(tx.amount, 2)}</span>
                       <span style={confidenceBadge(tx.match_confidence)}>{tx.match_confidence} confidence</span>
-                      <span style={{ color: '#999', fontSize: 11 }}>{isExpanded ? '▼' : '▶'}</span>
+                      <span style={{ color: '#999', fontSize: 11 }}>{isExpanded ? 'â–¼' : 'â–¶'}</span>
                     </div>
                     {isExpanded && pendingTx && (
                       <div style={comparisonBoxStyle}>
-                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>BANK:</span><span>{formatLocalDate(tx.date)} · "{tx.description}" · <strong>{formatCurrency(tx.amount, 2)}</strong></span></div>
-                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>LEDGER:</span><span>{formatLocalDate(pendingTx.date)} · "{pendingTx.description || '(no description)'}" · <strong>{formatCurrency(pendingTx.amount, 2)}</strong></span></div>
+                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>BANK:</span><span>{formatLocalDate(tx.date)} Â· "{tx.description}" Â· <strong>{formatCurrency(tx.amount, 2)}</strong></span></div>
+                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>LEDGER:</span><span>{formatLocalDate(pendingTx.date)} Â· "{pendingTx.description || '(no description)'}" Â· <strong>{formatCurrency(pendingTx.amount, 2)}</strong></span></div>
                         {(pendingTx.job_name || pendingTx.vendor_name || pendingTx.installer_name) && (
                           <div style={{ ...comparisonRowStyle, marginTop: '0.25rem', paddingTop: '0.25rem', borderTop: '1px solid #e2e8f0' }}>
                             <span style={comparisonLabelStyle}>DETAILS:</span>
@@ -782,7 +782,7 @@ export function BankImportView() {
           {/* Tip Adjustments - Restaurant charges with tips added */}
           {tipAdjustments.length > 0 && (
             <div style={{ ...cardStyle, marginBottom: '1rem', borderLeft: '4px solid #f59e0b' }}>
-              <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: 15, color: '#f59e0b' }}>⚡ Tip Adjustments ({tipAdjustments.length})</h3>
+              <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: 15, color: '#f59e0b' }}>âš¡ Tip Adjustments ({tipAdjustments.length})</h3>
               <div style={{ fontSize: 12, color: '#666', marginBottom: '0.5rem' }}>
                 Restaurant charges where the final amount (with tip) differs from the original. Will update the ledger amount and mark as cleared.
               </div>
@@ -803,12 +803,12 @@ export function BankImportView() {
                       <span style={{ display: 'inline-block', padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#fef3c7', color: '#92400e' }}>
                         +{formatCurrency(tipAmount, 2)} tip
                       </span>
-                      <span style={{ color: '#999', fontSize: 11 }}>{isExpanded ? '▼' : '▶'}</span>
+                      <span style={{ color: '#999', fontSize: 11 }}>{isExpanded ? 'â–¼' : 'â–¶'}</span>
                     </div>
                     {isExpanded && (
                       <div style={{ ...comparisonBoxStyle, background: '#fffbeb', borderColor: '#fcd34d' }}>
-                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>BANK:</span><span>{formatLocalDate(tx.date)} · "{tx.description}" · <strong>{formatCurrency(tx.amount, 2)}</strong> (final with tip)</span></div>
-                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>LEDGER:</span><span>{pendingTx ? `${formatLocalDate(pendingTx.date)} · "${pendingTx.description || '(no description)'}"` : `line_id: ${tx.matched_line_id}`} · <strong>{formatCurrency(tx.original_amount ?? 0, 2)}</strong> (original)</span></div>
+                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>BANK:</span><span>{formatLocalDate(tx.date)} Â· "{tx.description}" Â· <strong>{formatCurrency(tx.amount, 2)}</strong> (final with tip)</span></div>
+                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>LEDGER:</span><span>{pendingTx ? `${formatLocalDate(pendingTx.date)} Â· "${pendingTx.description || '(no description)'}"` : `line_id: ${tx.matched_line_id}`} Â· <strong>{formatCurrency(tx.original_amount ?? 0, 2)}</strong> (original)</span></div>
                         <div style={{ ...comparisonRowStyle, marginTop: '0.25rem', paddingTop: '0.25rem', borderTop: '1px solid #fcd34d' }}>
                           <span style={comparisonLabelStyle}>TIP:</span>
                           <span><strong>{formatCurrency(tipAmount, 2)}</strong> ({tx.original_amount ? ((tipAmount / Math.abs(tx.original_amount)) * 100).toFixed(1) : 0}%)</span>
@@ -823,7 +823,7 @@ export function BankImportView() {
                           </div>
                         )}
                         <div style={{ marginTop: '0.5rem', color: '#92400e', fontWeight: 500 }}>
-                          ✓ Will update ledger amount to {formatCurrency(tx.amount, 2)} and mark as cleared
+                          âœ“ Will update ledger amount to {formatCurrency(tx.amount, 2)} and mark as cleared
                         </div>
                         {tx.reasoning && <div style={{ marginTop: '0.5rem', color: '#666', fontStyle: 'italic' }}>AI: {tx.reasoning}</div>}
                       </div>
@@ -837,9 +837,9 @@ export function BankImportView() {
           {/* Anomalies - Bank processing but DB shows cleared */}
           {anomalies.length > 0 && (
             <div style={{ ...cardStyle, marginBottom: '1rem', borderLeft: '4px solid #dc2626' }}>
-              <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: 15, color: '#dc2626' }}>⚠ Anomalies ({anomalies.length})</h3>
+              <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: 15, color: '#dc2626' }}>âš  Anomalies ({anomalies.length})</h3>
               <div style={{ fontSize: 12, color: '#666', marginBottom: '0.5rem' }}>
-                These transactions are still processing at the bank but already marked as cleared in the ledger. This may indicate duplicates or timing issues. <strong>No action will be taken</strong> — review and investigate in the Ledger.
+                These transactions are still processing at the bank but already marked as cleared in the ledger. This may indicate duplicates or timing issues. <strong>No action will be taken</strong> â€” review and investigate in the Ledger.
               </div>
               {reviewTransactions.map((tx, idx) => ({ tx, idx })).filter(({ tx }) => tx.bank_status === 'pending' && tx.match_type === 'matched_cleared').map(({ tx, idx }) => {
                 const isExpanded = expandedMatches.has(idx);
@@ -855,14 +855,14 @@ export function BankImportView() {
                       <span style={{ display: 'inline-block', padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#fef2f2', color: '#dc2626' }}>
                         bank pending
                       </span>
-                      <span style={{ color: '#999', fontSize: 11 }}>{isExpanded ? '▼' : '▶'}</span>
+                      <span style={{ color: '#999', fontSize: 11 }}>{isExpanded ? 'â–¼' : 'â–¶'}</span>
                     </div>
                     {isExpanded && (
                       <div style={{ ...comparisonBoxStyle, background: '#fef2f2', borderColor: '#fecaca' }}>
-                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>BANK:</span><span>{formatLocalDate(tx.date)} · "{tx.description}" · <strong>{formatCurrency(tx.amount, 2)}</strong> · <em>Still processing</em></span></div>
+                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>BANK:</span><span>{formatLocalDate(tx.date)} Â· "{tx.description}" Â· <strong>{formatCurrency(tx.amount, 2)}</strong> Â· <em>Still processing</em></span></div>
                         <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>LEDGER:</span><span>Matched to cleared transaction (line_id: {tx.matched_line_id})</span></div>
                         <div style={{ marginTop: '0.5rem', color: '#dc2626', fontWeight: 500 }}>
-                          ⚠ Investigate in the Ledger — this may be a duplicate or timing issue.
+                          âš  Investigate in the Ledger â€” this may be a duplicate or timing issue.
                         </div>
                         {tx.reasoning && <div style={{ marginTop: '0.5rem', color: '#666', fontStyle: 'italic' }}>AI: {tx.reasoning}</div>}
                       </div>
@@ -914,7 +914,7 @@ export function BankImportView() {
                               onChange={(e) => updateTransaction(idx, { override_is_cleared: e.target.checked })}
                             />
                             <label htmlFor={`cleared-${idx}`} style={{ fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                              {(tx.override_is_cleared ?? (tx.bank_status === 'posted')) ? '✓ Cleared' : '○ Pending'}
+                              {(tx.override_is_cleared ?? (tx.bank_status === 'posted')) ? 'âœ“ Cleared' : 'â—‹ Pending'}
                             </label>
                           </div>
                         </div>

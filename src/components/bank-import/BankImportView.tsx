@@ -459,9 +459,6 @@ export function BankImportView() {
             .insert({
               date: tx.date,
               description,
-              vendor_id: vendorId,
-              job_id: jobId,
-              source: 'plaid',
             })
             .select('id')
             .single();
@@ -469,15 +466,25 @@ export function BankImportView() {
           if (txErr) throw txErr;
 
           // Create double-entry lines
+          // job_id, vendor_id only go on the category line (income/expense), not the cash line
+          const categoryLine = { 
+            transaction_id: txData.id, 
+            account_id: categoryAccountId, 
+            amount: isExpense ? absAmount : -absAmount, 
+            is_cleared: isCleared,
+            job_id: jobId,
+            vendor_id: vendorId,
+          };
+          const cashLine = { 
+            transaction_id: txData.id, 
+            account_id: accountId, 
+            amount: isExpense ? -absAmount : absAmount, 
+            is_cleared: isCleared,
+          };
+
           const lines = isExpense
-            ? [
-                { transaction_id: txData.id, account_id: categoryAccountId, amount: absAmount, is_cleared: isCleared, job_id: jobId },
-                { transaction_id: txData.id, account_id: accountId, amount: -absAmount, is_cleared: isCleared, job_id: jobId },
-              ]
-            : [
-                { transaction_id: txData.id, account_id: accountId, amount: absAmount, is_cleared: isCleared, job_id: jobId },
-                { transaction_id: txData.id, account_id: categoryAccountId, amount: -absAmount, is_cleared: isCleared, job_id: jobId },
-              ];
+            ? [categoryLine, cashLine]
+            : [cashLine, categoryLine];
 
           const { error: lineErr } = await supabase
             .from('transaction_lines')
@@ -587,7 +594,7 @@ export function BankImportView() {
       )}
       {commitResult && (
         <div style={{ ...sectionStyle, background: '#dcfce7', color: '#16a34a' }}>
-          ✓ Committed: {commitResult.cleared} marked cleared, {commitResult.created} created
+          âœ“ Committed: {commitResult.cleared} marked cleared, {commitResult.created} created
         </div>
       )}
 
@@ -709,7 +716,7 @@ export function BankImportView() {
                           </div>
                         )}
                         {hasMapping && (
-                          <div style={{ fontSize: 10, color: '#16a34a' }}>✓ Auto-mapped</div>
+                          <div style={{ fontSize: 10, color: '#16a34a' }}>âœ“ Auto-mapped</div>
                         )}
                       </td>
                       <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: tx.amount < 0 ? '#dc2626' : '#16a34a' }}>
@@ -728,7 +735,7 @@ export function BankImportView() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ color: '#6b7280', fontSize: 12 }}>"”</span>
+                          <span style={{ color: '#6b7280', fontSize: 12 }}>â€”</span>
                         )}
                       </td>
                       <td style={tdStyle}>
@@ -747,7 +754,7 @@ export function BankImportView() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ color: '#6b7280', fontSize: 12 }}>"”</span>
+                          <span style={{ color: '#6b7280', fontSize: 12 }}>â€”</span>
                         )}
                       </td>
                       <td style={tdStyle}>
@@ -763,7 +770,7 @@ export function BankImportView() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ color: '#6b7280', fontSize: 12 }}>"”</span>
+                          <span style={{ color: '#6b7280', fontSize: 12 }}>â€”</span>
                         )}
                       </td>
                     </tr>

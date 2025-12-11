@@ -20,6 +20,11 @@ type Transaction = {
   accountName: string;
 };
 
+type CcBalance = {
+  accountName: string;
+  unclearedAmount: number;
+};
+
 type JobSummary = {
   id: number;
   name: string;
@@ -33,6 +38,7 @@ type JobSummary = {
   hasIncome: boolean;
   hasLabor: boolean;
   transactions: Transaction[];
+  ccBalances: CcBalance[];
 };
 
 type FilterMode = 'open' | 'all';
@@ -51,6 +57,7 @@ type RawTransactionLine = {
   job_id: number | null;
   amount: number;
   is_cleared: boolean;
+  cc_settled: boolean;
   installer_id: number | null;
   vendor_id: number | null;
   transaction_id: number;
@@ -84,30 +91,55 @@ export function JobsTab() {
         const { data: jobsData, error: jobsErr } = await supabase
           .from('jobs')
           .select('id, name, address, status, start_date')
-          .order('start_date', { ascending: false });
+          .order('created_at', { ascending: false });
 
         if (jobsErr) throw jobsErr;
 
-        const { data: linesData, error: linesErr } = await supabase
+        // Step 1: Get category lines (income/expense) that have job_id
+        const { data: categoryLineData, error: categoryErr } = await supabase
           .from('transaction_lines')
-          .select(`
-            id, job_id, amount, is_cleared, installer_id, vendor_id, transaction_id,
-            transactions ( id, date, description ),
-            accounts ( name, account_types ( name ) ),
-            vendors ( name ),
-            installers ( first_name, last_name )
-          `)
+          .select('id, job_id, transaction_id')
           .not('job_id', 'is', null);
 
-        if (linesErr) throw linesErr;
+        if (categoryErr) throw categoryErr;
 
-        const rawLines = (linesData ?? []) as unknown as RawTransactionLine[];
+        // Collect unique transaction IDs and map transaction -> job
+        const txToJob = new Map<number, number>();
+        for (const line of categoryLineData ?? []) {
+          if (line.job_id && line.transaction_id) {
+            txToJob.set(line.transaction_id, line.job_id);
+          }
+        }
+
+        const txIds = [...txToJob.keys()];
+
+        let rawLines: RawTransactionLine[] = [];
+        
+        if (txIds.length > 0) {
+          // Step 2: Get ALL lines for those transactions (includes cash lines)
+          const { data: linesData, error: linesErr } = await supabase
+            .from('transaction_lines')
+            .select(`
+              id, job_id, amount, is_cleared, cc_settled, installer_id, vendor_id, transaction_id,
+              transactions ( id, date, description ),
+              accounts ( name, account_types ( name ) ),
+              vendors ( name ),
+              installers ( first_name, last_name )
+            `)
+            .in('transaction_id', txIds);
+
+          if (linesErr) throw linesErr;
+          rawLines = (linesData ?? []) as unknown as RawTransactionLine[];
+        }
+
+        // Group lines by job (using txToJob mapping since cash lines don't have job_id)
         const linesByJob = new Map<number, RawTransactionLine[]>();
         for (const line of rawLines) {
-          if (!line.job_id) continue;
-          const arr = linesByJob.get(line.job_id) ?? [];
+          const jobId = line.job_id ?? txToJob.get(line.transaction_id);
+          if (!jobId) continue;
+          const arr = linesByJob.get(jobId) ?? [];
           arr.push(line);
-          linesByJob.set(line.job_id, arr);
+          linesByJob.set(jobId, arr);
         }
 
         const rawJobs = (jobsData ?? []) as unknown as RawJob[];
@@ -116,9 +148,11 @@ export function JobsTab() {
           let income = 0, labor = 0, materials = 0, otherExpenses = 0;
           let hasIncome = false, hasLabor = false;
           const txMap = new Map<number, Transaction>();
+          const ccUnclearedByAccount = new Map<string, number>();
 
           for (const line of lines) {
             const typeName = line.accounts?.account_types?.name ?? '';
+            const accountName = line.accounts?.name ?? '';
             const amt = Number(line.amount) || 0;
             const txId = line.transaction_id;
             const tx = line.transactions;
@@ -132,7 +166,7 @@ export function JobsTab() {
                 type: 'other',
                 cleared: true,
                 vendorInstaller: null,
-                accountName: line.accounts?.name ?? '',
+                accountName: accountName,
               });
             }
 
@@ -165,12 +199,20 @@ export function JobsTab() {
               if (line.installer_id) { labor += amt; hasLabor = true; }
               else if (line.vendor_id) materials += amt;
               else otherExpenses += amt;
+            } else if (typeName === 'liability' && !line.cc_settled) {
+              const existing = ccUnclearedByAccount.get(accountName) ?? 0;
+              ccUnclearedByAccount.set(accountName, existing + Math.abs(amt));
             }
           }
 
           const transactions = Array.from(txMap.values()).sort((a, b) =>
             new Date(a.date).getTime() - new Date(b.date).getTime()
           );
+
+          const ccBalances: CcBalance[] = Array.from(ccUnclearedByAccount.entries())
+            .filter(([, amt]) => amt > 0)
+            .map(([accountName, unclearedAmount]) => ({ accountName, unclearedAmount }))
+            .sort((a, b) => b.unclearedAmount - a.unclearedAmount);
 
           return {
             id: job.id,
@@ -185,6 +227,7 @@ export function JobsTab() {
             hasIncome,
             hasLabor,
             transactions,
+            ccBalances,
           };
         });
 
@@ -266,6 +309,29 @@ export function JobsTab() {
                   </div>
                 </div>
                 {job.address && <div style={styles.address}>{job.address}</div>}
+                {/* CC Balance Indicator */}
+                {job.ccBalances.length > 0 && (
+                  <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginTop: 4, marginBottom: 4 }}>
+                    {job.ccBalances.map((cc) => (
+                      <span
+                        key={cc.accountName}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.2rem',
+                          fontSize: 10,
+                          background: '#fef2f2',
+                          color: '#b91c1c',
+                          padding: '2px 6px',
+                          borderRadius: 999,
+                          border: '1px solid #fecaca',
+                        }}
+                      >
+                        💳 {cc.accountName}: ${cc.unclearedAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div style={styles.financials}>
                   <div style={styles.finRow}>
                     <span style={styles.finLabel}>Client</span>
@@ -282,7 +348,7 @@ export function JobsTab() {
                     </span>
                   </div>
                 </div>
-                <div style={styles.expandHint}>{isExpanded ? '▲ Hide' : '▼ Transactions'}</div>
+                <div style={styles.expandHint}>{isExpanded ? 'â–² Hide' : 'â–¼ Transactions'}</div>
               </div>
 
               {isExpanded && (
@@ -304,7 +370,7 @@ export function JobsTab() {
                             {tx.type === 'income' ? '+' : ''}{formatCurrency(tx.amount, 0)}
                           </div>
                           <div style={{ ...styles.txCleared, color: tx.cleared ? '#10b981' : '#ef4444' }}>
-                            {tx.cleared ? '✓' : '○'}
+                            {tx.cleared ? 'âœ“' : 'â—‹'}
                           </div>
                         </div>
                       </div>

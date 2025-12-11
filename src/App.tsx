@@ -43,7 +43,7 @@ type View =
   | 'deals'
   | 'analytics'
   | 'priceList'
-  | 'carpetCalc';
+  | 'floorCalc';
 
 type NavSection = {
   title: string | null;
@@ -65,7 +65,7 @@ const NAV_SECTIONS: NavSection[] = [
       { view: 'vendors', label: 'Vendors', icon: '🏪' },
       { view: 'leadSources', label: 'Lead Sources', icon: '📣' },
       { view: 'priceList', label: 'Price List', icon: '💲' },
-      { view: 'carpetCalc', label: 'Floor Calculator', icon: '🧮' },
+      { view: 'floorCalc', label: 'Floor Calculator', icon: '🧮' },
     ],
   },
   {
@@ -108,7 +108,7 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   flips: FlipsView,
   deals: DealsView,
   priceList: PriceListView,
-  carpetCalc: FloorCalculator,
+  floorCalc: FloorCalculator,
 };
 
 function shouldShowMobileView(): boolean {
@@ -170,60 +170,55 @@ function App() {
 
 // Separate component for the authenticated app to avoid hooks issues
 function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
-  // Get initial view from URL hash, default to dashboard
-  const getViewFromHash = (): View => {
-    const hash = window.location.hash.slice(1); // remove #
-    const validViews: View[] = [
-      'dashboard', 'installers', 'vendors', 'leadSources', 'expenses',
-      'entry', 'jobDetail', 'ledger', 'bankImport', 'plaid', 'profitSummary',
-      'taxExport', 'rentals', 'flips', 'deals', 'analytics', 'priceList', 'carpetCalc'
-    ];
-    return validViews.includes(hash as View) ? (hash as View) : 'dashboard';
-  };
-
-  // Find which section contains a view
-  const getSectionForView = (viewName: View): string | null => {
-    for (const section of NAV_SECTIONS) {
-      if (section.title && section.items.some(item => item.view === viewName)) {
-        return section.title;
-      }
+  const [view, setView] = useState<View>(() => {
+    try {
+      const saved = localStorage.getItem('app_activeView');
+      return (saved && saved in VIEW_COMPONENTS) ? saved as View : 'dashboard';
+    } catch {
+      return 'dashboard';
     }
-    return null;
-  };
-
-  // Get initial collapsed state - expand section containing current view
-  const getInitialCollapsedSections = (): Set<string> => {
-    const allSections = new Set(['Operations', 'Financials', 'Real Estate']);
-    const currentView = getViewFromHash();
-    const activeSection = getSectionForView(currentView);
-    if (activeSection) {
-      allSections.delete(activeSection);
-    }
-    return allSections;
-  };
-
-  const [view, setView] = useState<View>(getViewFromHash);
+  });
   const [initialJobIdForEntry, setInitialJobIdForEntry] = useState<number | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(getInitialCollapsedSections);
-
-  // Sync URL hash when view changes
-  useEffect(() => {
-    const newHash = view === 'dashboard' ? '' : `#${view}`;
-    if (window.location.hash !== newHash && window.location.hash !== `#${view}`) {
-      window.history.pushState(null, '', newHash || window.location.pathname);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('app_sidebarCollapsed') === 'true';
+    } catch {
+      return false;
     }
+  });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('app_collapsedSections');
+      return saved ? new Set(JSON.parse(saved)) : new Set(['Operations', 'Financials', 'Real Estate']);
+    } catch {
+      return new Set(['Operations', 'Financials', 'Real Estate']);
+    }
+  });
+
+  // CC settle transfer params
+  const [ccSettleTransfer, setCcSettleTransfer] = useState<{
+    toAccountId: number;
+    toAccountName: string;
+    amount: number;
+    description: string;
+    lineIdsToSettle: number[];
+  } | null>(null);
+
+  // Persist view state to localStorage
+  useEffect(() => {
+    localStorage.setItem('app_activeView', view);
   }, [view]);
 
-  // Listen for browser back/forward navigation
+  // Persist sidebar collapsed state
   useEffect(() => {
-    const handlePopState = () => {
-      setView(getViewFromHash());
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+    localStorage.setItem('app_sidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  // Persist collapsed sections
+  useEffect(() => {
+    localStorage.setItem('app_collapsedSections', JSON.stringify([...collapsedSections]));
+  }, [collapsedSections]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -247,12 +242,33 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
             setInitialJobIdForEntry(jobId);
             setView('entry');
           }}
+          onNavigateToTransfer={(params) => {
+            setCcSettleTransfer(params);
+            setView('entry');
+          }}
+        />
+      );
+    }
+
+    if (view === 'ledger') {
+      return (
+        <LedgerView
+          onNavigateToTransfer={(params) => {
+            setCcSettleTransfer(params);
+            setView('entry');
+          }}
         />
       );
     }
 
     if (view === 'entry') {
-      return <NewEntryView initialJobId={initialJobIdForEntry} />;
+      return (
+        <NewEntryView
+          initialJobId={initialJobIdForEntry}
+          initialTransfer={ccSettleTransfer}
+          onTransferComplete={() => setCcSettleTransfer(null)}
+        />
+      );
     }
 
     const ViewComponent = VIEW_COMPONENTS[view];
@@ -263,6 +279,7 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
     setView(navView);
     if (navView !== 'entry') {
       setInitialJobIdForEntry(null);
+      setCcSettleTransfer(null);
     }
   };
 

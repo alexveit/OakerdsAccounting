@@ -623,4 +623,60 @@ WHY THIS PATTERN
 - Keeps UI responsive
 - Modal already has the data, just needs to return it
 
+--------------------------------------------------------------------------------
+23. SECURITY & VULNERABILITY MANAGEMENT
+--------------------------------------------------------------------------------
+
+VULNERABILITY SLA (Service Level Agreement)
+- Critical: Patch or take offline within 48 hours
+- High: Patch or document accepted risk within 7 days
+- Medium: Patch in next release within 30 days
+- Low: Address when convenient within 90 days
+
+VULNERABILITY SCANNING
+- Run `npm audit` before each deployment
+- Review GitHub Dependabot alerts if enabled
+- Keep Windows Defender / antivirus active on dev machines
+- Address Supabase security recommendations (RLS, auth)
+
+ACCEPTED RISKS (Document justification for each)
+--------------------------------------------------------------------------------
+| Package | Severity | Date       | Justification                             |
+|---------|----------|------------|-------------------------------------------|
+| xlsx    | High     | 2024-12-10 | Export only, no untrusted input parsing.  |
+|         |          |            | Prototype pollution & ReDoS require       |
+|         |          |            | parsing malicious files. We only generate |
+|         |          |            | Excel output from our own data.           |
+--------------------------------------------------------------------------------
+
+WHEN ACCEPTING RISK vs PATCHING
+- Accept if: vulnerability requires untrusted input and we only use trusted data
+- Accept if: no fix available and mitigation exists
+- Patch if: vulnerability affects our actual use case
+- Patch if: fix is available and low-effort
+
+DOCUMENTATION REQUIREMENT
+- All accepted risks must be documented here with date and justification
+- Review accepted risks quarterly
+- Re-evaluate when upgrading packages
+
+EOL (END-OF-LIFE) MONITORING
+- Run `npm outdated` monthly to check for outdated packages
+- Run `node --version` and verify against Node.js release schedule
+- Node.js LTS schedule: https://nodejs.org/en/about/releases/
+
+Current Environment (as of 2024-12-10):
+- Node.js: v24.11.1 (Current/Latest)
+- All major dependencies actively maintained (React, Vite, Supabase)
+
+EOL Action Triggers:
+- Node.js version approaching EOL: Plan upgrade within 3 months
+- Major dependency deprecated: Evaluate alternatives, plan migration
+- Package marked "unmaintained": Find replacement or accept risk with documentation
+
+Update Commands:
+  npm outdated          # Check for available updates
+  npm update            # Apply minor/patch updates
+  npm audit             # Check for vulnerabilities
+
 ================================================================================

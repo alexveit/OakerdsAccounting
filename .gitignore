@@ -80,3 +80,8 @@ anthropic-key.txt
 # Plaid Recovery Code
 # -------------------------
 plaid-recovery-code.txt
+
+# -------------------------
+# Vercel Recovery Code
+# -------------------------
+vercel-recovery.txt

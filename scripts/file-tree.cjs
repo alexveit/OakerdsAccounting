@@ -41,6 +41,7 @@ const IGNORE_PATTERNS = [
   'pg_password.txt',
   'anthropic-key.txt',
   'plaid-recovery-code.txt',
+  'vercel-recovery.txt',
 ];
 
 const INCLUDE_EXTENSIONS = [

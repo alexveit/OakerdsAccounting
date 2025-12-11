@@ -193,12 +193,26 @@ CRITICAL MATCHING RULES:
 - Output ONLY valid JSON, no markdown, no explanation outside the JSON
 - Dates must be in YYYY-MM-DD format
 - When bank data shows dates without a year (e.g., "12/07"), use the CURRENT YEAR from the context provided
-- Amounts are from the BANK's perspective: negative = money out (expenses), positive = money in (income)
+
+AMOUNT SIGN CONVENTION - CRITICAL:
+The sign convention depends on whether we're importing from a BANK ACCOUNT or a CREDIT CARD.
+
+For BANK ACCOUNTS (checking/savings - codes starting with 1):
+- Negative on statement = money out (expense) → use NEGATIVE amount
+- Positive on statement = money in (income) → use POSITIVE amount
+
+For CREDIT CARDS (codes starting with 2):
+- Positive on statement (charge, you owe more) = expense → use NEGATIVE amount (invert!)
+- Negative on statement (payment/refund, you owe less) = income → use POSITIVE amount (invert!)
+
+The selectedAccount.code tells you which type:
+- Code starts with "1" (e.g., "1100") = Bank account (keep signs as-is)
+- Code starts with "2" (e.g., "2100") = Credit card (INVERT signs)
 
 AMOUNT MATCHING - BE VERY STRICT:
 - Match ONLY if amounts are EXACTLY equal (to the cent)
-- $96.94 does NOT match $97.00 — this is a $0.06 difference, NOT a match
-- $817.00 matches $817.00 — exact match
+- $96.94 does NOT match $97.00 â€” this is a $0.06 difference, NOT a match
+- $817.00 matches $817.00 â€” exact match
 - When in doubt, mark as "new" rather than force a bad match
 
 TIP ADJUSTMENT DETECTION:
@@ -212,8 +226,8 @@ For restaurant/dining transactions where the bank amount is HIGHER than a pendin
 - Include matched_line_id and matched_transaction_id
 
 Common tip scenarios:
-- "MARIETTA DINER" bank $55.00 vs DB pending $45.37 → tip_adjustment
-- "NIKKO JAPANESE" bank $150.00 vs DB pending $124.75 → tip_adjustment
+- "MARIETTA DINER" bank $55.00 vs DB pending $45.37 â†’ tip_adjustment
+- "NIKKO JAPANESE" bank $150.00 vs DB pending $124.75 â†’ tip_adjustment
 - Restaurant/diner/cafe/grill names are clues for tip scenarios
 
 DATE MATCHING:
@@ -223,14 +237,24 @@ BANK STATUS DETECTION:
 Bank of America typically shows:
 - "Processing" or "Pending" transactions at the top (bank_status = "pending")
 - "Posted" transactions below with actual post dates (bank_status = "posted")
-- Look for keywords like "Processing", "Pending", "Processing." → bank_status = "pending"
+- Look for keywords like "Processing", "Pending", "Processing." â†’ bank_status = "pending"
 - If no such indicator, assume bank_status = "posted"
 
 MATCH TYPE LOGIC (in order of priority):
-1. EXACT amount match to PENDING DB transaction → match_type = "matched_pending"
-2. EXACT amount match to CLEARED DB transaction → match_type = "matched_cleared"
-3. Restaurant/dining with higher amount than pending DB → match_type = "tip_adjustment"
-4. No match found → match_type = "new"
+1. EXACT amount match to PENDING DB transaction â†’ match_type = "matched_pending"
+2. EXACT amount match to CLEARED DB transaction â†’ match_type = "matched_cleared"
+3. Restaurant/dining with higher amount than pending DB â†’ match_type = "tip_adjustment"
+4. No match found â†’ match_type = "new"
+
+
+CRITICAL FOR CREDIT CARD MATCHING:
+For credit cards, the DB stores expenses as NEGATIVE amounts, but the CC statement shows charges as POSITIVE.
+When matching a CC statement charge against DB transactions:
+- Statement shows: $39.00 (positive charge)
+- DB has: -$39.00 (negative expense)
+- These ARE THE SAME TRANSACTION! Match by comparing ABSOLUTE VALUES.
+- If abs(statement_amount) == abs(db_amount) AND descriptions are similar, it is a match!
+After matching, your OUTPUT amount should still be NEGATIVE (the inverted sign for CC).
 
 OUTPUT FORMAT:
 {
@@ -268,13 +292,38 @@ function buildUserPrompt(req: BankImportRequest): string {
   const currentYear = today.getFullYear();
   const currentDate = today.toISOString().slice(0, 10);
 
+  // Determine if this is a credit card based on account code
+  const isCreditCard = selectedAccount.code.startsWith('2');
+  const accountType = isCreditCard ? 'CREDIT CARD' : 'BANK ACCOUNT';
+  
+  let signInstructions = '';
+  if (isCreditCard) {
+    signInstructions = `
+⚠️ CRITICAL - THIS IS A CREDIT CARD ACCOUNT ⚠️
+You MUST INVERT all signs from what the statement shows:
+- Statement shows $303.70 charge → output amount: -303.70 (NEGATIVE)
+- Statement shows $39.00 fee → output amount: -39.00 (NEGATIVE)  
+- Statement shows -$100.00 payment → output amount: 100.00 (POSITIVE)
+
+ALL CHARGES/FEES on a credit card statement are EXPENSES and MUST be NEGATIVE in your output.
+The statement shows them as positive because "you owe more" but in accounting they are EXPENSES (negative).`;
+  } else {
+    signInstructions = `
+This is a bank account. Keep signs as shown on statement:
+- Statement shows -$50.00 → output amount: -50.00
+- Statement shows $100.00 → output amount: 100.00`;
+  }
+
   let prompt = `## Current Date Context
 Today is ${currentDate}. When parsing dates without a year (e.g., "12/07"), use ${currentYear} as the year.
 
-## Bank Account
-${selectedAccount.code} - ${selectedAccount.name}
+## Selected Account
+Type: ${accountType}
+Code: ${selectedAccount.code}
+Name: ${selectedAccount.name}
+${signInstructions}
 
-## Raw Bank Data (Bank of America)
+## Raw Bank/Credit Card Data
 \`\`\`
 ${rawBankData}
 \`\`\`
@@ -358,7 +407,7 @@ For tip adjustments, you'll need both line_id and transaction_id.
    c. If no pending match, look for EXACT amount match in CLEARED database transactions
    d. If cleared match found, set match_type="matched_cleared" and matched_line_id
    e. If NO exact amount match exists, set match_type="new" and suggest categorization
-4. CRITICAL: $96.94 ≠ $97.00. These are NOT the same amount. Do not match them.
+4. CRITICAL: $96.94 â‰  $97.00. These are NOT the same amount. Do not match them.
 5. When in doubt, mark as "new" - false positives are worse than false negatives
 6. Return ONLY the JSON response, no other text`;
 

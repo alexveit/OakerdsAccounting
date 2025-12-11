@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatLocalDate, todayLocalISO } from '../utils/date';
+import { computeCcBalances } from '../utils/ccTracking';
+import type { CcBalance, CcSettleTransferParams, CcTrackableLine } from '../utils/ccTracking';
+import { CcBadgeList } from '../components/shared/CcBadge';
+import { CcSettleModal } from '../components/shared/CcSettleModal';
+import { CcStatusCell } from '../components/shared/CcStatusCell';
+
+// Re-export for App.tsx
+export type { CcSettleTransferParams } from '../utils/ccTracking';
 
 type Job = {
   id: number;
@@ -13,16 +21,13 @@ type Job = {
   lead_sources?: { id: number; name: string; nick_name: string | null } | null;
 };
 
-type Line = {
-  id: number;
+type Line = CcTrackableLine & {
   job_id: number | null;
-  amount: number;
   is_cleared: boolean;
   transaction_id: number;
-  transactions: any;
-  accounts: any;
-  vendors: any;
-  installers: any;
+  transactions: { date: string; description: string | null } | null;
+  vendors: { name: string } | null;
+  installers: { first_name: string; last_name: string | null } | null;
 };
 
 type Totals = {
@@ -35,6 +40,9 @@ type Totals = {
 
 type JobLedgerRow = {
   transactionId: number;
+  lineId: number | null;  // The CC line ID (for settle selection)
+  ccAccountId: number | null;
+  ccAccountName: string | null;
   date: string;
   description: string;
   vendorInstaller: string;
@@ -42,14 +50,29 @@ type JobLedgerRow = {
   typeName: string;
   amount: number;
   cleared: boolean;
+  isCcTransaction: boolean;
+  ccSettled: boolean;
 };
 
 type JobData = {
   totals: Totals;
   ledgerRows: JobLedgerRow[];
+  ccBalances: CcBalance[];
 };
 
-export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jobId: number) => void;}) {
+type SettleModalData = {
+  jobId: number;
+  jobName: string;
+  cc: CcBalance;
+};
+
+export function JobDetailView({
+  onAddJobTransaction,
+  onNavigateToTransfer,
+}: {
+  onAddJobTransaction?: (jobId: number) => void;
+  onNavigateToTransfer?: (params: CcSettleTransferParams) => void;
+}) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobDataById, setJobDataById] = useState<Record<number, JobData>>({});
   const [loading, setLoading] = useState(true);
@@ -60,7 +83,27 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
   const [selectedLeadSource, setSelectedLeadSource] = useState<string>('all');
 
   const [endDateByJob, setEndDateByJob] = useState<Record<number, string>>({});
-  const [expandedJobs, setExpandedJobs] = useState<Record<number, boolean>>({});
+  const [expandedJobs, setExpandedJobs] = useState<Record<number, boolean>>(() => {
+    // Restore expanded state from localStorage
+    try {
+      const saved = localStorage.getItem('jobDetailView_expandedJobs');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Persist expanded state to localStorage
+  useEffect(() => {
+    localStorage.setItem('jobDetailView_expandedJobs', JSON.stringify(expandedJobs));
+  }, [expandedJobs]);
+
+  // CC Settle modal state
+  const [settleModal, setSettleModal] = useState<SettleModalData | null>(null);
+  
+  // CC bulk selection state
+  const [selectedCcLineIds, setSelectedCcLineIds] = useState<Set<number>>(new Set());
+  const [ccSettleError, setCcSettleError] = useState<string | null>(null);
 
   const today = todayLocalISO();
 
@@ -80,22 +123,51 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
           .order('created_at', { ascending: false });
 
         if (jobsErr) throw jobsErr;
-        const jobs = (jobsData ?? []).map((j: any) => ({
+        const loadedJobs = (jobsData ?? []).map((j: Record<string, unknown>) => ({
           ...j,
           lead_sources: Array.isArray(j.lead_sources) ? j.lead_sources[0] ?? null : j.lead_sources,
         })) as Job[];
-        setJobs(jobs);
+        setJobs(loadedJobs);
 
         // Initialize end dates
         setEndDateByJob((prev) => {
           const next = { ...prev };
-          for (const j of jobs) {
+          for (const j of loadedJobs) {
             if (!next[j.id]) next[j.id] = j.end_date || today;
           }
           return next;
         });
 
-                   // Load job transaction lines
+        // Load job transaction lines
+        // Step 1: Get category lines (income/expense) that have job_id
+        const { data: categoryLineData, error: categoryErr } = await supabase
+          .from('transaction_lines')
+          .select(`
+            id,
+            job_id,
+            transaction_id
+          `)
+          .not('job_id', 'is', null);
+
+        if (categoryErr) throw categoryErr;
+
+        // Collect unique transaction IDs and map transaction -> job
+        const txToJob = new Map<number, number>();
+        for (const line of categoryLineData ?? []) {
+          if (line.job_id && line.transaction_id) {
+            txToJob.set(line.transaction_id, line.job_id);
+          }
+        }
+
+        const txIds = [...txToJob.keys()];
+
+        if (txIds.length === 0) {
+          setJobDataById({});
+          setLoading(false);
+          return;
+        }
+
+        // Step 2: Get ALL lines for those transactions (includes cash lines)
         const { data: lineData, error: lineErr } = await supabase
           .from('transaction_lines')
           .select(`
@@ -103,25 +175,27 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
             job_id,
             amount,
             is_cleared,
+            cc_settled,
             transaction_id,
             transactions ( date, description ),
-            accounts ( name, account_types ( name ) ),
+            accounts ( id, name, account_types ( name ) ),
             vendors ( name ),
             installers ( first_name, last_name )
           `)
-          .not('job_id', 'is', null);
+          .in('transaction_id', txIds);
 
         if (lineErr) throw lineErr;
 
         const allLines = (lineData ?? []) as unknown as Line[];
 
-        // Group lines by job
+        // Group lines by job (using txToJob mapping since cash lines don't have job_id)
         const linesByJob = new Map<number, Line[]>();
         for (const line of allLines) {
-          if (!line.job_id) continue;
-          const arr = linesByJob.get(line.job_id) ?? [];
+          const jobId = line.job_id ?? txToJob.get(line.transaction_id);
+          if (!jobId) continue;
+          const arr = linesByJob.get(jobId) ?? [];
           arr.push(line);
-          linesByJob.set(line.job_id, arr);
+          linesByJob.set(jobId, arr);
         }
 
         // Build totals + ledger per job
@@ -142,6 +216,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
             profit: 0,
           };
 
+          // Calculate totals from transaction lines
           for (const line of sorted) {
             const type = line.accounts?.account_types?.name ?? null;
 
@@ -156,6 +231,9 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
 
           totals.profit = totals.income - (totals.materials + totals.labor + totals.otherExpenses);
 
+          // Use shared utility for CC balances
+          const ccBalances = computeCcBalances(sorted);
+
           const txMap = new Map<number, JobLedgerRow>();
 
           for (const line of sorted) {
@@ -166,6 +244,9 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
             if (!row) {
               row = {
                 transactionId: txId,
+                lineId: null,
+                ccAccountId: null,
+                ccAccountName: null,
                 date: line.transactions?.date ?? '',
                 description: line.transactions?.description ?? '',
                 vendorInstaller: '',
@@ -173,6 +254,8 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
                 typeName: '',
                 amount: 0,
                 cleared: true,
+                isCcTransaction: false,
+                ccSettled: true,
               };
               txMap.set(txId, row);
             }
@@ -191,6 +274,15 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
               row.accountName = line.accounts?.name ?? '';
               const mag = Math.abs(line.amount);
               if (mag > 0) row.amount = mag;
+
+              // Track if this is a CC (liability) transaction
+              if (type === 'liability') {
+                row.isCcTransaction = true;
+                row.lineId = line.id;
+                row.ccAccountId = line.accounts?.id ?? null;
+                row.ccAccountName = line.accounts?.name ?? null;
+                if (!line.cc_settled) row.ccSettled = false;
+              }
             }
 
             if ((type === 'income' || type === 'expense') && !row.typeName) {
@@ -204,20 +296,20 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
             return da - db;
           });
 
-          jobData[jobId] = { totals, ledgerRows };
+          jobData[jobId] = { totals, ledgerRows, ccBalances };
         }
 
         setJobDataById(jobData);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message ?? 'Error loading jobs');
+        setError(err instanceof Error ? err.message : 'Error loading jobs');
       } finally {
         setLoading(false);
       }
     }
 
-    loadAll();
-  }, []);
+    void loadAll();
+  }, [today]);
 
   // ------------------------------------------------------------
   // CLOSE JOB
@@ -240,9 +332,9 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
           j.id === job.id ? { ...j, status: 'closed', end_date: chosenEnd } : j
         )
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message ?? 'Error closing job');
+      setError(err instanceof Error ? err.message : 'Error closing job');
     }
   }
 
@@ -251,6 +343,78 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
       ...prev,
       [id]: !prev[id],
     }));
+  }
+
+  // ------------------------------------------------------------
+  // CC SETTLE HANDLERS
+  // ------------------------------------------------------------
+  function handleOpenSettleModal(job: Job, cc: CcBalance) {
+    setSettleModal({ jobId: job.id, jobName: job.name, cc });
+  }
+
+  function handleToggleCcSelect(lineId: number) {
+    setSelectedCcLineIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(lineId)) {
+        next.delete(lineId);
+      } else {
+        next.add(lineId);
+      }
+      return next;
+    });
+    setCcSettleError(null);
+  }
+
+  function handleSettleSelectedCc(jobId: number, jobName: string) {
+    setCcSettleError(null);
+
+    if (selectedCcLineIds.size === 0) {
+      setCcSettleError('No CC lines selected');
+      return;
+    }
+
+    // Get the job's ledger rows
+    const data = jobDataById[jobId];
+    if (!data) return;
+
+    // Get selected rows
+    const selectedRows = data.ledgerRows.filter(
+      (r) => r.lineId !== null && selectedCcLineIds.has(r.lineId)
+    );
+
+    // Validate all are unsettled CC
+    const invalidRows = selectedRows.filter((r) => !r.isCcTransaction || r.ccSettled);
+    if (invalidRows.length > 0) {
+      setCcSettleError('Selection includes non-CC or already settled transactions');
+      return;
+    }
+
+    // Validate all from same CC account
+    const uniqueAccountIds = new Set(selectedRows.map((r) => r.ccAccountId).filter(Boolean));
+    if (uniqueAccountIds.size > 1) {
+      const accountNames = [...new Set(selectedRows.map((r) => r.ccAccountName).filter(Boolean))].join(', ');
+      setCcSettleError(`Selected lines are from different credit cards: ${accountNames}`);
+      return;
+    }
+
+    // Build CcBalance for modal
+    const firstRow = selectedRows[0];
+    if (!firstRow || firstRow.ccAccountId === null || firstRow.ccAccountName === null) {
+      setCcSettleError('Invalid CC transaction: missing account information');
+      return;
+    }
+
+    const totalAmount = selectedRows.reduce((sum, r) => sum + Math.abs(r.amount), 0);
+    const lineIds = selectedRows.map((r) => r.lineId).filter((id): id is number => id !== null);
+
+    const ccBalance: CcBalance = {
+      accountId: firstRow.ccAccountId,
+      accountName: firstRow.ccAccountName,
+      unclearedAmount: totalAmount,
+      lineIds,
+    };
+
+    setSettleModal({ jobId, jobName, cc: ccBalance });
   }
 
   if (loading) return <p>Loading jobs...</p>;
@@ -349,7 +513,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
     const data = jobDataById[job.id];
     if (!data) return null;
 
-    const { totals, ledgerRows } = data;
+    const { totals, ledgerRows, ccBalances } = data;
     const marginPct = totals.income > 0 ? (totals.profit / totals.income) * 100 : 0;
 
     const isExpanded = expandedJobs[job.id] ?? false;
@@ -392,6 +556,13 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
             </span>
           )}
         </div>
+
+        {/* CC BALANCE INDICATOR */}
+        {/* CC BALANCE INDICATOR */}
+        <CcBadgeList 
+          ccBalances={ccBalances} 
+          onBadgeClick={(cc) => handleOpenSettleModal(job, cc)} 
+        />
 
         {/* --- Start / End / Close job on same row --- */}
         <div
@@ -436,7 +607,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleCloseJob(job);
+                  void handleCloseJob(job);
                 }}
                 style={{
                   padding: '0.3rem 0.8rem',
@@ -460,7 +631,7 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
             <button
               type="button"
               onClick={(e) => {
-                e.stopPropagation(); // don't toggle expand when clicking
+                e.stopPropagation();
                 onAddJobTransaction(job.id);
               }}
               style={{
@@ -518,51 +689,155 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
         </h3>
 
         {isExpanded && (
-          <>
+          <div onClick={(e) => e.stopPropagation()}>
             {ledgerRows.length === 0 && (
               <p style={{ fontSize: 13 }}>No transactions found for this job.</p>
             )}
 
             {ledgerRows.length > 0 && (
-              <table
-                style={{
-                  borderCollapse: 'collapse',
-                  width: '100%',
-                  fontSize: 13,
-                }}
-              >
-                <thead>
-                  <tr>
-                    <Th>Date</Th>
-                    <Th>Description</Th>
-                    <Th>Account</Th>
-                    <Th>Type</Th>
-                    <Th>Vendor / Installer</Th>
-                    <Th align="right">Amount</Th>
-                    <Th align="center">Cleared</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ledgerRows.map((row) => (
-                    <tr key={row.transactionId}>
-                      <Td>{formatLocalDate(row.date)}</Td>
-                      <Td>{row.description}</Td>
-                      <Td>{row.accountName}</Td>
-                      <Td>{row.typeName}</Td>
-                      <Td>{row.vendorInstaller}</Td>
-                      <Td align="right">
-                        {row.amount.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </Td>
-                      <Td align="center">{row.cleared ? '✓' : ''}</Td>
+              <>
+                {/* CC Selection Action Bar */}
+                {(() => {
+                  const selectedInJob = ledgerRows.filter(
+                    (r) => r.lineId !== null && selectedCcLineIds.has(r.lineId)
+                  );
+                  if (selectedInJob.length === 0) return null;
+                  
+                  return (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        padding: '0.5rem 0.75rem',
+                        backgroundColor: '#f0f9ff',
+                        borderRadius: 4,
+                        marginBottom: '0.5rem',
+                        fontSize: 13,
+                      }}
+                    >
+                      <span style={{ fontWeight: 500 }}>
+                        {selectedInJob.length} CC transaction{selectedInJob.length > 1 ? 's' : ''} selected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSettleSelectedCc(job.id, job.name);
+                        }}
+                        style={{
+                          padding: '0.25rem 0.75rem',
+                          backgroundColor: '#2563eb',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          fontSize: 12,
+                        }}
+                      >
+                        Settle Selected CC
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedCcLineIds(new Set());
+                        }}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: 'transparent',
+                          color: '#666',
+                          border: '1px solid #ccc',
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          fontSize: 12,
+                        }}
+                      >
+                        Clear
+                      </button>
+                      {ccSettleError && (
+                        <span style={{ color: '#b91c1c', fontSize: 12 }}>{ccSettleError}</span>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <table
+                  style={{
+                    borderCollapse: 'collapse',
+                    width: '100%',
+                    fontSize: 13,
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      <Th align="center" style={{ width: 30 }}></Th>
+                      <Th>Date</Th>
+                      <Th>Description</Th>
+                      <Th>Account</Th>
+                      <Th>Type</Th>
+                      <Th>Vendor / Installer</Th>
+                      <Th align="right">Amount</Th>
+                      <Th align="center">Cleared</Th>
+                      <Th align="center">CC</Th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {ledgerRows.map((row) => {
+                      // Combine uncleared styling (yellow) with unsettled CC styling (light red)
+                      // CC unsettled takes precedence
+                      let rowBg: string | undefined;
+                      if (row.isCcTransaction && !row.ccSettled) {
+                        rowBg = '#fef2f2'; // Light red for unsettled CC
+                      } else if (!row.cleared) {
+                        rowBg = '#fffbe6'; // Yellow for uncleared
+                      }
+                      
+                      const canSelectForSettle = row.isCcTransaction && !row.ccSettled && row.lineId !== null;
+                      const isSelected = row.lineId !== null && selectedCcLineIds.has(row.lineId);
+                      
+                      return (
+                        <tr 
+                          key={row.transactionId} 
+                          style={{ backgroundColor: rowBg }}
+                        >
+                          <Td align="center">
+                            {canSelectForSettle && (
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={() => row.lineId !== null && handleToggleCcSelect(row.lineId)}
+                                style={{ cursor: 'pointer' }}
+                              />
+                            )}
+                          </Td>
+                          <Td>{formatLocalDate(row.date)}</Td>
+                          <Td>{row.description}</Td>
+                          <Td>{row.accountName}</Td>
+                          <Td>{row.typeName}</Td>
+                          <Td>{row.vendorInstaller}</Td>
+                          <Td align="right">
+                            {row.amount.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </Td>
+                          <Td align="center">{row.cleared ? '✓' : ''}</Td>
+                          <Td align="center">
+                            <CcStatusCell 
+                              isCcTransaction={row.isCcTransaction} 
+                              ccSettled={row.ccSettled} 
+                            />
+                          </Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
             )}
-          </>
+          </div>
         )}
       </div>
     );
@@ -723,6 +998,59 @@ export function JobDetailView({onAddJobTransaction,}: {onAddJobTransaction?: (jo
           )}
         </>
       )}
+
+      {/* CC SETTLE MODAL */}
+      {settleModal && (
+        <CcSettleModal
+          entityName={settleModal.jobName}
+          cc={settleModal.cc}
+          onClose={() => {
+            setSettleModal(null);
+            setCcSettleError(null);
+          }}
+          onSettled={() => {
+            // Update local state: mark rows as settled and update ccBalances
+            setJobDataById((prev) => {
+              const jobDataItem = prev[settleModal.jobId];
+              if (!jobDataItem) return prev;
+              
+              const settledLineIds = new Set(settleModal.cc.lineIds);
+              
+              return {
+                ...prev,
+                [settleModal.jobId]: {
+                  ...jobDataItem,
+                  // Mark settled rows
+                  ledgerRows: jobDataItem.ledgerRows.map((row) =>
+                    row.lineId !== null && settledLineIds.has(row.lineId)
+                      ? { ...row, ccSettled: true }
+                      : row
+                  ),
+                  // Remove or update CC balance
+                  ccBalances: jobDataItem.ccBalances
+                    .map((cc) => {
+                      if (cc.accountId !== settleModal.cc.accountId) return cc;
+                      // Remove settled line IDs from this balance
+                      const remainingLineIds = cc.lineIds.filter((id) => !settledLineIds.has(id));
+                      if (remainingLineIds.length === 0) return null;
+                      // Recalculate amount from remaining rows
+                      const remainingAmount = jobDataItem.ledgerRows
+                        .filter((r) => r.lineId !== null && remainingLineIds.includes(r.lineId))
+                        .reduce((sum, r) => sum + Math.abs(r.amount), 0);
+                      return { ...cc, lineIds: remainingLineIds, unclearedAmount: remainingAmount };
+                    })
+                    .filter((cc): cc is CcBalance => cc !== null),
+                },
+              };
+            });
+            // Clear selection
+            setSelectedCcLineIds(new Set());
+            setSettleModal(null);
+            setCcSettleError(null);
+          }}
+          onNavigateToTransfer={onNavigateToTransfer}
+        />
+      )}
     </div>
   );
 }
@@ -767,9 +1095,11 @@ function Stat({
 function Th({
   children,
   align = 'left',
+  style,
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   align?: 'left' | 'right' | 'center';
+  style?: React.CSSProperties;
 }) {
   return (
     <th
@@ -777,6 +1107,7 @@ function Th({
         borderBottom: '1px solid #ccc',
         textAlign: align,
         padding: '4px 6px',
+        ...style,
       }}
     >
       {children}

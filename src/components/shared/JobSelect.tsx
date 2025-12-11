@@ -7,6 +7,7 @@ import { SearchableSelect } from './SearchableSelect';
 type Job = {
   id: number;
   name: string;
+  status: string | null;
 };
 
 type JobSelectProps = {
@@ -31,8 +32,8 @@ export function JobSelect({
     async function loadJobs() {
       const { data, error } = await supabase
         .from('jobs')
-        .select('id, name')
-        .eq('is_active', true)
+        .select('id, name, status')
+        .order('status')  // 'open' before 'closed'
         .order('name');
 
       if (!error && data) {
@@ -45,7 +46,7 @@ export function JobSelect({
 
   const options = jobs.map((j) => ({
     value: j.id,
-    label: j.name,
+    label: j.status === 'closed' ? `${j.name} (closed)` : j.name,
   }));
 
   return (
