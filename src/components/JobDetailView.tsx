@@ -120,7 +120,7 @@ export function JobDetailView({
         const { data: jobsData, error: jobsErr } = await supabase
           .from('jobs')
           .select('id, name, address, status, start_date, end_date, lead_source_id, lead_sources ( id, name, nick_name )')
-          .order('created_at', { ascending: false });
+          .order('start_date', { ascending: false });
 
         if (jobsErr) throw jobsErr;
         const loadedJobs = (jobsData ?? []).map((j: Record<string, unknown>) => ({

@@ -211,8 +211,8 @@ The selectedAccount.code tells you which type:
 
 AMOUNT MATCHING - BE VERY STRICT:
 - Match ONLY if amounts are EXACTLY equal (to the cent)
-- $96.94 does NOT match $97.00 â€” this is a $0.06 difference, NOT a match
-- $817.00 matches $817.00 â€” exact match
+- $96.94 does NOT match $97.00 "” this is a $0.06 difference, NOT a match
+- $817.00 matches $817.00 "” exact match
 - When in doubt, mark as "new" rather than force a bad match
 
 TIP ADJUSTMENT DETECTION:
@@ -226,8 +226,8 @@ For restaurant/dining transactions where the bank amount is HIGHER than a pendin
 - Include matched_line_id and matched_transaction_id
 
 Common tip scenarios:
-- "MARIETTA DINER" bank $55.00 vs DB pending $45.37 â†’ tip_adjustment
-- "NIKKO JAPANESE" bank $150.00 vs DB pending $124.75 â†’ tip_adjustment
+- "MARIETTA DINER" bank $55.00 vs DB pending $45.37 ←’ tip_adjustment
+- "NIKKO JAPANESE" bank $150.00 vs DB pending $124.75 ←’ tip_adjustment
 - Restaurant/diner/cafe/grill names are clues for tip scenarios
 
 DATE MATCHING:
@@ -237,14 +237,14 @@ BANK STATUS DETECTION:
 Bank of America typically shows:
 - "Processing" or "Pending" transactions at the top (bank_status = "pending")
 - "Posted" transactions below with actual post dates (bank_status = "posted")
-- Look for keywords like "Processing", "Pending", "Processing." â†’ bank_status = "pending"
+- Look for keywords like "Processing", "Pending", "Processing." ←’ bank_status = "pending"
 - If no such indicator, assume bank_status = "posted"
 
 MATCH TYPE LOGIC (in order of priority):
-1. EXACT amount match to PENDING DB transaction â†’ match_type = "matched_pending"
-2. EXACT amount match to CLEARED DB transaction â†’ match_type = "matched_cleared"
-3. Restaurant/dining with higher amount than pending DB â†’ match_type = "tip_adjustment"
-4. No match found â†’ match_type = "new"
+1. EXACT amount match to PENDING DB transaction ←’ match_type = "matched_pending"
+2. EXACT amount match to CLEARED DB transaction ←’ match_type = "matched_cleared"
+3. Restaurant/dining with higher amount than pending DB ←’ match_type = "tip_adjustment"
+4. No match found ←’ match_type = "new"
 
 
 CRITICAL FOR CREDIT CARD MATCHING:

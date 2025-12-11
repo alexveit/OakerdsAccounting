@@ -18,6 +18,8 @@ type Transaction = {
   cleared: boolean;
   vendorInstaller: string | null;
   accountName: string;
+  isCcTransaction: boolean;
+  ccSettled: boolean;
 };
 
 type CcBalance = {
@@ -41,7 +43,7 @@ type JobSummary = {
   ccBalances: CcBalance[];
 };
 
-type FilterMode = 'open' | 'all';
+type FilterMode = 'open' | 'closed';
 
 // Raw types from Supabase queries
 type RawJob = {
@@ -91,7 +93,7 @@ export function JobsTab() {
         const { data: jobsData, error: jobsErr } = await supabase
           .from('jobs')
           .select('id, name, address, status, start_date')
-          .order('created_at', { ascending: false });
+          .order('start_date', { ascending: false });
 
         if (jobsErr) throw jobsErr;
 
@@ -167,6 +169,8 @@ export function JobsTab() {
                 cleared: true,
                 vendorInstaller: null,
                 accountName: accountName,
+                isCcTransaction: false,
+                ccSettled: true,
               });
             }
 
@@ -174,6 +178,11 @@ export function JobsTab() {
             if (txEntry) {
               if (typeName === 'asset' || typeName === 'liability') {
                 txEntry.amount = Math.abs(amt);
+                // Track CC status for liability accounts
+                if (typeName === 'liability') {
+                  txEntry.isCcTransaction = true;
+                  if (!line.cc_settled) txEntry.ccSettled = false;
+                }
               }
               if (typeName === 'income') {
                 txEntry.type = 'income';
@@ -247,7 +256,8 @@ export function JobsTab() {
   // ----------------------------------------------------------
   const filteredJobs = useMemo(() => {
     let result = jobs;
-    if (filter === 'open') result = result.filter((j) => j.status === 'open');
+    if (filter === 'open') result = result.filter((j) => j.status === 'open' || j.status === null);
+    if (filter === 'closed') result = result.filter((j) => j.status === 'closed');
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -283,13 +293,13 @@ export function JobsTab() {
       />
 
       <div style={styles.filterRow}>
-        {(['open', 'all'] as FilterMode[]).map((mode) => (
+        {(['open', 'closed'] as FilterMode[]).map((mode) => (
           <button
             key={mode}
             onClick={() => setFilter(mode)}
             style={{ ...styles.filterBtn, ...(filter === mode ? styles.filterBtnActive : {}) }}
           >
-            {mode === 'open' ? 'Open' : 'All'}
+            {mode === 'open' ? 'Open' : 'Closed'}
           </button>
         ))}
       </div>
@@ -348,7 +358,7 @@ export function JobsTab() {
                     </span>
                   </div>
                 </div>
-                <div style={styles.expandHint}>{isExpanded ? 'â–² Hide' : 'â–¼ Transactions'}</div>
+                <div style={styles.expandHint}>{isExpanded ? '▲ Hide' : '▼ Transactions'}</div>
               </div>
 
               {isExpanded && (
@@ -356,25 +366,39 @@ export function JobsTab() {
                   {job.transactions.length === 0 ? (
                     <div style={styles.noTransactions}>No transactions</div>
                   ) : (
-                    job.transactions.map((tx) => (
-                      <div key={tx.id} style={styles.txRow}>
-                        <div style={styles.txLeft}>
-                          <div style={styles.txDate}>{formatDate(tx.date)}</div>
-                          <div style={styles.txDetails}>
-                            <div style={styles.txDesc}>{tx.description || tx.accountName}</div>
-                            {tx.vendorInstaller && <div style={styles.txVendor}>{tx.vendorInstaller}</div>}
+                    job.transactions.map((tx) => {
+                      // Row styling: subtle left border for unsettled CC, no background change
+                      const isUnsettledCc = tx.isCcTransaction && !tx.ccSettled;
+                      const rowStyle: React.CSSProperties = {
+                        ...styles.txRow,
+                        ...(isUnsettledCc && { borderLeft: '3px solid #f87171' }),
+                      };
+                      
+                      return (
+                        <div key={tx.id} style={rowStyle}>
+                          <div style={styles.txLeft}>
+                            <div style={styles.txDate}>{formatDate(tx.date)}</div>
+                            <div style={styles.txDetails}>
+                              <div style={styles.txDesc}>{tx.description || tx.accountName}</div>
+                              {tx.vendorInstaller && <div style={styles.txVendor}>{tx.vendorInstaller}</div>}
+                            </div>
+                          </div>
+                          <div style={styles.txRight}>
+                            <div style={{ ...styles.txAmount, color: TX_COLORS[tx.type] }}>
+                              {tx.type === 'income' ? '+' : ''}{formatCurrency(tx.amount, 0)}
+                            </div>
+                            <div style={styles.txStatus}>
+                              {isUnsettledCc && (
+                                <span style={{ color: '#f87171', marginRight: 4 }}>💳</span>
+                              )}
+                              <span style={{ color: tx.cleared ? '#10b981' : '#ef4444' }}>
+                                {tx.cleared ? '✓' : '○'}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <div style={styles.txRight}>
-                          <div style={{ ...styles.txAmount, color: TX_COLORS[tx.type] }}>
-                            {tx.type === 'income' ? '+' : ''}{formatCurrency(tx.amount, 0)}
-                          </div>
-                          <div style={{ ...styles.txCleared, color: tx.cleared ? '#10b981' : '#ef4444' }}>
-                            {tx.cleared ? 'âœ“' : 'â—‹'}
-                          </div>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               )}

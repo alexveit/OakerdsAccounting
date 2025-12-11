@@ -224,6 +224,11 @@ export const mobileStyles: Record<string, CSSProperties> = {
     width: '20px',
     textAlign: 'center',
   },
+  txStatus: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '14px',
+  },
 
   // Prices
   priceCategory: {

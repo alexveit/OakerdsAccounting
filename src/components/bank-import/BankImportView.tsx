@@ -594,7 +594,7 @@ export function BankImportView() {
       )}
       {commitResult && (
         <div style={{ ...sectionStyle, background: '#dcfce7', color: '#16a34a' }}>
-          âœ“ Committed: {commitResult.cleared} marked cleared, {commitResult.created} created
+          ✓ Committed: {commitResult.cleared} marked cleared, {commitResult.created} created
         </div>
       )}
 
@@ -716,7 +716,7 @@ export function BankImportView() {
                           </div>
                         )}
                         {hasMapping && (
-                          <div style={{ fontSize: 10, color: '#16a34a' }}>âœ“ Auto-mapped</div>
+                          <div style={{ fontSize: 10, color: '#16a34a' }}>✓ Auto-mapped</div>
                         )}
                       </td>
                       <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: tx.amount < 0 ? '#dc2626' : '#16a34a' }}>
@@ -735,7 +735,7 @@ export function BankImportView() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ color: '#6b7280', fontSize: 12 }}>â€”</span>
+                          <span style={{ color: '#6b7280', fontSize: 12 }}>"”</span>
                         )}
                       </td>
                       <td style={tdStyle}>
@@ -754,7 +754,7 @@ export function BankImportView() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ color: '#6b7280', fontSize: 12 }}>â€”</span>
+                          <span style={{ color: '#6b7280', fontSize: 12 }}>"”</span>
                         )}
                       </td>
                       <td style={tdStyle}>
@@ -770,7 +770,7 @@ export function BankImportView() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ color: '#6b7280', fontSize: 12 }}>â€”</span>
+                          <span style={{ color: '#6b7280', fontSize: 12 }}>"”</span>
                         )}
                       </td>
                     </tr>

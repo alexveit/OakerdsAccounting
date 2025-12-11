@@ -348,7 +348,7 @@ Example:
 
 WHEN EDITING FILES WITH UNICODE/EMOJI CONTENT
 - NEVER use shell commands (sed, cat >, awk) on files containing emojis or special characters
-- Shell tools corrupt multi-byte UTF-8 sequences (emojis become garbled like Ã°Å¸"Å )
+- Shell tools corrupt multi-byte UTF-8 sequences (emojis become garbled like ÃƒÂ°Ã…Â¸"Ã…Â )
 - ALWAYS use the str_replace tool for targeted edits
 - OR provide clean code snippets for manual paste
 
@@ -360,7 +360,7 @@ This applies especially to:
 - Any UI component with emoji icons
 - Files with non-ASCII characters in strings
 
-If you see garbled characters like Ã°Å¸"Å  instead of ðŸ“Š, the file was corrupted
+If you see garbled characters like ÃƒÂ°Ã…Â¸"Ã…Â  instead of Ã°Å¸â€œÅ , the file was corrupted
 by shell commands and needs to be restored from source control.
 
 --------------------------------------------------------------------------------
@@ -538,11 +538,11 @@ EXPENSE DISPLAY
   <span style={{ color: red }}>{currency(expense)}</span>
 
 ASCII SEPARATORS IN UI
-- Use pipe | or hyphen - instead of middle dot (Â·) or bullet
-- Middle dots get garbled across systems (Ã‚Â· instead of Â·)
+- Use pipe | or hyphen - instead of middle dot (Ã‚Â·) or bullet
+- Middle dots get garbled across systems (Ãƒâ€šÃ‚Â· instead of Ã‚Â·)
 
   # BAD
-  Margin: 13.4% Â· Avg: $5,947 Â· Count: 104
+  Margin: 13.4% Ã‚Â· Avg: $5,947 Ã‚Â· Count: 104
   
   # GOOD
   Margin: 13.4% | Avg: $5,947 | Count: 104
@@ -624,59 +624,136 @@ WHY THIS PATTERN
 - Modal already has the data, just needs to return it
 
 --------------------------------------------------------------------------------
-23. SECURITY & VULNERABILITY MANAGEMENT
+23. TRANSACTION LINE ENTITY PLACEMENT
 --------------------------------------------------------------------------------
 
-VULNERABILITY SLA (Service Level Agreement)
-- Critical: Patch or take offline within 48 hours
-- High: Patch or document accepted risk within 7 days
-- Medium: Patch in next release within 30 days
-- Low: Address when convenient within 90 days
+CATEGORY LINE ONLY - job_id, vendor_id, installer_id
+- These belong ONLY on the income/expense (category) line
+- NEVER on the asset/liability (cash/bank) line
+- This is proper double-entry accounting practice
 
-VULNERABILITY SCANNING
-- Run `npm audit` before each deployment
-- Review GitHub Dependabot alerts if enabled
-- Keep Windows Defender / antivirus active on dev machines
-- Address Supabase security recommendations (RLS, auth)
+  // CORRECT
+  categoryLine = { account_id: expenseAcct, amount: 100, job_id, vendor_id, installer_id };
+  cashLine = { account_id: bankAcct, amount: -100 };  // NO job_id
 
-ACCEPTED RISKS (Document justification for each)
+  // WRONG - job_id on both lines (denormalized hack)
+  categoryLine = { account_id: expenseAcct, amount: 100, job_id };
+  cashLine = { account_id: bankAcct, amount: -100, job_id };  // BAD
+
+WHY THIS MATTERS
+- Data integrity: updating job on one line doesn't orphan the other
+- Multi-job splits: one payment can cover multiple jobs (cash line has no job)
+- Professional credibility: follows GAAP conventions
+- Clean exports: no cleanup needed for QuickBooks/Xero integration
+
+QUERYING JOB TRANSACTIONS (two-step pattern)
+Since cash lines don't have job_id, query in two steps:
+
+  // Step 1: Get category lines with job_id -> transaction IDs
+  const { data: categoryLines } = await supabase
+    .from('transaction_lines')
+    .select('transaction_id, job_id')
+    .not('job_id', 'is', null);
+
+  const txToJob = new Map<number, number>();
+  for (const line of categoryLines) {
+    txToJob.set(line.transaction_id, line.job_id);
+  }
+
+  // Step 2: Get ALL lines for those transactions
+  const { data: allLines } = await supabase
+    .from('transaction_lines')
+    .select('*, accounts(*), transactions(*)')
+    .in('transaction_id', [...txToJob.keys()]);
+
+  // Group by job using txToJob map (cash lines won't have job_id)
+  for (const line of allLines) {
+    const jobId = line.job_id ?? txToJob.get(line.transaction_id);
+    // ... group by jobId
+  }
+
 --------------------------------------------------------------------------------
-| Package | Severity | Date       | Justification                             |
-|---------|----------|------------|-------------------------------------------|
-| xlsx    | High     | 2024-12-10 | Export only, no untrusted input parsing.  |
-|         |          |            | Prototype pollution & ReDoS require       |
-|         |          |            | parsing malicious files. We only generate |
-|         |          |            | Excel output from our own data.           |
+24. CREDIT CARD SIGN CONVENTION (Bank Import)
 --------------------------------------------------------------------------------
 
-WHEN ACCEPTING RISK vs PATCHING
-- Accept if: vulnerability requires untrusted input and we only use trusted data
-- Accept if: no fix available and mitigation exists
-- Patch if: vulnerability affects our actual use case
-- Patch if: fix is available and low-effort
+CC statements show charges as POSITIVE (you owe more), but in accounting
+they are EXPENSES and must be NEGATIVE.
 
-DOCUMENTATION REQUIREMENT
-- All accepted risks must be documented here with date and justification
-- Review accepted risks quarterly
-- Re-evaluate when upgrading packages
+BANK ACCOUNT (checking/savings)
+- Statement negative = expense -> use NEGATIVE amount
+- Statement positive = income -> use POSITIVE amount
+- Keep signs as-is
 
-EOL (END-OF-LIFE) MONITORING
-- Run `npm outdated` monthly to check for outdated packages
-- Run `node --version` and verify against Node.js release schedule
-- Node.js LTS schedule: https://nodejs.org/en/about/releases/
+CREDIT CARD
+- Statement positive (charge) = expense -> use NEGATIVE amount (INVERT!)
+- Statement negative (payment) = income -> use POSITIVE amount (INVERT!)
 
-Current Environment (as of 2024-12-10):
-- Node.js: v24.11.1 (Current/Latest)
-- All major dependencies actively maintained (React, Vite, Supabase)
+DETECTION
+- Account codes starting with "1" = bank account (keep signs)
+- Account codes starting with "2" = credit card (invert signs)
 
-EOL Action Triggers:
-- Node.js version approaching EOL: Plan upgrade within 3 months
-- Major dependency deprecated: Evaluate alternatives, plan migration
-- Package marked "unmaintained": Find replacement or accept risk with documentation
+AI PROMPT EXAMPLE
+  ⚠️ CRITICAL - THIS IS A CREDIT CARD ACCOUNT ⚠️
+  You MUST INVERT all signs from what the statement shows:
+  - Statement shows $303.70 charge -> output amount: -303.70 (NEGATIVE)
+  - Statement shows -$100.00 payment -> output amount: 100.00 (POSITIVE)
 
-Update Commands:
-  npm outdated          # Check for available updates
-  npm update            # Apply minor/patch updates
-  npm audit             # Check for vulnerabilities
+MATCHING CC TRANSACTIONS
+DB stores CC expenses as negative, but statement shows positive.
+Match by comparing ABSOLUTE VALUES:
+- Statement: $39.00 (positive)
+- DB: -$39.00 (negative)
+- abs(39) == abs(-39) -> MATCH!
+
+--------------------------------------------------------------------------------
+25. EVENT PROPAGATION IN NESTED CLICKABLES
+--------------------------------------------------------------------------------
+
+When clickable elements (checkboxes, buttons) are inside other clickable
+containers (collapsible cards, expandable rows), stop event propagation.
+
+PROBLEM
+- Card div has onClick to toggle expand/collapse
+- Checkbox inside card triggers card toggle when clicked
+
+SOLUTION
+- Add onClick={(e) => e.stopPropagation()} to inner clickable
+- Or wrap inner content section in div with stopPropagation
+
+  // On the checkbox itself
+  <input
+    type="checkbox"
+    onClick={(e) => e.stopPropagation()}
+    onChange={() => handleToggle(id)}
+  />
+
+  // Or wrap the content area
+  {isExpanded && (
+    <div onClick={(e) => e.stopPropagation()}>
+      {/* buttons, checkboxes, tables here */}
+    </div>
+  )}
+
+--------------------------------------------------------------------------------
+26. UI COLOR CONVENTIONS
+--------------------------------------------------------------------------------
+
+ACTION BUTTONS (primary actions)
+- Blue: #2563eb
+- Use for: Settle, Save, Submit, Create
+
+SELECTION ACTION BARS
+- Background: Light blue #f0f9ff
+- Text: Neutral dark with fontWeight: 500
+- Use for: "X items selected" status bars
+
+ROW HIGHLIGHTING
+- Unsettled CC: Light red #fef2f2
+- Uncleared: Light yellow #fffbe6
+- CC takes precedence over uncleared
+
+STATUS INDICATORS
+- Unsettled CC: Red #b91c1c
+- Settled CC: Green #10b981
 
 ================================================================================
