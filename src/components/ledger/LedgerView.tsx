@@ -25,6 +25,7 @@ import { LedgerFilters } from './LedgerFilters';
 import { LedgerTable } from './LedgerTable';
 import { CcSettleModal } from '../shared/CcSettleModal';
 import type { CcBalance, CcSettleTransferParams } from '../../utils/ccTracking';
+import { ACCOUNT_CODE_RANGES } from '../../utils/accounts';
 
 // Raw shape from Supabase query
 type RawTransactionLine = {
@@ -236,7 +237,7 @@ export function LedgerView({ onNavigateToTransfer }: LedgerViewProps) {
             allAccountIds.push(line.account_id);
             const codeStr = line.accounts?.code;
             const codeNum = codeStr ? parseInt(codeStr, 10) : null;
-            allAccountCodes.push(isNaN(codeNum as number) ? null : codeNum);
+            allAccountCodes.push(codeNum === null || Number.isNaN(codeNum) ? null : codeNum);
           }
         }
 
@@ -284,7 +285,7 @@ export function LedgerView({ onNavigateToTransfer }: LedgerViewProps) {
         return {
           id: a.id,
           name: a.name,
-          code: isNaN(code as number) ? null : code,
+          code: code === null || Number.isNaN(code) ? null : code,
           label: a.code ? `${a.name} - ${a.code}` : a.name,
         };
       });
@@ -327,13 +328,13 @@ export function LedgerView({ onNavigateToTransfer }: LedgerViewProps) {
 
     for (const acc of allAccounts) {
       if (acc.code !== null) {
-        if (acc.code >= 1000 && acc.code <= 1999) {
+        if (acc.code >= ACCOUNT_CODE_RANGES.BANK_MIN && acc.code <= ACCOUNT_CODE_RANGES.BANK_MAX) {
           banks.push(acc);
-        } else if (acc.code >= 2000 && acc.code <= 2999) {
+        } else if (acc.code >= ACCOUNT_CODE_RANGES.CREDIT_CARD_MIN && acc.code <= ACCOUNT_CODE_RANGES.CREDIT_CARD_MAX) {
           cards.push(acc);
-        } else if (acc.code >= 63000 && acc.code <= 63999) {
+        } else if (acc.code >= ACCOUNT_CODE_RANGES.RE_ASSET_MIN && acc.code <= ACCOUNT_CODE_RANGES.RE_ASSET_MAX) {
           reAssets.push(acc);
-        } else if (acc.code >= 64000 && acc.code <= 64999) {
+        } else if (acc.code >= ACCOUNT_CODE_RANGES.RE_MORTGAGE_MIN && acc.code <= ACCOUNT_CODE_RANGES.RE_MORTGAGE_MAX) {
           reLiabilities.push(acc);
         }
       }

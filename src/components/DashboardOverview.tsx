@@ -1,15 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatCurrency } from '../utils/format';
-import {
-  isBankCode,
-  isBusinessCardCode,
-  isPersonalCardCode,
-  isPersonalDebtCode,
-  isHelocCode,
-  classifyLine,
-  type ClassifiableLineInput,
-} from '../utils/accounts';
+import { classifyLine, type ClassifiableLineInput } from '../utils/accounts';
 import { BalancesCard, type AccountBalance } from './shared/BalancesCard';
 
 type RealEstateDeal = {
@@ -103,7 +95,7 @@ export function DashboardOverview() {
           ),
           transactions!inner ( date )
         `)
-        //.eq('is_cleared', true)
+        // NOTE: Intentionally including all transactions (cleared + pending) for complete financial picture
         .gte('transactions.date', startDate)
         .lte('transactions.date', endDate);
 
@@ -192,29 +184,6 @@ export function DashboardOverview() {
   if (loading) return <p>Loading...</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
 
-  // Sort accounts by code
-  const sortAccounts = (accounts: AccountBalance[]) => {
-    return [...accounts].sort((a, b) => {
-      const codeA = a.account_code || '99999';
-      const codeB = b.account_code || '99999';
-      return codeA.localeCompare(codeB);
-    });
-  };
-
-  // Categorize accounts using new code structure
-  const cashAccounts = sortAccounts(accountBalances.filter((acc) => isBankCode(acc.account_code)));
-  const bizCardAccounts = sortAccounts(accountBalances.filter((acc) => isBusinessCardCode(acc.account_code)));
-  const personalCardAccounts = sortAccounts(accountBalances.filter((acc) => isPersonalCardCode(acc.account_code)));
-  const personalDebtAccounts = sortAccounts(accountBalances.filter((acc) => isPersonalDebtCode(acc.account_code)));
-  const helocAccounts = sortAccounts(accountBalances.filter((acc) => isHelocCode(acc.account_code)));
-
-  const totalCash = cashAccounts.reduce((sum, a) => sum + Number(a.balance), 0);
-  const totalBizCards = bizCardAccounts.reduce((sum, a) => sum + Math.abs(Number(a.balance)), 0);
-  const totalPersonalCards = personalCardAccounts.reduce((sum, a) => sum + Math.abs(Number(a.balance)), 0);
-  const totalPersonalDebt = personalDebtAccounts.reduce((sum, a) => sum + Math.abs(Number(a.balance)), 0);
-  const totalHeloc = helocAccounts.reduce((sum, a) => sum + Math.abs(Number(a.balance)), 0);
-  const totalAllCards = totalBizCards + totalPersonalCards;
-
   // RE portfolio calculations
   // Loan balances are NEGATIVE (amount owed)
   const rePortfolio = realEstateDeals.map((deal) => {
@@ -230,11 +199,6 @@ export function DashboardOverview() {
   });
 
   const totalEquity = rePortfolio.reduce((sum, p) => sum + p.equity, 0);
-
-  // Liquid position
-  const totalLiabilities = totalAllCards + totalPersonalDebt + totalHeloc;
-  const liquidNet = totalCash - totalLiabilities;
-  const totalNetWorth = liquidNet + totalEquity;
 
   // Job metrics - just count closed jobs
   const jobCount = jobs.length;

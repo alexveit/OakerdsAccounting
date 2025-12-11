@@ -110,6 +110,8 @@ export function BalancesCard({
   const helocAccounts = sortAccounts(accounts.filter((a) => isHelocCode(a.account_code)));
 
   // Calculate totals
+  // NOTE: Liability balances from account_balances_v are POSITIVE when money is owed
+  // (the view handles the sign flip for credit-normal accounts)
   const totalCash = cashAccounts.reduce((sum, a) => sum + a.balance, 0);
   const totalBizCards = bizCardAccounts.reduce((sum, a) => sum + a.balance, 0);
   const totalPersonalCards = personalCardAccounts.reduce((sum, a) => sum + a.balance, 0);
@@ -118,7 +120,7 @@ export function BalancesCard({
   const totalAllCards = totalBizCards + totalPersonalCards;
   const totalAllLiabilities = totalAllCards + totalHELOC + totalPersonalDebt;
 
-  // Net calculations
+  // Net calculations (liabilities are positive, so we subtract them)
   const liquidNet = totalCash - totalAllLiabilities;
   const netWorth = liquidNet + reEquity;
 

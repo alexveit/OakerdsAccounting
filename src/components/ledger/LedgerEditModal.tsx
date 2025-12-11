@@ -32,6 +32,29 @@ type LineInfo = {
   accountType: string;
 };
 
+// Raw shapes from Supabase queries
+type RawAccountRow = {
+  id: number;
+  name: string;
+  code: string | null;
+  account_type_id: number;
+  account_types: { name: string } | null;
+};
+
+type RawLineRow = {
+  id: number;
+  account_id: number;
+  amount: number;
+  accounts: { account_types: { name: string } | null } | null;
+};
+
+type RawDetailLineRow = {
+  job_id: number | null;
+  vendor_id: number | null;
+  installer_id: number | null;
+  accounts: { account_types: { name: string } | null } | null;
+};
+
 export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditModalProps) {
   const [editDate, setEditDate] = useState(row.date);
   const [editDescription, setEditDescription] = useState(row.description ?? '');
@@ -70,7 +93,7 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
 
         if (accErr) throw accErr;
 
-        const allAccts = (accounts ?? []) as any[];
+        const allAccts = (accounts ?? []) as unknown as RawAccountRow[];
 
         // Cash accounts: asset or liability
         const cashAccs = allAccts
@@ -105,7 +128,7 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
 
         if (lineErr) throw lineErr;
 
-        const typedLines = (lines ?? []) as any[];
+        const typedLines = (lines ?? []) as unknown as RawLineRow[];
         
         // Build line info for later use
         const parsedLines: LineInfo[] = typedLines.map((l) => ({
@@ -152,10 +175,11 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
           .eq('transaction_id', row.transaction_id);
         
         // Find the category line (income/expense) to get job/vendor/installer
-        const catLine = (detailLines ?? []).find((l: any) => {
+        const typedDetailLines = (detailLines ?? []) as unknown as RawDetailLineRow[];
+        const catLine = typedDetailLines.find((l) => {
           const typeName = l.accounts?.account_types?.name;
           return typeName === 'income' || typeName === 'expense';
-        }) as { job_id: number | null; vendor_id: number | null; installer_id: number | null } | undefined;
+        });
         
         if (catLine) {
           setEditJobId(catLine.job_id);

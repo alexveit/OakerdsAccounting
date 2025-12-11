@@ -95,16 +95,6 @@ export function WholesaleOperationsView() {
     };
   }, []);
 
-  const currency = (value: number) =>
-    value.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    });
-
-  const number = (value: number, digits = 1) =>
-    value.toFixed(digits).replace(/\.0+$/, '');
-
   return (
     <div>
       <h3 style={{ marginTop: 0 }}>Wholesale Pipeline</h3>

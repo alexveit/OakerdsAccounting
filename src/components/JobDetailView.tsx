@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatLocalDate, todayLocalISO } from '../utils/date';
 import { computeCcBalances } from '../utils/ccTracking';
@@ -93,9 +93,23 @@ export function JobDetailView({
     }
   });
 
-  // Persist expanded state to localStorage
+  // Ref for debouncing localStorage writes
+  const expandedJobsSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Persist expanded state to localStorage with debounce
   useEffect(() => {
-    localStorage.setItem('jobDetailView_expandedJobs', JSON.stringify(expandedJobs));
+    if (expandedJobsSaveRef.current) {
+      clearTimeout(expandedJobsSaveRef.current);
+    }
+    expandedJobsSaveRef.current = setTimeout(() => {
+      localStorage.setItem('jobDetailView_expandedJobs', JSON.stringify(expandedJobs));
+    }, 300);
+
+    return () => {
+      if (expandedJobsSaveRef.current) {
+        clearTimeout(expandedJobsSaveRef.current);
+      }
+    };
   }, [expandedJobs]);
 
   // CC Settle modal state

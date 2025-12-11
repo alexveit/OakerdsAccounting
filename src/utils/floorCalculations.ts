@@ -401,7 +401,7 @@ export function runBinPacking(needs: Measurement[]): { placed: PlacedPiece[]; ma
         bestHeuristic = result;
       }
     }
-    const annealedResult = simulatedAnnealing(needs, bestHeuristic);
+    const annealedResult = simulatedAnnealing(bestHeuristic);
     results.push(annealedResult);
   }
   
@@ -910,10 +910,7 @@ function packWithAggressiveGapFill(needs: Measurement[]): { placed: PlacedPiece[
  * Uses placement ORDER shuffling - repack with different piece orderings
  * to find better arrangements.
  */
-function simulatedAnnealing(
-  needs: Measurement[],
-  initialSolution: { placed: PlacedPiece[]; maxLength: number }
-): { placed: PlacedPiece[]; maxLength: number } {
+function simulatedAnnealing( initialSolution: { placed: PlacedPiece[]; maxLength: number } ): { placed: PlacedPiece[]; maxLength: number } {
   const n = initialSolution.placed.length;
   
   // Need at least 3 pieces to benefit from reordering
@@ -931,7 +928,6 @@ function simulatedAnnealing(
   let currentOrder = Array.from({ length: n }, (_, i) => i);
   let currentScore = initialSolution.maxLength;
   
-  let bestOrder = [...currentOrder];
   let bestScore = currentScore;
   let bestPlacement = initialSolution.placed;
   
@@ -1001,7 +997,6 @@ function simulatedAnnealing(
       currentScore = newScore;
       
       if (newScore < bestScore) {
-        bestOrder = [...newOrder];
         bestScore = newScore;
         bestPlacement = result.placed;
       }

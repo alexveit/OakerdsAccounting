@@ -25,12 +25,25 @@ export function MobileFloorCalc() {
   // localStorage key for persisting calculator state
   const STORAGE_KEY = 'oakerds_mobile_floor_calc';
 
+  // Persisted state shape from localStorage
+  type PersistedState = {
+    mode?: 'carpet' | 'hardwood';
+    stepCount?: string;
+    addSlippage?: boolean;
+    wastePercent?: string;
+    boxSqFt?: string;
+    measurements?: Measurement[];
+    nextId?: number;
+    carpetResult?: CarpetResult | null;
+    hardwoodResult?: HardwoodResult | null;
+  };
+
   // Load persisted state from localStorage
-  const loadPersistedState = () => {
+  const loadPersistedState = (): PersistedState | null => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        return JSON.parse(saved) as PersistedState;
       }
     } catch (e) {
       console.error('Failed to load calculator state:', e);
@@ -58,7 +71,7 @@ export function MobileFloorCalc() {
   
   // Measurements
   const [measurements, setMeasurements] = useState<Measurement[]>(persistedState?.measurements || []);
-  const [nextId, setNextId] = useState(persistedState?.nextId || 1);
+  const [nextId, setNextId] = useState<number>(persistedState?.nextId || 1);
   
   // Bulk entry
   const [bulkText, setBulkText] = useState('');
@@ -471,10 +484,10 @@ export function MobileFloorCalc() {
               }}>
                 <span style={{ color: '#4ade80' }}>✓ {bulkPreview.validCount}</span>
                 {bulkPreview.errorCount > 0 && (
-                  <span style={{ color: '#f87171' }}>✗ {bulkPreview.errorCount}</span>
+                  <span style={{ color: '#f87171' }}>âœ— {bulkPreview.errorCount}</span>
                 )}
                 {bulkPreview.warningCount > 0 && (
-                  <span style={{ color: '#fbbf24' }}>⚠ {bulkPreview.warningCount}</span>
+                  <span style={{ color: '#fbbf24' }}>âš  {bulkPreview.warningCount}</span>
                 )}
               </div>
               
@@ -496,11 +509,11 @@ export function MobileFloorCalc() {
                   >
                     <span style={{ fontFamily: 'monospace', color: '#9ca3af' }}>{entry.raw}</span>
                     {entry.error ? (
-                      <span style={{ color: '#f87171' }}>✗</span>
+                      <span style={{ color: '#f87171' }}>âœ—</span>
                     ) : entry.measurement ? (
                       <span style={{ color: entry.warning ? '#fbbf24' : '#4ade80' }}>
                         {formatFeetInches(entry.measurement.widthTotal)}×{formatFeetInches(entry.measurement.lengthTotal)}
-                        {entry.warning && ' ⚠'}
+                        {entry.warning && ' âš '}
                       </span>
                     ) : null}
                   </div>
@@ -681,7 +694,7 @@ export function MobileFloorCalc() {
               color: '#92400e',
               marginBottom: 16,
             }}>
-              ⚠️ <strong>Rotated 90°</strong> — Measurements flipped (W↔L) to reduce waste.
+              âš ï¸ <strong>Rotated 90°</strong> "” Measurements flipped (W←”L) to reduce waste.
             </div>
           )}
 

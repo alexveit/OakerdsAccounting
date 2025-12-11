@@ -106,7 +106,7 @@ export function ProfitSummary() {
             ),
             transactions!inner (date)
           `)
-          //.eq('is_cleared', true)
+          // NOTE: Intentionally including all transactions (cleared + pending) for complete P&L picture
           .gte('transactions.date', startDate)
           .lte('transactions.date', endDate);
 

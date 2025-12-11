@@ -606,7 +606,7 @@ export function BankImportView() {
             onClick={handleSync}
             disabled={!plaidConnected}
           >
-            ðŸ”„ Sync from Bank
+            Ã°Å¸""ž Sync from Bank
           </button>
           {!plaidConnected && (
             <span style={{ marginLeft: 16, color: '#6b7280' }}>
@@ -630,7 +630,7 @@ export function BankImportView() {
       )}
 
       {/* Review Table */}
-      {processingState === 'review' && reviewTransactions.length > 0 && (
+      {(processingState === 'review' || processingState === 'committing') && reviewTransactions.length > 0 && (
         <div style={sectionStyle}>
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -735,7 +735,7 @@ export function BankImportView() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ color: '#6b7280', fontSize: 12 }}>"”</span>
+                          <span style={{ color: '#6b7280', fontSize: 12 }}>""</span>
                         )}
                       </td>
                       <td style={tdStyle}>
@@ -754,7 +754,7 @@ export function BankImportView() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ color: '#6b7280', fontSize: 12 }}>"”</span>
+                          <span style={{ color: '#6b7280', fontSize: 12 }}>""</span>
                         )}
                       </td>
                       <td style={tdStyle}>
@@ -770,7 +770,7 @@ export function BankImportView() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ color: '#6b7280', fontSize: 12 }}>"”</span>
+                          <span style={{ color: '#6b7280', fontSize: 12 }}>""</span>
                         )}
                       </td>
                     </tr>

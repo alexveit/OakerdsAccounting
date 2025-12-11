@@ -330,7 +330,7 @@ export function NewTransactionForm({
       setError('Category is required.');
       return;
     }
-    if (!amt || amt <= 0) { setError('Amount must be greater than 0.'); return; }
+    if (!Number.isFinite(amt) || amt <= 0) { setError('Amount must be a positive number.'); return; }
 
     // Flip expense validation
     if (dealId && isFlipDeal && txType === 'expense' && !isMortgagePayment) {
@@ -844,7 +844,7 @@ export function NewTransactionForm({
         {dealId && isFlipDeal && txType === 'expense' && costType && (
           <div style={{ fontSize: 12, color: '#666', marginTop: '-0.5rem' }}>
             Account: {
-              { L: 'RE "“ Flip Rehab Labor', M: 'RE "“ Flip Rehab Materials', S: 'RE "“ Flip Services', I: 'RE "“ Flip Interest', H: 'RE "“ Flip Holding Costs' }[costType]
+              { L: 'RE - Flip Rehab Labor', M: 'RE - Flip Rehab Materials', S: 'RE - Flip Services', I: 'RE - Flip Interest', H: 'RE - Flip Holding Costs' }[costType]
             }
           </div>
         )}

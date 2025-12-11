@@ -348,7 +348,7 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle menu"
         >
-          {mobileMenuOpen ? '✕' : '☰'}
+          {mobileMenuOpen ? 'X' : '='}
         </button>
         <div className="mobile-header-title">
           <img
@@ -393,7 +393,7 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {sidebarCollapsed ? '▶' : '◀'}
+          {sidebarCollapsed ? '>' : '<'}
         </button>
 
         {/* New Entry Button */}
@@ -431,7 +431,7 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
                     style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                   >
                     <span>{section.title}</span>
-                    <span style={{ fontSize: 10, opacity: 0.6 }}>{isCollapsed ? '▶' : '▼'}</span>
+                    <span style={{ fontSize: 10, opacity: 0.6 }}>{isCollapsed ? '>' : 'v'}</span>
                   </div>
                 )}
                 {(!section.title || !isCollapsed) && section.items.map(({ view: navView, label, icon }) => (

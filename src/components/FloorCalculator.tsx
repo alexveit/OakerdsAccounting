@@ -4,13 +4,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   type Measurement,
-  type PlacedPiece,
   type CarpetResult,
   type HardwoodResult,
   type BulkParseResult,
   ROLL_WIDTH_INCHES,
   ROLL_WIDTH_FEET,
-  //TEST_MEASUREMENTS,
   formatFeetInches,
   formatDimensions,
   createMeasurement,
@@ -43,11 +41,25 @@ export function FloorCalculator() {
   const STORAGE_KEY = 'oakerds_floor_calc';
 
   // Load persisted state from localStorage
-  const loadPersistedState = () => {
+  type PersistedState = {
+    mode?: 'carpet' | 'hardwood';
+    stepCount?: string;
+    addSlippage?: boolean;
+    wastePercent?: string;
+    boxSqFt?: string;
+    measurements?: Measurement[];
+    nextId?: number;
+    result?: CalculationResult | null;
+    needsMaxLength?: number;
+    standardLength?: number;
+    hardwoodResult?: HardwoodResult | null;
+  };
+
+  const loadPersistedState = (): PersistedState | null => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        return JSON.parse(saved) as PersistedState;
       }
     } catch (e) {
       console.error('Failed to load calculator state:', e);
@@ -77,7 +89,7 @@ export function FloorCalculator() {
 
   // Measurements list
   const [measurements, setMeasurements] = useState<Measurement[]>(persistedState?.measurements || []);
-  const [nextId, setNextId] = useState(persistedState?.nextId || 1);
+  const [nextId, setNextId] = useState<number>(persistedState?.nextId || 1);
 
   // Bulk entry
   const [bulkText, setBulkText] = useState('');
@@ -86,8 +98,8 @@ export function FloorCalculator() {
 
   // Calculation results - load from persisted state
   const [result, setResult] = useState<CalculationResult | null>(persistedState?.result || null);
-  const [needsMaxLength, setNeedsMaxLength] = useState(persistedState?.needsMaxLength || 0);
-  const [standardLength, setStandardLength] = useState(persistedState?.standardLength || 0);
+  const [needsMaxLength, setNeedsMaxLength] = useState<number>(persistedState?.needsMaxLength || 0);
+  const [standardLength, setStandardLength] = useState<number>(persistedState?.standardLength || 0);
   const [isCalculating, setIsCalculating] = useState(false);
 
   // Hardwood results
@@ -98,26 +110,44 @@ export function FloorCalculator() {
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // Persist state to localStorage whenever relevant values change
+  // Ref for debouncing localStorage writes
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Persist state to localStorage with debounce (prevents rapid-fire saves)
   useEffect(() => {
-    const stateToSave = {
-      mode,
-      stepCount,
-      addSlippage,
-      wastePercent,
-      boxSqFt,
-      measurements,
-      nextId,
-      result,
-      needsMaxLength,
-      standardLength,
-      hardwoodResult,
-    };
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
-    } catch (e) {
-      console.error('Failed to save calculator state:', e);
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
+
+    // Debounce: save after 500ms of no changes
+    saveTimeoutRef.current = setTimeout(() => {
+      const stateToSave = {
+        mode,
+        stepCount,
+        addSlippage,
+        wastePercent,
+        boxSqFt,
+        measurements,
+        nextId,
+        result,
+        needsMaxLength,
+        standardLength,
+        hardwoodResult,
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+      } catch (e) {
+        console.error('Failed to save calculator state:', e);
+      }
+    }, 500);
+
+    // Cleanup on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [mode, stepCount, addSlippage, wastePercent, boxSqFt, measurements, nextId, result, needsMaxLength, standardLength, hardwoodResult]);
 
   // -------------------------------------------------------------------------
@@ -732,10 +762,10 @@ export function FloorCalculator() {
                       }}>
                         <span style={{ color: '#22c55e' }}>✓ {bulkPreview.validCount} valid</span>
                         {bulkPreview.errorCount > 0 && (
-                          <span style={{ color: '#ef4444' }}>✗ {bulkPreview.errorCount} errors</span>
+                          <span style={{ color: '#ef4444' }}>âœ— {bulkPreview.errorCount} errors</span>
                         )}
                         {bulkPreview.warningCount > 0 && (
-                          <span style={{ color: '#f59e0b' }}>⚠ {bulkPreview.warningCount} warnings</span>
+                          <span style={{ color: '#f59e0b' }}>âš  {bulkPreview.warningCount} warnings</span>
                         )}
                       </div>
                       
@@ -757,11 +787,11 @@ export function FloorCalculator() {
                           >
                             <span style={{ fontFamily: 'monospace', color: '#666' }}>{entry.raw}</span>
                             {entry.error ? (
-                              <span style={{ color: '#ef4444' }}>✗ {entry.error}</span>
+                              <span style={{ color: '#ef4444' }}>âœ— {entry.error}</span>
                             ) : entry.measurement ? (
                               <span style={{ color: entry.warning ? '#f59e0b' : '#22c55e' }}>
-                                → {formatDimensions(entry.measurement)}
-                                {entry.warning && <span style={{ marginLeft: 4 }}>⚠</span>}
+                                ←’ {formatDimensions(entry.measurement)}
+                                {entry.warning && <span style={{ marginLeft: 4 }}>âš </span>}
                               </span>
                             ) : null}
                           </div>
@@ -965,7 +995,7 @@ export function FloorCalculator() {
                     fontSize: 13,
                     color: '#92400e',
                   }}>
-                    ⚠️ <strong>Rotated 90°</strong> — Measurements were flipped (W↔L) to reduce waste. Cut carpet accordingly.
+                    âš ï¸ <strong>Rotated 90°</strong> "” Measurements were flipped (W←”L) to reduce waste. Cut carpet accordingly.
                   </div>
                 )}
               </div>
