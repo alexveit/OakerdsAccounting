@@ -206,7 +206,7 @@ export function AnalyticsExpenses() {
           flip: sortAndLimit(flipExpenses),
           personal: sortAndLimit(personalExpenses),
         });
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error loading expense data:', err);
       }
     }

@@ -78,7 +78,7 @@ export function CategoriesSummaryView() {
 
         if (lineErr) throw lineErr;
 
-        setLines((data ?? []) as any[]);
+        setLines((data ?? []) as unknown as RawLine[]);
         setLoading(false);
       } catch (err: unknown) {
         console.error(err);

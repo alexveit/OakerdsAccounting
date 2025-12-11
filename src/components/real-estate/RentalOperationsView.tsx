@@ -236,7 +236,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
 
       if (linesErr) throw linesErr;
 
-      const lines = (linesData ?? []) as any[] as RawLine[];
+      const lines = (linesData ?? []) as unknown as RawLine[];
 
       // Fetch loan account balances for equity calculations
       const loanAccountIds = rentalDeals

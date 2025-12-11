@@ -4,6 +4,35 @@ import { formatCurrency } from '../../utils/format';
 import { isRentalIncomeCode, isRentalExpenseCode, isFlipExpenseCode } from '../../utils/accounts';
 import * as XLSX from 'xlsx';
 
+// Raw query shapes from Supabase
+type RawTaxLine = {
+  id: number;
+  account_id: number;
+  amount: number;
+  purpose: string | null;
+  job_id: number | null;
+  installer_id: number | null;
+  accounts: {
+    name: string;
+    code: string | null;
+    account_types: { name: string } | null;
+  } | null;
+  transactions: { date: string } | null;
+};
+
+type RawContractorPaymentLine = {
+  amount: number;
+  installer_id: number;
+  installers: {
+    first_name: string | null;
+    last_name: string | null;
+    company_name: string | null;
+    tax_id: string | null;
+    address: string | null;
+  } | null;
+  transactions: { date: string } | null;
+};
+
 type TaxYear = number;
 
 type ScheduleCRow = {
@@ -66,7 +95,7 @@ export function TaxExportView() {
 
       if (linesErr) throw linesErr;
 
-      const lines = (linesData ?? []) as any[];
+      const lines = (linesData ?? []) as unknown as RawTaxLine[];
 
       const schedCIncomeMap = new Map<number, ScheduleCRow>();
       const schedCExpenseMap = new Map<number, ScheduleCRow>();
@@ -183,7 +212,7 @@ export function TaxExportView() {
 
       if (paymentsErr) throw paymentsErr;
 
-      const payments = (paymentsData ?? []) as any[];
+      const payments = (paymentsData ?? []) as unknown as RawContractorPaymentLine[];
       const contractorMap = new Map<number, ContractorPayment>();
 
       for (const payment of payments) {

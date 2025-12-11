@@ -166,7 +166,7 @@ export function AnalyticsCashFlow() {
           });
 
         setCashFlowData(chartData);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error loading cash flow data:', err);
       }
     }

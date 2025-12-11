@@ -16,6 +16,37 @@ import type {
   ReviewTransaction,
 } from './bankImportTypes';
 
+// Raw query shapes from Supabase
+type RawPendingLineRow = {
+  id: number;
+  transaction_id: number;
+  amount: number;
+  transactions: { date: string; description: string | null } | null;
+  vendors: { name: string } | null;
+  jobs: { name: string } | null;
+  installers: { first_name: string | null; last_name: string | null; company_name: string | null } | null;
+};
+
+type RawClearedLineRow = {
+  id: number;
+  transaction_id: number;
+  amount: number;
+  transactions: { date: string; description: string | null } | null;
+};
+
+type RawHistoryLineRow = {
+  amount: number;
+  transactions: { date: string; description: string | null } | null;
+  accounts: { code: string | null; name: string } | null;
+  vendors: { name: string } | null;
+  jobs: { name: string } | null;
+};
+
+type RawVendorRow = { id: number; name: string };
+type RawJobRow = { id: number; name: string; address: string | null; status: string | null };
+type RawInstallerRow = { id: number; first_name: string | null; last_name: string | null; company_name: string | null };
+type RawAccountRow = { id: number; code: string | null; name: string; account_type_id: number };
+
 type Account = {
   id: number;
   name: string;
@@ -213,7 +244,8 @@ export function BankImportView() {
 
       if (pendingErr) throw pendingErr;
 
-      const pendingTransactions: PendingTransaction[] = (pendingData ?? []).map((row: any) => {
+      const rawPending = (pendingData ?? []) as unknown as RawPendingLineRow[];
+      const pendingTransactions: PendingTransaction[] = rawPending.map((row) => {
         const installer = row.installers;
         let installerName: string | null = null;
         if (installer) {
@@ -260,7 +292,8 @@ export function BankImportView() {
 
       if (clearedErr) throw clearedErr;
 
-      const clearedTransactions: ClearedTransaction[] = (clearedData ?? []).map((row: any) => ({
+      const rawCleared = (clearedData ?? []) as unknown as RawClearedLineRow[];
+      const clearedTransactions: ClearedTransaction[] = rawCleared.map((row) => ({
         line_id: row.id,
         transaction_id: row.transaction_id,
         date: row.transactions?.date ?? '',
@@ -290,7 +323,8 @@ export function BankImportView() {
 
       if (historyErr) throw historyErr;
 
-      const recentHistory: HistoricalTransaction[] = (historyData ?? []).map((row: any) => ({
+      const rawHistory = (historyData ?? []) as unknown as RawHistoryLineRow[];
+      const recentHistory: HistoricalTransaction[] = rawHistory.map((row) => ({
         date: row.transactions?.date ?? '',
         description: row.transactions?.description ?? null,
         amount: Number(row.amount),
@@ -318,21 +352,27 @@ export function BankImportView() {
       if (installersRes.error) throw installersRes.error;
       if (accountsRes.error) throw accountsRes.error;
 
-      const vendors = (vendorsRes.data ?? []).map((v: any) => ({ id: v.id, name: v.name }));
-      const jobs = (jobsRes.data ?? [])
-        .filter((j: any) => j.status !== 'closed')
-        .map((j: any) => ({ id: j.id, name: j.name, address: j.address, status: j.status ?? 'open' }));
-      const installers = (installersRes.data ?? []).map((i: any) => ({
+      const rawVendors = (vendorsRes.data ?? []) as unknown as RawVendorRow[];
+      const vendors = rawVendors.map((v) => ({ id: v.id, name: v.name }));
+
+      const rawJobs = (jobsRes.data ?? []) as unknown as RawJobRow[];
+      const jobs = rawJobs
+        .filter((j) => j.status !== 'closed')
+        .map((j) => ({ id: j.id, name: j.name, address: j.address ?? '', status: j.status ?? 'open' }));
+
+      const rawInstallers = (installersRes.data ?? []) as unknown as RawInstallerRow[];
+      const installers = rawInstallers.map((i) => ({
         id: i.id,
         name: i.company_name || [i.first_name, i.last_name].filter(Boolean).join(' '),
       }));
-      const allAccounts = accountsRes.data ?? [];
-      const expenseAccounts = allAccounts
-        .filter((a: any) => a.account_type_id === 5 && a.code)
-        .map((a: any) => ({ id: a.id, code: a.code, name: a.name }));
-      const incomeAccounts = allAccounts
-        .filter((a: any) => a.account_type_id === 4 && a.code)
-        .map((a: any) => ({ id: a.id, code: a.code, name: a.name }));
+
+      const rawAccounts = (accountsRes.data ?? []) as unknown as RawAccountRow[];
+      const expenseAccounts = rawAccounts
+        .filter((a) => a.account_type_id === 5 && a.code)
+        .map((a) => ({ id: a.id, code: a.code!, name: a.name }));
+      const incomeAccounts = rawAccounts
+        .filter((a) => a.account_type_id === 4 && a.code)
+        .map((a) => ({ id: a.id, code: a.code!, name: a.name }));
 
       const refData: ReferenceData = { vendors, jobs, installers, expenseAccounts, incomeAccounts };
       setReferenceData(refData);

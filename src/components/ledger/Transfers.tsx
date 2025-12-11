@@ -183,7 +183,7 @@ export function Transfers({
         });
 
         setAllAccounts(accountsWithBalances);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Failed to load accounts for Transfers view', err);
         setAccountsError('Failed to load accounts.');
       } finally {

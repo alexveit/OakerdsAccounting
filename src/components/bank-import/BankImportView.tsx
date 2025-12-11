@@ -82,6 +82,28 @@ type ReferenceData = {
   incomeAccounts: { id: number; code: string; name: string }[];
 };
 
+// Raw query shapes from Supabase
+type RawPendingLineRow = {
+  id: number;
+  transaction_id: number;
+  amount: number;
+  transactions: { date: string; description: string | null } | null;
+  vendors: { name: string } | null;
+  jobs: { name: string } | null;
+};
+
+type RawClearedLineRow = {
+  id: number;
+  transaction_id: number;
+  amount: number;
+  transactions: { date: string; description: string | null } | null;
+};
+
+type RawVendorRow = { id: number; name: string };
+type RawJobRow = { id: number; name: string; address: string | null; status: string | null };
+type RawAccountRow = { id: number; code: string | null; name: string; account_type_id: number };
+type RawMappingRow = { merchant_name: string; vendor_id: number | null; default_account_id: number | null; default_job_id: number | null };
+
 type ProcessingState = 'idle' | 'syncing' | 'matching' | 'review' | 'committing';
 
 // ============================================================================
@@ -204,7 +226,8 @@ export function BankImportView() {
 
       if (pendingErr) throw pendingErr;
 
-      const pendingDBTransactions: PendingDBTransaction[] = (pendingData ?? []).map((row: any) => ({
+      const rawPending = (pendingData ?? []) as unknown as RawPendingLineRow[];
+      const pendingDBTransactions: PendingDBTransaction[] = rawPending.map((row) => ({
         line_id: row.id,
         transaction_id: row.transaction_id,
         date: row.transactions?.date ?? '',
@@ -231,7 +254,8 @@ export function BankImportView() {
 
       if (clearedErr) throw clearedErr;
 
-      const clearedDBTransactions: ClearedDBTransaction[] = (clearedData ?? []).map((row: any) => ({
+      const rawCleared = (clearedData ?? []) as unknown as RawClearedLineRow[];
+      const clearedDBTransactions: ClearedDBTransaction[] = rawCleared.map((row) => ({
         line_id: row.id,
         transaction_id: row.transaction_id,
         date: row.transactions?.date ?? '',
@@ -247,23 +271,28 @@ export function BankImportView() {
         supabase.from('merchant_mappings').select('merchant_name, vendor_id, default_account_id, default_job_id'),
       ]);
 
-      const vendors = (vendorsRes.data ?? []).map((v: any) => ({ id: v.id, name: v.name }));
-      const jobs = (jobsRes.data ?? [])
-        .filter((j: any) => j.status !== 'closed')
-        .map((j: any) => ({ id: j.id, name: j.name, address: j.address }));
-      const allAccounts = accountsRes.data ?? [];
-      const expenseAccounts = allAccounts
-        .filter((a: any) => a.account_type_id === 5 && a.code)
-        .map((a: any) => ({ id: a.id, code: a.code, name: a.name }));
-      const incomeAccounts = allAccounts
-        .filter((a: any) => a.account_type_id === 4 && a.code)
-        .map((a: any) => ({ id: a.id, code: a.code, name: a.name }));
+      const rawVendors = (vendorsRes.data ?? []) as unknown as RawVendorRow[];
+      const vendors = rawVendors.map((v) => ({ id: v.id, name: v.name }));
+
+      const rawJobs = (jobsRes.data ?? []) as unknown as RawJobRow[];
+      const jobs = rawJobs
+        .filter((j) => j.status !== 'closed')
+        .map((j) => ({ id: j.id, name: j.name, address: j.address ?? '' }));
+
+      const rawAccounts = (accountsRes.data ?? []) as unknown as RawAccountRow[];
+      const expenseAccounts = rawAccounts
+        .filter((a) => a.account_type_id === 5 && a.code)
+        .map((a) => ({ id: a.id, code: a.code!, name: a.name }));
+      const incomeAccounts = rawAccounts
+        .filter((a) => a.account_type_id === 4 && a.code)
+        .map((a) => ({ id: a.id, code: a.code!, name: a.name }));
 
       setReferenceData({ vendors, jobs, expenseAccounts, incomeAccounts });
 
       // Build merchant mappings lookup
       const mappingMap = new Map<string, MerchantMapping>();
-      (mappingsRes.data || []).forEach((m: any) => {
+      const rawMappings = (mappingsRes.data ?? []) as unknown as RawMappingRow[];
+      rawMappings.forEach((m) => {
         mappingMap.set(m.merchant_name.toLowerCase(), m);
       });
       setMerchantMappings(mappingMap);
@@ -379,7 +408,7 @@ export function BankImportView() {
       setReviewTransactions(reviewTxns);
       setProcessingState('review');
 
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Sync error:', err);
       setError(err instanceof Error ? err.message : 'Failed to sync transactions');
       setProcessingState('idle');
@@ -390,7 +419,7 @@ export function BankImportView() {
   // UPDATE TRANSACTION FIELDS
   // ============================================================================
 
-  function updateTransaction(index: number, field: keyof ReviewTransaction, value: any) {
+  function updateTransaction(index: number, field: keyof ReviewTransaction, value: ReviewTransaction[keyof ReviewTransaction]) {
     setReviewTransactions(prev => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
@@ -516,7 +545,7 @@ export function BankImportView() {
       setReviewTransactions([]);
       setProcessingState('idle');
 
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Commit error:', err);
       setError(err instanceof Error ? err.message : 'Failed to commit transactions');
       setProcessingState('review');

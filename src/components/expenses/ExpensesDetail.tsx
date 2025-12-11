@@ -177,7 +177,7 @@ export function ExpenseByCategory() {
 
         if (lineErr) throw lineErr;
 
-        const raw: RawLine[] = (data ?? []) as any[];
+        const raw: RawLine[] = (data ?? []) as unknown as RawLine[];
         setRawLines(raw);
 
         const totalsMap = new Map<number, { account_name: string; total: number }>();
@@ -200,9 +200,9 @@ export function ExpenseByCategory() {
 
         setRows(aggregated);
         setLoading(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message ?? 'Failed to load expense data');
+        setError(err instanceof Error ? err.message : 'Failed to load expense data');
         setLoading(false);
       }
     }

@@ -22,6 +22,22 @@ type PlaidTransaction = {
   account_id: string;
 };
 
+// Plaid Link metadata type (minimal shape based on usage)
+type PlaidLinkMetadata = {
+  institution?: {
+    name?: string;
+    institution_id?: string;
+  } | null;
+  accounts?: Array<{
+    id: string;
+    name: string;
+    mask: string | null;
+    type: string;
+    subtype: string;
+  }>;
+  link_session_id?: string;
+};
+
 export function PlaidLinkView() {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [plaidItems, setPlaidItems] = useState<PlaidItem[]>([]);
@@ -79,7 +95,7 @@ export function PlaidLinkView() {
       } else {
         setLinkToken(data.link_token);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create link token');
     } finally {
       setLoading(false);
@@ -88,7 +104,7 @@ export function PlaidLinkView() {
 
   // Handle successful Plaid Link connection
   const onSuccess = useCallback(
-    async (publicToken: string, metadata: any) => {
+    async (publicToken: string, metadata: PlaidLinkMetadata) => {
       setLoading(true);
       setError(null);
 
@@ -123,7 +139,7 @@ export function PlaidLinkView() {
           setLinkToken(null);
           fetchPlaidItems();
         }
-      } catch (err) {
+      } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to exchange token');
       } finally {
         setLoading(false);
@@ -180,7 +196,7 @@ export function PlaidLinkView() {
         setTransactions(data.transactions || []);
         setSuccessMessage(`Synced ${data.count} transactions`);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sync transactions');
     } finally {
       setSyncing(false);

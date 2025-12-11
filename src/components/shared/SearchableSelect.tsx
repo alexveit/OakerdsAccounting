@@ -103,7 +103,7 @@ export function SearchableSelect({
       if (newId !== null) {
         onChange(newId);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to create:', err);
     } finally {
       setIsCreating(false);

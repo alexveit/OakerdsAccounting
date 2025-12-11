@@ -258,7 +258,7 @@ export function PlaidTransactionReview({ transactions, onComplete }: Props) {
         if (mappingError) console.warn('Mapping save failed:', mappingError);
 
         successCount++;
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Failed to create transaction:', err);
       }
     }

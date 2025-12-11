@@ -10,6 +10,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Plaid transaction shape from API
+type PlaidSyncTransaction = {
+  transaction_id: string;
+  date: string;
+  amount: number;
+  name: string;
+  merchant_name: string | null;
+  category: string[];
+  pending: boolean;
+  account_id: string;
+};
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -53,7 +65,7 @@ serve(async (req) => {
     }
 
     const plaidItem = plaidItems[0];
-    const allTransactions: any[] = [];
+    const allTransactions: PlaidSyncTransaction[] = [];
     let hasMore = true;
     let cursor = plaidItem.cursor || undefined;
 
@@ -113,8 +125,9 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
