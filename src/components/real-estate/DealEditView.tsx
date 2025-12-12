@@ -6,8 +6,9 @@ import { NewRealEstateDealForm } from './NewRealEstateDealForm';
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-type DealType = 'rental' | 'flip' | 'wholesale';
+type DealType = 'rental' | 'flip' | 'wholesale' | 'personal';
 type DealStatus = 'active' | 'in_contract' | 'rehab' | 'stabilized' | 'sold' | 'failed';
+type PaymentFrequency = 'monthly' | 'semimonthly' | 'biweekly';
 
 type RealEstateDeal = {
   id: number;
@@ -40,6 +41,7 @@ type RealEstateDeal = {
   loan_term_months: number | null;
   original_loan_amount: number | null;
   first_payment_date: string | null;
+  payment_frequency: PaymentFrequency | null;
   created_at: string;
   updated_at: string;
 };
@@ -66,6 +68,13 @@ type Job = {
 type DealsManageViewProps = {
   initialSelectedId?: number | null;
   onSelectionUsed?: () => void;
+};
+
+const TYPE_LABELS: Record<DealType, string> = {
+  rental: 'Rental',
+  flip: 'Flip',
+  wholesale: 'Wholesale',
+  personal: 'Personal',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -110,6 +119,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
   const [interestRate, setInterestRate] = useState('');
   const [loanTermMonths, setLoanTermMonths] = useState('');
   const [firstPaymentDate, setFirstPaymentDate] = useState('');
+  const [paymentFrequency, setPaymentFrequency] = useState<PaymentFrequency>('monthly');
   const [assetAccountId, setAssetAccountId] = useState<number | null>(null);
   const [loanAccountId, setLoanAccountId] = useState<number | null>(null);
   const [jobId, setJobId] = useState<number | null>(null);
@@ -246,6 +256,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
     setInterestRate('');
     setLoanTermMonths('');
     setFirstPaymentDate('');
+    setPaymentFrequency('monthly');
     setAssetAccountId(null);
     setLoanAccountId(null);
     setJobId(null);
@@ -277,6 +288,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
     setInterestRate(numToStr(deal.interest_rate));
     setLoanTermMonths(numToStr(deal.loan_term_months));
     setFirstPaymentDate(deal.first_payment_date || '');
+    setPaymentFrequency(deal.payment_frequency || 'monthly');
     setAssetAccountId(deal.asset_account_id);
     setLoanAccountId(deal.loan_account_id);
     setJobId(deal.job_id);
@@ -331,6 +343,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
       interest_rate: parseNumber(interestRate),
       loan_term_months: parseNumber(loanTermMonths),
       first_payment_date: firstPaymentDate || null,
+      payment_frequency: paymentFrequency,
       asset_account_id: assetAccountId,
       loan_account_id: loanAccountId,
       job_id: jobId,
@@ -521,7 +534,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                 <option value="">-- Choose a deal --</option>
                 {deals.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.nickname} ({d.type}) -- {d.status}
+                    {d.nickname} ({TYPE_LABELS[d.type]}) -- {d.status}
                   </option>
                 ))}
               </select>
@@ -611,6 +624,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                 <option value="rental">Rental</option>
                 <option value="flip">Flip</option>
                 <option value="wholesale">Wholesale</option>
+                <option value="personal">Personal Residence</option>
               </select>
             </label>
 
@@ -634,33 +648,35 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                 <option value="in_contract">In Contract</option>
                 <option value="rehab">Rehab</option>
                 <option value="stabilized">Stabilized</option>
-                <option value="sold">Sold</option>
+                {type !== 'personal' && <option value="sold">Sold</option>}
                 <option value="failed">Failed / Archived</option>
               </select>
             </label>
 
-            <label style={labelStyle}>
-              Linked Job
-              <select
-                value={jobId ?? ''}
-                onChange={(e) =>
-                  setJobId(e.target.value ? Number(e.target.value) : null)
-                }
-              >
-                <option value="">— None —</option>
-                {jobs.map((j) => (
-                  <option key={j.id} value={j.id}>
-                    {j.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {type !== 'personal' && (
+              <label style={labelStyle}>
+                Linked Job
+                <select
+                  value={jobId ?? ''}
+                  onChange={(e) =>
+                    setJobId(e.target.value ? Number(e.target.value) : null)
+                  }
+                >
+                  <option value="">— None —</option>
+                  {jobs.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             {/* ─────────────── DATES ─────────────── */}
             <div style={sectionStyle}>Dates</div>
 
             <label style={labelStyle}>
-              Start Date
+              {type === 'personal' ? 'Purchase Date' : 'Start Date'}
               <input
                 type="date"
                 value={startDate}
@@ -677,17 +693,21 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
               />
             </label>
 
-            <label style={labelStyle}>
-              Sell Date
-              <input
-                type="date"
-                value={sellDate}
-                onChange={(e) => setSellDate(e.target.value)}
-              />
-            </label>
+            {type !== 'personal' && (
+              <label style={labelStyle}>
+                Sell Date
+                <input
+                  type="date"
+                  value={sellDate}
+                  onChange={(e) => setSellDate(e.target.value)}
+                />
+              </label>
+            )}
 
             {/* ─────────────── ECONOMICS ─────────────── */}
-            <div style={sectionStyle}>Economics</div>
+            <div style={sectionStyle}>
+              {type === 'personal' ? 'Property Value' : 'Economics'}
+            </div>
 
             <label style={labelStyle}>
               Purchase Price
@@ -700,83 +720,98 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
             </label>
 
             <label style={labelStyle}>
-              ARV
+              {type === 'personal' ? 'Current Market Value' : 'ARV'}
               <input
                 type="number"
                 step="0.01"
                 value={arv}
                 onChange={(e) => setArv(e.target.value)}
               />
+              {type === 'personal' && (
+                <span style={{ fontSize: 11, color: '#888' }}>
+                  Used for equity calculation
+                </span>
+              )}
             </label>
 
-            <label style={labelStyle}>
-              Rehab Budget
-              <input
-                type="number"
-                step="0.01"
-                value={rehabBudget}
-                onChange={(e) => setRehabBudget(e.target.value)}
-              />
-            </label>
+            {type !== 'personal' && (
+              <>
+                <label style={labelStyle}>
+                  Rehab Budget
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={rehabBudget}
+                    onChange={(e) => setRehabBudget(e.target.value)}
+                  />
+                </label>
 
-            <label style={labelStyle}>
-              Rehab Spent
-              <input
-                type="number"
-                step="0.01"
-                value={rehabSpent}
-                onChange={(e) => setRehabSpent(e.target.value)}
-              />
-            </label>
+                <label style={labelStyle}>
+                  Rehab Spent
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={rehabSpent}
+                    onChange={(e) => setRehabSpent(e.target.value)}
+                  />
+                </label>
 
-            <label style={labelStyle}>
-              Closing Costs Estimate
-              <input
-                type="number"
-                step="0.01"
-                value={closingCostsEstimate}
-                onChange={(e) => setClosingCostsEstimate(e.target.value)}
-              />
-            </label>
+                <label style={labelStyle}>
+                  Closing Costs Estimate
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={closingCostsEstimate}
+                    onChange={(e) => setClosingCostsEstimate(e.target.value)}
+                  />
+                </label>
 
-            <label style={labelStyle}>
-              Sale Price
-              <input
-                type="number"
-                step="0.01"
-                value={salePrice}
-                onChange={(e) => setSalePrice(e.target.value)}
-              />
-            </label>
+                <label style={labelStyle}>
+                  Sale Price
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={salePrice}
+                    onChange={(e) => setSalePrice(e.target.value)}
+                  />
+                </label>
+              </>
+            )}
 
             {/* ─────────────── WHOLESALE / ASSIGNMENT ─────────────── */}
-            <div style={sectionStyle}>Assignment Fees (Wholesale)</div>
+            {type === 'wholesale' && (
+              <>
+                <div style={sectionStyle}>Assignment Fees (Wholesale)</div>
 
-            <label style={labelStyle}>
-              Expected Assignment Fee
-              <input
-                type="number"
-                step="0.01"
-                value={expectedAssignmentFee}
-                onChange={(e) => setExpectedAssignmentFee(e.target.value)}
-              />
-            </label>
+                <label style={labelStyle}>
+                  Expected Assignment Fee
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={expectedAssignmentFee}
+                    onChange={(e) => setExpectedAssignmentFee(e.target.value)}
+                  />
+                </label>
 
-            <label style={labelStyle}>
-              Actual Assignment Fee
-              <input
-                type="number"
-                step="0.01"
-                value={actualAssignmentFee}
-                onChange={(e) => setActualAssignmentFee(e.target.value)}
-              />
-            </label>
+                <label style={labelStyle}>
+                  Actual Assignment Fee
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={actualAssignmentFee}
+                    onChange={(e) => setActualAssignmentFee(e.target.value)}
+                  />
+                </label>
+              </>
+            )}
 
             {/* ─────────────── FINANCING ─────────────── */}
-            <div style={sectionStyle}>Financing</div>
+            <div style={sectionStyle}>
+              {type === 'personal' ? 'Mortgage' : 'Financing'}
+            </div>
 
             <label style={labelStyle}>
-              Original Loan Amount
+              {type === 'personal' ? 'Current Loan Balance' : 'Original Loan Amount'}
               <input
                 type="number"
                 step="0.01"
@@ -818,6 +853,18 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
             </label>
 
             <label style={labelStyle}>
+              Payment Frequency
+              <select
+                value={paymentFrequency}
+                onChange={(e) => setPaymentFrequency(e.target.value as PaymentFrequency)}
+              >
+                <option value="monthly">Monthly (12/year)</option>
+                <option value="semimonthly">Semi-monthly (24/year)</option>
+                <option value="biweekly">Bi-weekly (26/year)</option>
+              </select>
+            </label>
+
+            <label style={labelStyle}>
               Asset Account
               <select
                 value={assetAccountId ?? ''}
@@ -851,20 +898,24 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
               </select>
             </label>
 
-            {/* ─────────────── RENTAL OPERATIONS ─────────────── */}
-            {type === 'rental' && (
+            {/* ─────────────── RENTAL/PERSONAL OPERATIONS ─────────────── */}
+            {(type === 'rental' || type === 'personal') && (
               <>
-                <div style={sectionStyle}>Rental Operations</div>
+                <div style={sectionStyle}>
+                  {type === 'personal' ? 'Monthly Costs (Reference)' : 'Rental Operations'}
+                </div>
 
-                <label style={labelStyle}>
-                  Monthly Rent
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={rentalMonthlyRent}
-                    onChange={(e) => setRentalMonthlyRent(e.target.value)}
-                  />
-                </label>
+                {type === 'rental' && (
+                  <label style={labelStyle}>
+                    Monthly Rent
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={rentalMonthlyRent}
+                      onChange={(e) => setRentalMonthlyRent(e.target.value)}
+                    />
+                  </label>
+                )}
 
                 <label style={labelStyle}>
                   Monthly Mortgage Payment

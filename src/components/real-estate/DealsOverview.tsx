@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatMoney } from '../../utils/format';
 
-type DealType = 'rental' | 'flip' | 'wholesale';
+type DealType = 'rental' | 'flip' | 'wholesale' | 'personal';
 type DealStatus = 'active' | 'in_contract' | 'rehab' | 'stabilized' | 'sold' | 'failed';
 
 type DealSummary = {
@@ -35,6 +35,7 @@ const TYPE_LABELS: Record<DealType, string> = {
   rental: 'Rental',
   flip: 'Flip',
   wholesale: 'Wholesale',
+  personal: 'Personal',
 };
 
 export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
@@ -78,6 +79,7 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
     rental: deals.filter((d) => d.type === 'rental' && d.status !== 'failed').length,
     flip: deals.filter((d) => d.type === 'flip' && d.status !== 'failed').length,
     wholesale: deals.filter((d) => d.type === 'wholesale' && d.status !== 'failed').length,
+    personal: deals.filter((d) => d.type === 'personal' && d.status !== 'failed').length,
     archived: deals.filter((d) => d.status === 'failed').length,
   };
 
@@ -95,7 +97,7 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
           gap: '1rem',
           marginBottom: '1.5rem',
         }}
@@ -111,6 +113,10 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
         <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
           <div style={{ fontSize: 24, fontWeight: 600 }}>{summary.wholesale}</div>
           <div style={{ fontSize: 12, color: '#666' }}>Wholesales</div>
+        </div>
+        <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
+          <div style={{ fontSize: 24, fontWeight: 600 }}>{summary.personal}</div>
+          <div style={{ fontSize: 12, color: '#666' }}>Personal</div>
         </div>
       </div>
 
@@ -135,6 +141,7 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
             <option value="rental">Rentals</option>
             <option value="flip">Flips</option>
             <option value="wholesale">Wholesales</option>
+            <option value="personal">Personal</option>
           </select>
         </label>
 
@@ -165,7 +172,9 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
                 <th style={{ padding: '0.5rem' }}>Type</th>
                 <th style={{ padding: '0.5rem' }}>Status</th>
                 <th style={{ padding: '0.5rem', textAlign: 'right' }}>Purchase</th>
-                <th style={{ padding: '0.5rem', textAlign: 'right' }}>ARV</th>
+                <th style={{ padding: '0.5rem', textAlign: 'right' }}>
+                  {filterType === 'personal' ? 'Market Value' : 'ARV'}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -188,7 +197,19 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
                 >
                   <td style={{ padding: '0.5rem', fontWeight: 500 }}>{deal.nickname}</td>
                   <td style={{ padding: '0.5rem', color: '#666' }}>{deal.address || '-'}</td>
-                  <td style={{ padding: '0.5rem' }}>{TYPE_LABELS[deal.type]}</td>
+                  <td style={{ padding: '0.5rem' }}>
+                    <span
+                      style={{
+                        padding: '0.15rem 0.4rem',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        backgroundColor: deal.type === 'personal' ? '#f3e5f5' : '#f5f5f5',
+                        color: deal.type === 'personal' ? '#7b1fa2' : '#666',
+                      }}
+                    >
+                      {TYPE_LABELS[deal.type]}
+                    </span>
+                  </td>
                   <td style={{ padding: '0.5rem' }}>
                     <span
                       style={{
@@ -202,7 +223,9 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
                               ? '#ffebee'
                               : deal.status === 'rehab'
                                 ? '#fff3e0'
-                                : '#e3f2fd',
+                                : deal.status === 'stabilized'
+                                  ? '#e8f5e9'
+                                  : '#e3f2fd',
                         color:
                           deal.status === 'sold'
                             ? '#2e7d32'
@@ -210,7 +233,9 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
                               ? '#c62828'
                               : deal.status === 'rehab'
                                 ? '#e65100'
-                                : '#1565c0',
+                                : deal.status === 'stabilized'
+                                  ? '#2e7d32'
+                                  : '#1565c0',
                       }}
                     >
                       {STATUS_LABELS[deal.status]}

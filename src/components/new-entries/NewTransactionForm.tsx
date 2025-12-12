@@ -50,6 +50,7 @@ type RealEstateDeal = {
   loan_term_months: number | null;
   close_date: string | null;
   first_payment_date: string | null;
+  payment_frequency: 'monthly' | 'semimonthly' | 'biweekly' | null;
   rental_monthly_taxes: number | null;
   rental_monthly_insurance: number | null;
 };
@@ -159,7 +160,7 @@ export function NewTransactionForm({
           .select(`
             id, nickname, address, type, status, loan_account_id,
             original_loan_amount, interest_rate, loan_term_months, close_date,
-            first_payment_date, rental_monthly_taxes, rental_monthly_insurance
+            first_payment_date, payment_frequency, rental_monthly_taxes, rental_monthly_insurance
           `)
           .order('id', { ascending: true });
         if (dealsErr) throw dealsErr;
@@ -291,6 +292,7 @@ export function NewTransactionForm({
         termMonths: deal.loan_term_months!,
         startDate: deal.close_date!,
         firstPaymentDate: deal.first_payment_date || undefined,
+        paymentFrequency: deal.payment_frequency || 'monthly',
         rentalMonthlyTaxes: deal.rental_monthly_taxes || 0,
         rentalMonthlyInsurance: deal.rental_monthly_insurance || 0,
       },
@@ -585,9 +587,20 @@ export function NewTransactionForm({
       if (!deal) { setError('Deal not found.'); setSaving(false); return; }
       if (!deal.loan_account_id) { setError('Deal has no loan account.'); setSaving(false); return; }
 
-      const interestAccount = accounts.find((a) => a.code === ACCOUNT_CODES.RENTAL_MORTGAGE_INTEREST);
-      const escrowAccount = accounts.find((a) => a.code === ACCOUNT_CODES.RENTAL_TAXES_INSURANCE);
-      if (!interestAccount || !escrowAccount) { setError('Missing RE accounts.'); setSaving(false); return; }
+      // Determine purpose and accounts based on deal type
+      const isPersonal = deal.type === 'personal';
+      const purpose = isPersonal ? 'personal' : 'business';
+      
+      const interestCode = isPersonal ? ACCOUNT_CODES.PERSONAL_MORTGAGE_INTEREST : ACCOUNT_CODES.RENTAL_MORTGAGE_INTEREST;
+      const escrowCode = isPersonal ? ACCOUNT_CODES.PERSONAL_TAXES_INSURANCE : ACCOUNT_CODES.RENTAL_TAXES_INSURANCE;
+      
+      const interestAccount = accounts.find((a) => a.code === interestCode);
+      const escrowAccount = accounts.find((a) => a.code === escrowCode);
+      if (!interestAccount || !escrowAccount) { 
+        setError(`Missing ${isPersonal ? 'personal' : 'rental'} mortgage accounts (${interestCode}, ${escrowCode}).`); 
+        setSaving(false); 
+        return; 
+      }
 
       const cash_id = Number(cashAccountId);
       const principal = Number(editablePrincipal) || 0;
@@ -602,15 +615,15 @@ export function NewTransactionForm({
       }
 
       const lines: TransactionLineInput[] = [];
-      lines.push({ account_id: cash_id, amount: -mortgagePreview.total, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: 'business', is_cleared: isCleared });
-      if (principal > 0) lines.push({ account_id: deal.loan_account_id!, amount: principal, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: 'business', is_cleared: isCleared });
-      if (interestPortion > 0) lines.push({ account_id: interestAccount.id, amount: interestPortion, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: 'business', is_cleared: isCleared });
-      if (escrowPortion > 0) lines.push({ account_id: escrowAccount.id, amount: escrowPortion, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose: 'business', is_cleared: isCleared });
+      lines.push({ account_id: cash_id, amount: -mortgagePreview.total, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose, is_cleared: isCleared });
+      if (principal > 0) lines.push({ account_id: deal.loan_account_id!, amount: principal, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose, is_cleared: isCleared });
+      if (interestPortion > 0) lines.push({ account_id: interestAccount.id, amount: interestPortion, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose, is_cleared: isCleared });
+      if (escrowPortion > 0) lines.push({ account_id: escrowAccount.id, amount: escrowPortion, job_id: null, vendor_id: null, installer_id: null, real_estate_deal_id, purpose, is_cleared: isCleared });
 
       const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
         p_date: date,
         p_description: description || `Mortgage payment - ${deal.nickname}`,
-        p_purpose: 'business',
+        p_purpose: purpose,
         p_lines: lines,
       });
       if (rpcErr) throw rpcErr;

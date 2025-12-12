@@ -24,6 +24,7 @@ import { FloorCalculator } from './components/FloorCalculator';
 import { VersionTag } from './components/shared/VersionTag';
 import { PlaidLinkView } from './components/bank-import/PlaidLinkView';
 import PrivacyPolicy from './components/PrivacyPolicy';
+import { PeriodCloseView } from './components/settings/PeriodCloseView';
 
 type View =
   | 'dashboard'
@@ -44,7 +45,8 @@ type View =
   | 'analytics'
   | 'priceList'
   | 'floorCalc'
-  | 'privacy';
+  | 'privacy'
+  | 'periodClose';
 
 type NavSection = {
   title: string | null;
@@ -79,6 +81,7 @@ const NAV_SECTIONS: NavSection[] = [
       { view: 'expenses', label: 'Expenses by Category', icon: '📋' },
       { view: 'profitSummary', label: 'Profit Summary', icon: '💰' },
       { view: 'taxExport', label: 'Tax Exports', icon: '📄' },
+      { view: 'periodClose', label: 'Period Close', icon: '🔒' },
     ],
   },
   {
@@ -111,6 +114,7 @@ const VIEW_COMPONENTS: Record<View, React.ComponentType<any>> = {
   priceList: PriceListView,
   floorCalc: FloorCalculator,
   privacy: PrivacyPolicy,
+  periodClose: PeriodCloseView,
 };
 
 function shouldShowMobileView(): boolean {

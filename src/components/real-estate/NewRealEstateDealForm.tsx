@@ -5,9 +5,10 @@ import { ACCOUNT_CODE_RANGES, ACCOUNT_TYPE_IDS } from '../../utils/accounts';
 // Owner Equity account ID - used for balancing mortgage opening entries
 const OWNER_EQUITY_ACCOUNT_ID = 10;
 
-type DealType = 'rental' | 'flip' | 'wholesale';
+type DealType = 'rental' | 'flip' | 'wholesale' | 'personal';
 type DealStatus = 'active' | 'in_contract' | 'rehab' | 'listed' | 'under_contract' | 'stabilized' | 'sold' | 'failed';
 type LoanType = 'hard_money' | 'conventional' | 'heloc' | 'private' | 'other';
+type PaymentFrequency = 'monthly' | 'semimonthly' | 'biweekly';
 
 type Props = {
   onCreated?: () => void;
@@ -27,7 +28,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
 
   // Economics - Acquisition
   const [purchasePrice, setPurchasePrice] = useState('');
-  const [assignmentFeePaid, setAssignmentFeePaid] = useState(''); // NEW: Fee paid TO wholesaler
+  const [assignmentFeePaid, setAssignmentFeePaid] = useState(''); // Fee paid TO wholesaler
   const [arv, setArv] = useState('');
   const [rehabBudget, setRehabBudget] = useState('');
   const [closingCostsEstimate, setClosingCostsEstimate] = useState('');
@@ -36,15 +37,16 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   // Financing (conditionally shown)
   const [isFinanced, setIsFinanced] = useState(false);
   const [loanType, setLoanType] = useState<LoanType>('hard_money');
-  const [lenderName, setLenderName] = useState(''); // NEW: Who is the lender
+  const [lenderName, setLenderName] = useState('');
   const [originalLoanAmount, setOriginalLoanAmount] = useState('');
-  const [rehabHoldback, setRehabHoldback] = useState(''); // NEW: Amount held in escrow for draws
+  const [rehabHoldback, setRehabHoldback] = useState('');
   const [interestRate, setInterestRate] = useState('');
   const [loanTermMonths, setLoanTermMonths] = useState('');
   const [firstPaymentDate, setFirstPaymentDate] = useState('');
-  const [isInterestOnly, setIsInterestOnly] = useState(true); // Most hard money is interest-only
+  const [isInterestOnly, setIsInterestOnly] = useState(true);
+  const [paymentFrequency, setPaymentFrequency] = useState<PaymentFrequency>('monthly');
 
-  // Rental operations
+  // Rental/Personal residence operations
   const [rentalMonthlyRent, setRentalMonthlyRent] = useState('');
   const [rentalMonthlyMortgage, setRentalMonthlyMortgage] = useState('');
   const [rentalMonthlyTaxes, setRentalMonthlyTaxes] = useState('');
@@ -63,9 +65,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
+  // ═══════════════════════════════════════════════════════════════════════════
   // Computed values for display
-  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
+  // ═══════════════════════════════════════════════════════════════════════════
 
   const purchasePriceNum = parseNumber(purchasePrice) ?? 0;
   const assignmentFeeNum = parseNumber(assignmentFeePaid) ?? 0;
@@ -93,9 +95,12 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   // Cash to close estimate
   const estimatedCashToClose = totalAcquisitionCost + closingCostsNum - loanToClosingTable;
 
-  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
+  // Personal property equity calculation
+  const personalEquity = arvNum - loanAmountNum;
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // Helpers
-  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
+  // ═══════════════════════════════════════════════════════════════════════════
 
   function parseNumber(val: string): number | null {
     if (!val.trim()) return null;
@@ -154,7 +159,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     );
   }
 
-  async function createDealAccounts(dealNickname: string): Promise<{
+  async function createDealAccounts(dealNickname: string, dealType: DealType): Promise<{
     assetAccountId: number;
     loanAccountId: number;
   }> {
@@ -171,15 +176,18 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     };
     const loanLabel = loanTypeLabels[loanType];
 
+    // Personal properties get 'personal' purpose, everything else is 'business'
+    const purposeDefault = dealType === 'personal' ? 'personal' : 'business';
+
     // Create asset account (63xxx range)
     const { data: assetData, error: assetError } = await supabase
       .from('accounts')
       .insert({
-        name: `RE ?EUR" Asset ${dealNickname}`,
+        name: `RE – Asset ${dealNickname}`,
         code: assetCode,
         account_type_id: ACCOUNT_TYPE_IDS.ASSET,
         is_active: true,
-        purpose_default: 'business',
+        purpose_default: purposeDefault,
       })
       .select('id')
       .single();
@@ -190,11 +198,11 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     const { data: loanData, error: loanError } = await supabase
       .from('accounts')
       .insert({
-        name: `RE ?EUR" ${loanLabel} ${dealNickname}`,
+        name: `RE – ${loanLabel} ${dealNickname}`,
         code: loanCode,
         account_type_id: ACCOUNT_TYPE_IDS.LIABILITY,
         is_active: true,
-        purpose_default: 'business',
+        purpose_default: purposeDefault,
       })
       .select('id')
       .single();
@@ -207,9 +215,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     };
   }
 
-  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
+  // ═══════════════════════════════════════════════════════════════════════════
   // Submit
-  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
+  // ═══════════════════════════════════════════════════════════════════════════
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -258,7 +266,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
 
       // Create accounts if financed
       if (isFinanced) {
-        const accounts = await createDealAccounts(nickname.trim());
+        const accounts = await createDealAccounts(nickname.trim(), type);
         assetAccountId = accounts.assetAccountId;
         loanAccountId = accounts.loanAccountId;
       }
@@ -270,8 +278,11 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         fullNotes = fullNotes ? `${lenderInfo}. ${fullNotes}` : lenderInfo;
       }
 
+      // Personal properties get 'personal' purpose
+      const transactionPurpose = type === 'personal' ? 'personal' : 'business';
+
       // Build payload
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         type,
         status,
         nickname: nickname.trim(),
@@ -296,6 +307,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         interest_rate: isFinanced ? parseNumber(interestRate) : null,
         loan_term_months: isFinanced ? parseNumber(loanTermMonths) : null,
         first_payment_date: isFinanced && firstPaymentDate ? firstPaymentDate : null,
+        payment_frequency: isFinanced ? paymentFrequency : null,
         asset_account_id: assetAccountId,
         loan_account_id: loanAccountId,
       };
@@ -318,13 +330,13 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               account_id: loanAccountId,
               amount: -loanAmt,  // Liability - you owe this
               is_cleared: true,
-              purpose: 'business',
+              purpose: transactionPurpose,
             },
             {
               account_id: OWNER_EQUITY_ACCOUNT_ID,
               amount: loanAmt,   // Balancing entry to equity
               is_cleared: true,
-              purpose: 'business',
+              purpose: transactionPurpose,
             },
           ];
 
@@ -361,6 +373,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
       setInterestRate('');
       setLoanTermMonths('');
       setFirstPaymentDate('');
+      setPaymentFrequency('monthly');
       setLenderName('');
       setCloseDate('');
       setSellDate('');
@@ -383,9 +396,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     }
   }
 
-  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
+  // ═══════════════════════════════════════════════════════════════════════════
   // Styles
-  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
+  // ═══════════════════════════════════════════════════════════════════════════
 
   const labelStyle: React.CSSProperties = {
     display: 'flex',
@@ -420,9 +433,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
     padding: '0.25rem 0',
   };
 
-  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
+  // ═══════════════════════════════════════════════════════════════════════════
   // Render
-  // ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR
+  // ═══════════════════════════════════════════════════════════════════════════
 
   return (
     <div className="card">
@@ -447,13 +460,14 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           gap: '0.75rem 1rem',
         }}
       >
-        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR CORE INFO ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
+        {/* ═════════════════════ CORE INFO ═════════════════════ */}
         <label style={labelStyle}>
           Deal type
           <select value={type} onChange={(e) => setType(e.target.value as DealType)}>
             <option value="flip">Flip</option>
             <option value="rental">Rental</option>
             <option value="wholesale">Wholesale</option>
+            <option value="personal">Personal Residence</option>
           </select>
         </label>
 
@@ -463,10 +477,10 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
             <option value="active">Active (Underwriting)</option>
             <option value="in_contract">In Contract</option>
             <option value="rehab">Rehab</option>
-            <option value="listed">Listed</option>
-            <option value="under_contract">Under Contract (Sale)</option>
+            {type !== 'personal' && <option value="listed">Listed</option>}
+            {type !== 'personal' && <option value="under_contract">Under Contract (Sale)</option>}
             <option value="stabilized">Stabilized</option>
-            <option value="sold">Sold</option>
+            {type !== 'personal' && <option value="sold">Sold</option>}
             <option value="failed">Failed / Dead</option>
           </select>
         </label>
@@ -477,7 +491,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
             type="text"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            placeholder="e.g. 1437 Stoneleigh"
+            placeholder={type === 'personal' ? 'e.g. Home' : 'e.g. 1437 Stoneleigh'}
           />
         </label>
 
@@ -491,11 +505,11 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           />
         </label>
 
-        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR DATES ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
+        {/* ═════════════════════ DATES ═════════════════════ */}
         <div style={sectionStyle}>Dates</div>
 
         <label style={labelStyle}>
-          Start date (underwriting)
+          {type === 'personal' ? 'Purchase date' : 'Start date (underwriting)'}
           <input
             type="date"
             value={startDate}
@@ -504,7 +518,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         </label>
 
         <label style={labelStyle}>
-          Close date (acquisition)
+          Close date {type === 'personal' ? '' : '(acquisition)'}
           <input
             type="date"
             value={closeDate}
@@ -523,11 +537,13 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </label>
         )}
 
-        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR ACQUISITION COSTS ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
-        <div style={sectionStyle}>Acquisition</div>
+        {/* ═════════════════════ ACQUISITION COSTS ═════════════════════ */}
+        <div style={sectionStyle}>
+          {type === 'personal' ? 'Property Value' : 'Acquisition'}
+        </div>
 
         <label style={labelStyle}>
-          Purchase price (to seller)
+          Purchase price {type === 'personal' ? '' : '(to seller)'}
           <input
             type="number"
             step="0.01"
@@ -554,14 +570,19 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         )}
 
         <label style={labelStyle}>
-          ARV (After Repair Value)
+          {type === 'personal' ? 'Current Market Value' : 'ARV (After Repair Value)'}
           <input
             type="number"
             step="0.01"
             value={arv}
             onChange={(e) => setArv(e.target.value)}
-            placeholder="e.g. 350000"
+            placeholder={type === 'personal' ? 'e.g. 450000' : 'e.g. 350000'}
           />
+          {type === 'personal' && (
+            <span style={{ fontSize: 11, color: '#888' }}>
+              Used for equity calculation on dashboard
+            </span>
+          )}
         </label>
 
         {(type === 'flip' || type === 'rental') && (
@@ -601,7 +622,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </>
         )}
 
-        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR FINANCING ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
+        {/* ═════════════════════ FINANCING ═════════════════════ */}
         <div style={sectionStyle}>Financing</div>
 
         <label
@@ -618,7 +639,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
             checked={isFinanced}
             onChange={(e) => setIsFinanced(e.target.checked)}
           />
-          This deal is financed (mortgage / hard money / HELOC)
+          This {type === 'personal' ? 'property has a mortgage' : 'deal is financed (mortgage / hard money / HELOC)'}
         </label>
 
         {isFinanced && (
@@ -626,11 +647,21 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
             <label style={labelStyle}>
               Loan type
               <select value={loanType} onChange={(e) => setLoanType(e.target.value as LoanType)}>
-                <option value="hard_money">Hard Money</option>
-                <option value="conventional">Conventional Mortgage</option>
-                <option value="heloc">HELOC</option>
-                <option value="private">Private Lender</option>
-                <option value="other">Other</option>
+                {type === 'personal' ? (
+                  <>
+                    <option value="conventional">Conventional Mortgage</option>
+                    <option value="heloc">HELOC</option>
+                    <option value="other">Other</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="hard_money">Hard Money</option>
+                    <option value="conventional">Conventional Mortgage</option>
+                    <option value="heloc">HELOC</option>
+                    <option value="private">Private Lender</option>
+                    <option value="other">Other</option>
+                  </>
+                )}
               </select>
             </label>
 
@@ -640,12 +671,12 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
                 type="text"
                 value={lenderName}
                 onChange={(e) => setLenderName(e.target.value)}
-                placeholder="e.g. Silliman Private Lending LLC"
+                placeholder={type === 'personal' ? 'e.g. Wells Fargo' : 'e.g. Silliman Private Lending LLC'}
               />
             </label>
 
             <label style={labelStyle}>
-              Total loan amount
+              {type === 'personal' ? 'Current loan balance' : 'Total loan amount'}
               <input
                 type="number"
                 step="0.01"
@@ -653,9 +684,14 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
                 onChange={(e) => setOriginalLoanAmount(e.target.value)}
                 placeholder="e.g. 216423"
               />
+              {type === 'personal' && (
+                <span style={{ fontSize: 11, color: '#888' }}>
+                  Enter current balance owed
+                </span>
+              )}
             </label>
 
-            {(loanType === 'hard_money' || loanType === 'private') && (
+            {(loanType === 'hard_money' || loanType === 'private') && type !== 'personal' && (
               <label style={labelStyle}>
                 Rehab holdback (in escrow)
                 <input
@@ -680,7 +716,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
                 max="30"
                 value={interestRate}
                 onChange={(e) => setInterestRate(e.target.value)}
-                placeholder="e.g. 11.0"
+                placeholder={type === 'personal' ? 'e.g. 6.5' : 'e.g. 11.0'}
               />
             </label>
 
@@ -692,7 +728,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
                 min="1"
                 value={loanTermMonths}
                 onChange={(e) => setLoanTermMonths(e.target.value)}
-                placeholder="e.g. 12"
+                placeholder={type === 'personal' ? 'e.g. 360' : 'e.g. 12'}
               />
             </label>
 
@@ -705,24 +741,43 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label
-              style={{
-                ...labelStyle,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isInterestOnly}
-                onChange={(e) => setIsInterestOnly(e.target.checked)}
-              />
-              Interest-only payments
+            <label style={labelStyle}>
+              Payment frequency
+              <select
+                value={paymentFrequency}
+                onChange={(e) => setPaymentFrequency(e.target.value as PaymentFrequency)}
+              >
+                <option value="monthly">Monthly (12/year)</option>
+                <option value="semimonthly">Semi-monthly (24/year)</option>
+                <option value="biweekly">Bi-weekly (26/year)</option>
+              </select>
+              {paymentFrequency === 'biweekly' && (
+                <span style={{ fontSize: 11, color: '#888' }}>
+                  Every 14 days – pays off faster
+                </span>
+              )}
             </label>
 
-            {/* Loan summary */}
-            {loanAmountNum > 0 && (
+            {type !== 'personal' && (
+              <label
+                style={{
+                  ...labelStyle,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isInterestOnly}
+                  onChange={(e) => setIsInterestOnly(e.target.checked)}
+                />
+                Interest-only payments
+              </label>
+            )}
+
+            {/* Loan summary for non-personal */}
+            {loanAmountNum > 0 && type !== 'personal' && (
               <div style={{ ...summaryCardStyle, background: '#e3f2fd', borderColor: '#90caf9' }}>
                 <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1565c0' }}>
                   Loan Breakdown
@@ -748,7 +803,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </>
         )}
 
-        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR RENTAL OPERATIONS ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
+        {/* ═════════════════════ RENTAL OPERATIONS ═════════════════════ */}
         {type === 'rental' && (
           <>
             <div style={sectionStyle}>Rental Operations</div>
@@ -805,7 +860,57 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </>
         )}
 
-        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR WHOLESALE (when YOU are wholesaling) ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
+        {/* ═════════════════════ PERSONAL RESIDENCE MONTHLY COSTS ═════════════════════ */}
+        {type === 'personal' && (
+          <>
+            <div style={sectionStyle}>Monthly Costs (Optional)</div>
+            <p style={{ gridColumn: '1 / span 2', fontSize: 12, color: '#666', margin: '0 0 0.5rem 0' }}>
+              These are for reference only. Track actual payments in the ledger using personal expense accounts.
+            </p>
+
+            <label style={labelStyle}>
+              Monthly mortgage payment
+              <input
+                type="number"
+                step="0.01"
+                value={rentalMonthlyMortgage}
+                onChange={(e) => setRentalMonthlyMortgage(e.target.value)}
+              />
+            </label>
+
+            <label style={labelStyle}>
+              Monthly taxes
+              <input
+                type="number"
+                step="0.01"
+                value={rentalMonthlyTaxes}
+                onChange={(e) => setRentalMonthlyTaxes(e.target.value)}
+              />
+            </label>
+
+            <label style={labelStyle}>
+              Monthly insurance
+              <input
+                type="number"
+                step="0.01"
+                value={rentalMonthlyInsurance}
+                onChange={(e) => setRentalMonthlyInsurance(e.target.value)}
+              />
+            </label>
+
+            <label style={labelStyle}>
+              Monthly HOA (optional)
+              <input
+                type="number"
+                step="0.01"
+                value={rentalMonthlyHoa}
+                onChange={(e) => setRentalMonthlyHoa(e.target.value)}
+              />
+            </label>
+          </>
+        )}
+
+        {/* ═════════════════════ WHOLESALE (when YOU are wholesaling) ═════════════════════ */}
         {type === 'wholesale' && (
           <>
             <div style={sectionStyle}>Assignment Fee (Your Fee)</div>
@@ -832,7 +937,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </>
         )}
 
-        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR DEAL SUMMARY (Flip) ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
+        {/* ═════════════════════ DEAL SUMMARY (Flip) ═════════════════════ */}
         {type === 'flip' && (purchasePriceNum > 0 || arvNum > 0) && (
           <div style={{
             ...summaryCardStyle,
@@ -912,7 +1017,45 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </div>
         )}
 
-        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR NOTES ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
+        {/* ═════════════════════ PERSONAL PROPERTY EQUITY SUMMARY ═════════════════════ */}
+        {type === 'personal' && (arvNum > 0 || loanAmountNum > 0) && (
+          <div style={{
+            ...summaryCardStyle,
+            background: '#e8f5e9',
+            borderColor: '#a5d6a7',
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#2e7d32' }}>
+              Equity Summary
+            </div>
+            
+            <div style={summaryRowStyle}>
+              <span>Market Value:</span>
+              <span>{formatCurrency(arvNum)}</span>
+            </div>
+            <div style={summaryRowStyle}>
+              <span>Loan Balance:</span>
+              <span>({formatCurrency(loanAmountNum)})</span>
+            </div>
+            <div style={{ 
+              ...summaryRowStyle, 
+              fontWeight: 700, 
+              fontSize: 15,
+              color: personalEquity >= 0 ? '#2e7d32' : '#c62828',
+              borderTop: '1px solid #a5d6a7',
+              paddingTop: '0.5rem',
+            }}>
+              <span>= Equity:</span>
+              <span>{formatCurrency(personalEquity)}</span>
+            </div>
+
+            <p style={{ fontSize: 11, color: '#666', margin: '0.75rem 0 0 0' }}>
+              This will appear in the Real Estate card on the dashboard.
+              Expenses will not be included in rental tax calculations.
+            </p>
+          </div>
+        )}
+
+        {/* ═════════════════════ NOTES ═════════════════════ */}
         <label style={{ ...labelStyle, gridColumn: '1 / span 2' }}>
           Notes
           <textarea
@@ -923,7 +1066,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           />
         </label>
 
-        {/* ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR SUBMIT ?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR?"EUR */}
+        {/* ═════════════════════ SUBMIT ═════════════════════ */}
         <div
           style={{
             gridColumn: '1 / span 2',
