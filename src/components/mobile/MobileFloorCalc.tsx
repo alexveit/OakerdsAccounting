@@ -279,64 +279,6 @@ export function MobileFloorCalc() {
   // STYLES
   // -------------------------------------------------------------------------
 
-  const inputStyle: React.CSSProperties = {
-    width: 50,
-    padding: '10px 8px',
-    fontSize: '16px',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    backgroundColor: '#1f2937',
-    color: '#f3f4f6',
-    textAlign: 'center',
-  };
-
-  const btnStyle: React.CSSProperties = {
-    padding: '12px 20px',
-    fontSize: '15px',
-    fontWeight: 600,
-    border: 'none',
-    borderRadius: 8,
-    cursor: 'pointer',
-  };
-
-  const primaryBtn: React.CSSProperties = {
-    ...btnStyle,
-    backgroundColor: '#3b82f6',
-    color: '#fff',
-  };
-
-  const secondaryBtn: React.CSSProperties = {
-    ...btnStyle,
-    backgroundColor: '#374151',
-    color: '#f3f4f6',
-  };
-
-  const deleteBtn: React.CSSProperties = {
-    padding: '6px 12px',
-    fontSize: '14px',
-    fontWeight: 600,
-    border: 'none',
-    borderRadius: 6,
-    backgroundColor: '#dc2626',
-    color: '#fff',
-    cursor: 'pointer',
-  };
-
-  const resultCard: React.CSSProperties = {
-    padding: 12,
-    borderRadius: 8,
-    textAlign: 'center',
-  };
-
-  const sectionTitle: React.CSSProperties = {
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#9ca3af',
-    textTransform: 'uppercase',
-    marginBottom: 12,
-    marginTop: 16,
-  };
-
   // -------------------------------------------------------------------------
   // RENDER
   // -------------------------------------------------------------------------
@@ -344,33 +286,15 @@ export function MobileFloorCalc() {
   return (
     <div style={styles.tabContent}>
       {/* Mode Toggle */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderRadius: 8, overflow: 'hidden', border: '1px solid #374151' }}>
+      <div className="mfc-mode-toggle">
         <button
-          style={{
-            flex: 1,
-            padding: '12px',
-            fontSize: 15,
-            fontWeight: 600,
-            border: 'none',
-            backgroundColor: mode === 'carpet' ? '#3b82f6' : '#1f2937',
-            color: mode === 'carpet' ? '#fff' : '#9ca3af',
-            cursor: 'pointer',
-          }}
+          className={`mfc-mode-btn ${mode === 'carpet' ? 'active' : ''}`}
           onClick={() => setMode('carpet')}
         >
           Carpet
         </button>
         <button
-          style={{
-            flex: 1,
-            padding: '12px',
-            fontSize: 15,
-            fontWeight: 600,
-            border: 'none',
-            backgroundColor: mode === 'hardwood' ? '#3b82f6' : '#1f2937',
-            color: mode === 'hardwood' ? '#fff' : '#9ca3af',
-            cursor: 'pointer',
-          }}
+          className={`mfc-mode-btn ${mode === 'hardwood' ? 'active' : ''}`}
           onClick={() => setMode('hardwood')}
         >
           Hardwood
@@ -378,49 +302,49 @@ export function MobileFloorCalc() {
       </div>
 
       {/* Add Measurement */}
-      <div style={sectionTitle}>Add Measurement</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-        <span style={{ color: '#9ca3af', fontSize: 14 }}>W:</span>
+      <div className="mfc-section-title">Add Measurement</div>
+      <div className="mfc-input-row">
+        <span className="mfc-input-label">W:</span>
         <input
           ref={widthFeetRef}
           type="number"
           placeholder="ft"
           value={widthFeet}
           onChange={e => setWidthFeet(e.target.value)}
-          style={inputStyle}
+          className="mfc-input"
         />
-        <span style={{ color: '#6b7280' }}>'</span>
+        <span className="mfc-input-symbol">'</span>
         <input
           type="number"
           placeholder="in"
           value={widthInches}
           onChange={e => setWidthInches(e.target.value)}
-          style={inputStyle}
+          className="mfc-input"
         />
-        <span style={{ color: '#6b7280' }}>"</span>
-        <span style={{ color: '#9ca3af', fontSize: 14, marginLeft: 8 }}>L:</span>
+        <span className="mfc-input-symbol">"</span>
+        <span className="mfc-input-label mfc-input-label--spaced">L:</span>
         <input
           type="number"
           placeholder="ft"
           value={lengthFeet}
           onChange={e => setLengthFeet(e.target.value)}
-          style={inputStyle}
+          className="mfc-input"
         />
-        <span style={{ color: '#6b7280' }}>'</span>
+        <span className="mfc-input-symbol">'</span>
         <input
           type="number"
           placeholder="in"
           value={lengthInches}
           onChange={e => setLengthInches(e.target.value)}
-          style={inputStyle}
+          className="mfc-input"
         />
-        <span style={{ color: '#6b7280' }}>"</span>
+        <span className="mfc-input-symbol">"</span>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <button style={primaryBtn} onClick={handleAdd}>Add</button>
-        <button style={secondaryBtn} onClick={handleClear}>Clear</button>
+      <div className="mfc-btn-row">
+        <button className="mfc-btn mfc-btn--primary" onClick={handleAdd}>Add</button>
+        <button className="mfc-btn mfc-btn--secondary" onClick={handleClear}>Clear</button>
         <button 
-          style={secondaryBtn} 
+          className="mfc-btn mfc-btn--secondary" 
           onClick={() => setShowBulkEntry(!showBulkEntry)}
         >
           {showBulkEntry ? 'Hide' : 'Bulk'}
@@ -429,16 +353,10 @@ export function MobileFloorCalc() {
       
       {/* Bulk Entry Section */}
       {showBulkEntry && (
-        <div style={{ 
-          marginBottom: 16, 
-          padding: 12, 
-          background: '#1f2937', 
-          borderRadius: 8,
-          border: '1px solid #374151' 
-        }}>
-          <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8 }}>
+        <div className="mfc-bulk-section">
+          <div className="mfc-bulk-hint">
             Paste measurements (comma or newline separated):<br/>
-            <code style={{ color: '#60a5fa' }}>LR 11.6x13.6, BR 10.3*12</code>
+            <code>LR 11.6x13.6, BR 10.3*12</code>
           </div>
           <textarea
             value={bulkText}
@@ -448,72 +366,45 @@ export function MobileFloorCalc() {
             }}
             placeholder="11.6x13.6, 10.3x12&#10;8.6x9.3"
             rows={3}
-            style={{
-              width: '100%',
-              padding: 10,
-              fontSize: 14,
-              fontFamily: 'monospace',
-              backgroundColor: '#111827',
-              color: '#f3f4f6',
-              border: '1px solid #374151',
-              borderRadius: 6,
-              resize: 'vertical',
-            }}
+            className="mfc-bulk-textarea"
           />
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button style={{ ...primaryBtn, flex: 1 }} onClick={handleBulkPreview}>
+          <div className="mfc-btn-row mfc-btn-row--mt">
+            <button className="mfc-btn mfc-btn--primary mfc-btn--flex" onClick={handleBulkPreview}>
               Preview
             </button>
-            <button style={{ ...secondaryBtn, flex: 1 }} onClick={handleBulkClear}>
+            <button className="mfc-btn mfc-btn--secondary mfc-btn--flex" onClick={handleBulkClear}>
               Clear
             </button>
           </div>
           
           {/* Preview Results */}
           {bulkPreview && (
-            <div style={{ marginTop: 12 }}>
+            <div className="mfc-bulk-preview">
               {/* Summary */}
-              <div style={{ 
-                display: 'flex', 
-                gap: 12, 
-                padding: 8, 
-                background: '#111827', 
-                borderRadius: 6,
-                marginBottom: 8,
-                fontSize: 12 
-              }}>
-                <span style={{ color: '#4ade80' }}>✓ {bulkPreview.validCount}</span>
+              <div className="mfc-bulk-preview-header">
+                <span className="valid">✓ {bulkPreview.validCount}</span>
                 {bulkPreview.errorCount > 0 && (
-                  <span style={{ color: '#f87171' }}>âœ— {bulkPreview.errorCount}</span>
+                  <span className="error">× {bulkPreview.errorCount}</span>
                 )}
                 {bulkPreview.warningCount > 0 && (
-                  <span style={{ color: '#fbbf24' }}>âš  {bulkPreview.warningCount}</span>
+                  <span className="warning">⚠ {bulkPreview.warningCount}</span>
                 )}
               </div>
               
               {/* Entry list */}
-              <div style={{ maxHeight: 150, overflowY: 'auto' }}>
+              <div className="mfc-bulk-preview-list">
                 {bulkPreview.entries.map((entry, i) => (
                   <div 
                     key={i} 
-                    style={{ 
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '6px 8px',
-                      background: entry.error ? '#450a0a' : entry.warning ? '#422006' : '#052e16',
-                      borderRadius: 4,
-                      marginBottom: 2,
-                      fontSize: 11,
-                    }}
+                    className={`mfc-bulk-preview-item ${entry.error ? 'mfc-bulk-preview-item--error' : entry.warning ? 'mfc-bulk-preview-item--warning' : 'mfc-bulk-preview-item--success'}`}
                   >
-                    <span style={{ fontFamily: 'monospace', color: '#9ca3af' }}>{entry.raw}</span>
+                    <code>{entry.raw}</code>
                     {entry.error ? (
-                      <span style={{ color: '#f87171' }}>âœ—</span>
+                      <span className="error">×</span>
                     ) : entry.measurement ? (
-                      <span style={{ color: entry.warning ? '#fbbf24' : '#4ade80' }}>
+                      <span className={entry.warning ? "icon-warning" : "icon-success"}>
                         {formatFeetInches(entry.measurement.widthTotal)}×{formatFeetInches(entry.measurement.lengthTotal)}
-                        {entry.warning && ' âš '}
+                        {entry.warning && ' ⚠'}
                       </span>
                     ) : null}
                   </div>
@@ -523,7 +414,7 @@ export function MobileFloorCalc() {
               {/* Add button */}
               {bulkPreview.valid.length > 0 && (
                 <button 
-                  style={{ ...primaryBtn, width: '100%', marginTop: 8, background: '#22c55e' }} 
+                  className="mfc-btn mfc-btn--primary mfc-btn--success mfc-btn--full mfc-btn--mt" 
                   onClick={handleBulkAdd}
                 >
                   Add {bulkPreview.validCount} Measurement{bulkPreview.validCount !== 1 ? 's' : ''}
@@ -535,75 +426,67 @@ export function MobileFloorCalc() {
       )}
 
       {/* Options */}
-      <div style={sectionTitle}>Options</div>
+      <div className="mfc-section-title">Options</div>
       {mode === 'carpet' ? (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <span style={{ color: '#9ca3af', fontSize: 14 }}>Steps:</span>
+        <div className="mfc-options">
+          <div className="mfc-option-row">
+            <span className="mfc-input-label">Steps:</span>
             <input
               type="number"
               placeholder="0"
               value={stepCount}
               onChange={e => setStepCount(e.target.value)}
-              style={{ ...inputStyle, width: 60 }}
+              className="mfc-input mfc-input--wide"
             />
-            <span style={{ color: '#6b7280', fontSize: 12 }}>(4'x2' each)</span>
+            <span className="mfc-option-hint">(4'x2' each)</span>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#f3f4f6', fontSize: 14 }}>
+          <label className="mfc-checkbox-label">
             <input
               type="checkbox"
               checked={addSlippage}
               onChange={e => setAddSlippage(e.target.checked)}
-              style={{ width: 20, height: 20 }}
+              className="mfc-checkbox"
             />
             Add 4" slippage
           </label>
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: '#9ca3af', fontSize: 14 }}>Waste:</span>
+        <div className="mfc-option-group">
+          <div className="mfc-option-field">
+            <span className="mfc-input-label">Waste:</span>
             <input
               type="number"
               value={wastePercent}
               onChange={e => setWastePercent(e.target.value)}
-              style={{ ...inputStyle, width: 50 }}
+              className="mfc-input"
             />
-            <span style={{ color: '#6b7280', fontSize: 12 }}>%</span>
+            <span className="mfc-option-hint">%</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: '#9ca3af', fontSize: 14 }}>Box:</span>
+          <div className="mfc-option-field">
+            <span className="mfc-input-label">Box:</span>
             <input
               type="number"
               value={boxSqFt}
               onChange={e => setBoxSqFt(e.target.value)}
-              style={{ ...inputStyle, width: 50 }}
+              className="mfc-input"
             />
-            <span style={{ color: '#6b7280', fontSize: 12 }}>sf</span>
+            <span className="mfc-option-hint">sf</span>
           </div>
         </div>
       )}
 
       {/* Measurements List */}
-      <div style={sectionTitle}>Measurements ({measurements.length})</div>
+      <div className="mfc-section-title">Measurements ({measurements.length})</div>
       {measurements.length === 0 ? (
-        <div style={{ color: '#6b7280', fontSize: 14, marginBottom: 16 }}>No measurements</div>
+        <div className="mfc-empty-msg">No measurements</div>
       ) : (
-        <div style={{ marginBottom: 16 }}>
+        <div className="mfc-measurements">
           {measurements.map(m => (
-            <div key={m.id} style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '10px 12px',
-              backgroundColor: '#1f2937',
-              borderRadius: 8,
-              marginBottom: 6,
-            }}>
-              <span style={{ color: '#f3f4f6', fontSize: 14 }}>
+            <div key={m.id} className="mfc-measurement">
+              <span className="mfc-measurement-text">
                 {formatFeetInches(m.widthTotal)} x {formatFeetInches(m.lengthTotal)}
               </span>
-              <button style={deleteBtn} onClick={() => handleDelete(m.id)}>-</button>
+              <button className="mfc-btn--delete" onClick={() => handleDelete(m.id)}>-</button>
             </div>
           ))}
         </div>
@@ -611,14 +494,7 @@ export function MobileFloorCalc() {
 
       {/* Calculate Button */}
       <button
-        style={{ 
-          ...primaryBtn, 
-          width: '100%', 
-          padding: 16, 
-          fontSize: 16, 
-          marginBottom: 16,
-          opacity: isCalculating ? 0.7 : 1,
-        }}
+        className="mfc-calc-btn"
         onClick={handleCalculate}
         disabled={isCalculating}
       >
@@ -628,27 +504,27 @@ export function MobileFloorCalc() {
       {/* Carpet Results */}
       {mode === 'carpet' && carpetResult && (
         <>
-          <div style={sectionTitle}>Results</div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 4 }}>Standard</div>
+          <div className="mfc-section-title">Results</div>
+          <div className="mfc-result-columns">
+            <div className="mfc-result-column">
+              <div className="mfc-result-column-title">Standard</div>
               {carpetResult.standard.length === 0 ? (
-                <div style={{ color: '#6b7280', fontSize: 13 }}>-</div>
+                <div className="mfc-result-column-empty">-</div>
               ) : (
                 carpetResult.standard.map((m, i) => (
-                  <div key={i} style={{ color: '#f3f4f6', fontSize: 13 }}>
+                  <div key={i} className="mfc-result-column-item">
                     12' x {formatFeetInches(m.lengthTotal)}
                   </div>
                 ))
               )}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 4 }}>Needs</div>
+            <div className="mfc-result-column">
+              <div className="mfc-result-column-title">Needs</div>
               {carpetResult.needs.length === 0 ? (
-                <div style={{ color: '#6b7280', fontSize: 13 }}>-</div>
+                <div className="mfc-result-column-empty">-</div>
               ) : (
                 carpetResult.needs.map((m, i) => (
-                  <div key={i} style={{ color: '#f3f4f6', fontSize: 13 }}>
+                  <div key={i} className="mfc-result-column-item">
                     {formatFeetInches(m.widthTotal)} x {formatFeetInches(m.lengthTotal)}
                   </div>
                 ))
@@ -656,58 +532,50 @@ export function MobileFloorCalc() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-            <div style={{ ...resultCard, backgroundColor: '#fef08a', color: '#000' }}>
-              <div style={{ fontSize: 11 }}>Standard</div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>12' x {formatFeetInches(carpetResult.standardLength)}</div>
+          <div className="mfc-result-grid">
+            <div className="mfc-result-card mfc-result-card--yellow">
+              <div className="mfc-result-card__label">Standard</div>
+              <div className="mfc-result-card__value">12' x {formatFeetInches(carpetResult.standardLength)}</div>
             </div>
-            <div style={{ ...resultCard, backgroundColor: '#93c5fd', color: '#000' }}>
-              <div style={{ fontSize: 11 }}>Needs</div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>12' x {formatFeetInches(carpetResult.needsLength)}</div>
+            <div className="mfc-result-card mfc-result-card--blue">
+              <div className="mfc-result-card__label">Needs</div>
+              <div className="mfc-result-card__value">12' x {formatFeetInches(carpetResult.needsLength)}</div>
             </div>
           </div>
 
-          <div style={{ ...resultCard, backgroundColor: '#86efac', color: '#000', marginBottom: 12 }}>
-            <div style={{ fontSize: 11 }}>Total</div>
-            <div style={{ fontSize: 16, fontWeight: 600 }}>12' x {formatFeetInches(carpetResult.totalLength)}</div>
-            <div style={{ fontSize: 13, marginTop: 4 }}>{carpetResult.totalSqFt.toFixed(2)} sf | {carpetResult.totalSqYd.toFixed(2)} sy</div>
+          <div className="mfc-result-card mfc-result-card--green mfc-result-card--full">
+            <div className="mfc-result-card__label">Total</div>
+            <div className="mfc-result-card__value mfc-result-card__value--lg">12' x {formatFeetInches(carpetResult.totalLength)}</div>
+            <div className="mfc-result-card__sub">{carpetResult.totalSqFt.toFixed(2)} sf | {carpetResult.totalSqYd.toFixed(2)} sy</div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-            <div style={{ ...resultCard, backgroundColor: '#86efac', color: '#000' }}>
-              <div style={{ fontSize: 11 }}>Actual</div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{carpetResult.usedSqFt.toFixed(2)} sf</div>
+          <div className="mfc-result-grid mfc-result-grid--mb">
+            <div className="mfc-result-card mfc-result-card--green">
+              <div className="mfc-result-card__label">Actual</div>
+              <div className="mfc-result-card__value">{carpetResult.usedSqFt.toFixed(2)} sf</div>
             </div>
-            <div style={{ ...resultCard, backgroundColor: '#fca5a5', color: '#000' }}>
-              <div style={{ fontSize: 11 }}>Waste ({carpetResult.wastePercent.toFixed(1)}%)</div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{carpetResult.wasteSqFt.toFixed(2)} sf</div>
+            <div className="mfc-result-card mfc-result-card--red">
+              <div className="mfc-result-card__label">Waste ({carpetResult.wastePercent.toFixed(1)}%)</div>
+              <div className="mfc-result-card__value">{carpetResult.wasteSqFt.toFixed(2)} sf</div>
             </div>
           </div>
 
           {carpetResult.isFlipped && (
-            <div style={{ 
-              background: '#fef3c7', 
-              border: '1px solid #f59e0b', 
-              borderRadius: 8, 
-              padding: '10px 12px',
-              fontSize: 12,
-              color: '#92400e',
-              marginBottom: 16,
-            }}>
-              âš ï¸ <strong>Rotated 90°</strong> "” Measurements flipped (W←”L) to reduce waste.
+            <div className="mfc-flipped-warning">
+              ⚠ï¸ <strong>Rotated 90°</strong> "” Measurements flipped (W←”L) to reduce waste.
             </div>
           )}
 
           {/* Static Diagram */}
           {carpetResult.needs.length > 0 && (
             <>
-              <div style={sectionTitle}>Diagram</div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>
+              <div className="mfc-section-title">Diagram</div>
+              <div className="mfc-diagram-hint">
                 Blue = carpet | Red = waste | Grid = 1 foot
               </div>
               <canvas
                 ref={canvasRef}
-                style={{ display: 'block', borderRadius: 8 }}
+                className="mfc-diagram-canvas"
               />
             </>
           )}
@@ -717,23 +585,23 @@ export function MobileFloorCalc() {
       {/* Hardwood Results */}
       {mode === 'hardwood' && hardwoodResult && (
         <>
-          <div style={sectionTitle}>Results</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <div style={{ ...resultCard, backgroundColor: '#93c5fd', color: '#000' }}>
-              <div style={{ fontSize: 11 }}>Room Area</div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{hardwoodResult.totalSqFt.toFixed(2)} sf</div>
+          <div className="mfc-section-title">Results</div>
+          <div className="mfc-result-grid">
+            <div className="mfc-result-card mfc-result-card--blue">
+              <div className="mfc-result-card__label">Room Area</div>
+              <div className="mfc-result-card__value mfc-result-card__value--lg">{hardwoodResult.totalSqFt.toFixed(2)} sf</div>
             </div>
-            <div style={{ ...resultCard, backgroundColor: '#fca5a5', color: '#000' }}>
-              <div style={{ fontSize: 11 }}>Waste ({wastePercent}%)</div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{hardwoodResult.wasteSqFt.toFixed(2)} sf</div>
+            <div className="mfc-result-card mfc-result-card--red">
+              <div className="mfc-result-card__label">Waste ({wastePercent}%)</div>
+              <div className="mfc-result-card__value mfc-result-card__value--lg">{hardwoodResult.wasteSqFt.toFixed(2)} sf</div>
             </div>
-            <div style={{ ...resultCard, backgroundColor: '#86efac', color: '#000' }}>
-              <div style={{ fontSize: 11 }}>Total Needed</div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{hardwoodResult.totalNeeded.toFixed(2)} sf</div>
+            <div className="mfc-result-card mfc-result-card--green">
+              <div className="mfc-result-card__label">Total Needed</div>
+              <div className="mfc-result-card__value mfc-result-card__value--lg">{hardwoodResult.totalNeeded.toFixed(2)} sf</div>
             </div>
-            <div style={{ ...resultCard, backgroundColor: '#fef08a', color: '#000' }}>
-              <div style={{ fontSize: 11 }}>Boxes ({boxSqFt} sf)</div>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{hardwoodResult.boxesNeeded}</div>
+            <div className="mfc-result-card mfc-result-card--yellow">
+              <div className="mfc-result-card__label">Boxes ({boxSqFt} sf)</div>
+              <div className="mfc-result-card__value mfc-result-card__value--xl">{hardwoodResult.boxesNeeded}</div>
             </div>
           </div>
         </>

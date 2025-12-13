@@ -382,111 +382,72 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.35)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1100,
-      }}
+      className="modal-overlay"
       onClick={handleClose}
     >
       <div
-        style={{
-          background: '#fff',
-          borderRadius: 8,
-          padding: '1rem',
-          width: '90%',
-          maxWidth: 480,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-        }}
+        className="modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '0.5rem',
-          }}
-        >
-          <h3 style={{ margin: 0, fontSize: 16 }}>
+        <div className="modal__header">
+          <h3 className="modal__title">
             {isTransfer ? 'Edit transfer' : 'Edit transaction'}
           </h3>
           <button
             type="button"
             onClick={handleClose}
             disabled={saving}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              fontSize: 18,
-              cursor: saving ? 'default' : 'pointer',
-            }}
+            className="modal__close"
           >
-            x
+            ×
           </button>
         </div>
 
         {row.job_name && (
-          <p style={{ fontSize: 12, color: '#555', margin: '0 0 0.5rem 0' }}>
+          <p className="modal__info">
             Job: <strong>{row.job_name}</strong>
           </p>
         )}
 
         {loading ? (
-          <p style={{ fontSize: 13, color: '#777' }}>Loading...</p>
+          <p className="modal__loading">Loading...</p>
         ) : (
-          <div style={{ fontSize: 13, marginBottom: '0.75rem' }}>
+          <div className="modal__body">
             {isTransfer && (
-              <p style={{ fontSize: 12, color: '#666', background: '#f5f5f5', padding: '0.5rem', borderRadius: 4, marginBottom: '0.5rem' }}>
+              <p className="modal__notice">
                 This is a transfer between accounts.
               </p>
             )}
 
-            <div style={{ marginBottom: '0.5rem' }}>
-              <label style={{ display: 'block', marginBottom: 2 }}>Date</label>
+            <div className="modal__field">
+              <label className="modal__label">Date</label>
               <input
                 type="date"
                 value={editDate}
                 onChange={(e) => setEditDate(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '4px 6px',
-                  fontSize: 13,
-                }}
+                className="modal__input"
               />
             </div>
 
-            <div style={{ marginBottom: '0.5rem' }}>
-              <label style={{ display: 'block', marginBottom: 2 }}>Description</label>
+            <div className="modal__field">
+              <label className="modal__label">Description</label>
               <input
                 type="text"
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '4px 6px',
-                  fontSize: 13,
-                }}
+                className="modal__input"
               />
             </div>
 
             {isTransfer ? (
               <>
                 {/* Transfer: From and To accounts */}
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: 2 }}>From Account</label>
+                <div className="modal__field">
+                  <label className="modal__label">From Account</label>
                   <select
                     value={editCashAccountId ?? ''}
                     onChange={(e) => setEditCashAccountId(Number(e.target.value) || null)}
-                    style={{
-                      width: '100%',
-                      padding: '4px 6px',
-                      fontSize: 13,
-                    }}
+                    className="modal__input"
                   >
                     <option value="">Select account...</option>
                     {cashAccountOptions.map((acc) => (
@@ -497,16 +458,12 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
                   </select>
                 </div>
 
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: 2 }}>To Account</label>
+                <div className="modal__field">
+                  <label className="modal__label">To Account</label>
                   <select
                     value={editToAccountId ?? ''}
                     onChange={(e) => setEditToAccountId(Number(e.target.value) || null)}
-                    style={{
-                      width: '100%',
-                      padding: '4px 6px',
-                      fontSize: 13,
-                    }}
+                    className="modal__input"
                   >
                     <option value="">Select account...</option>
                     {cashAccountOptions.map((acc) => (
@@ -520,16 +477,12 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
             ) : (
               <>
                 {/* Regular transaction: Cash account and Category */}
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: 2 }}>Bank / Credit Account</label>
+                <div className="modal__field">
+                  <label className="modal__label">Bank / Credit Account</label>
                   <select
                     value={editCashAccountId ?? ''}
                     onChange={(e) => setEditCashAccountId(Number(e.target.value) || null)}
-                    style={{
-                      width: '100%',
-                      padding: '4px 6px',
-                      fontSize: 13,
-                    }}
+                    className="modal__input"
                   >
                     <option value="">Select account...</option>
                     {cashAccountOptions.map((acc) => (
@@ -540,16 +493,12 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
                   </select>
                 </div>
 
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: 2 }}>Category</label>
+                <div className="modal__field">
+                  <label className="modal__label">Category</label>
                   <select
                     value={editCategoryAccountId ?? ''}
                     onChange={(e) => setEditCategoryAccountId(Number(e.target.value) || null)}
-                    style={{
-                      width: '100%',
-                      padding: '4px 6px',
-                      fontSize: 13,
-                    }}
+                    className="modal__input"
                   >
                     <option value="">Select category...</option>
                     {categoryAccountOptions.map((acc) => (
@@ -561,9 +510,9 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
                 </div>
 
                 {/* Job/Vendor/Installer */}
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: 2 }}>
-                    Job <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span>
+                <div className="modal__field">
+                  <label className="modal__label">
+                    Job <span className="modal__label-hint">(optional)</span>
                   </label>
                   <JobSelect
                     value={editJobId}
@@ -571,9 +520,9 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
                   />
                 </div>
 
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: 2 }}>
-                    Vendor <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span>
+                <div className="modal__field">
+                  <label className="modal__label">
+                    Vendor <span className="modal__label-hint">(optional)</span>
                   </label>
                   <VendorSelect
                     value={editVendorId}
@@ -581,9 +530,9 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
                   />
                 </div>
 
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: 2 }}>
-                    Installer <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span>
+                <div className="modal__field">
+                  <label className="modal__label">
+                    Installer <span className="modal__label-hint">(optional)</span>
                   </label>
                   <InstallerSelect
                     value={editInstallerId}
@@ -593,8 +542,8 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
               </>
             )}
 
-            <div style={{ marginBottom: '0.5rem' }}>
-              <label style={{ display: 'block', marginBottom: 2 }}>
+            <div className="modal__field">
+              <label className="modal__label">
                 Amount {isTransfer ? '' : `(${row.amount >= 0 ? 'inflow' : 'outflow'})`}
               </label>
               <input
@@ -603,37 +552,20 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
                 step="0.01"
                 value={editAmount}
                 onChange={(e) => setEditAmount(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '4px 6px',
-                  fontSize: 13,
-                }}
+                className="modal__input"
               />
             </div>
 
-            {error && <p style={{ color: 'red', fontSize: 12 }}>{error}</p>}
+            {error && <p className="modal__error">{error}</p>}
           </div>
         )}
 
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '0.5rem',
-            fontSize: 13,
-          }}
-        >
+        <div className="modal__actions">
           <button
             type="button"
             onClick={handleClose}
             disabled={saving}
-            style={{
-              padding: '4px 10px',
-              borderRadius: 4,
-              border: '1px solid #ccc',
-              background: '#f5f5f5',
-              cursor: saving ? 'default' : 'pointer',
-            }}
+            className="modal__btn-cancel"
           >
             Cancel
           </button>
@@ -641,14 +573,7 @@ export function LedgerEditModal({ row, onClose, onSave, onError }: LedgerEditMod
             type="button"
             onClick={() => void handleSave()}
             disabled={saving || loading}
-            style={{
-              padding: '4px 10px',
-              borderRadius: 4,
-              border: '1px solid #111',
-              background: '#111',
-              color: '#fff',
-              cursor: saving || loading ? 'default' : 'pointer',
-            }}
+            className="modal__btn-save"
           >
             {saving ? 'Saving...' : 'Save changes'}
           </button>

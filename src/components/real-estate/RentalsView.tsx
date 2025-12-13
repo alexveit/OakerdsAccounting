@@ -19,29 +19,15 @@ export function RentalsView() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '0.75rem',
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Rentals</h2>
+      <div className="page-header">
+        <h2 className="page-header__title">Rentals</h2>
 
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontSize: 14,
-          }}
-        >
+        <label className="page-header__select-label">
           Year:
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            style={{ padding: '0.25rem 0.5rem', fontSize: 14 }}
+            className="page-header__select"
           >
             {yearOptions.map((y) => (
               <option key={y} value={y}>

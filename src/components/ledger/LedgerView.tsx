@@ -653,13 +653,13 @@ export function LedgerView({ onNavigateToTransfer }: LedgerViewProps) {
   // ---------- JSX ----------
   return (
     <div>
-      <h2 style={{ margin: 0, marginBottom: '0.75rem' }}>Ledger</h2>
+      <h2 className="ledger-title">Ledger</h2>
 
       <div className="card">
         {loading && <p>Loading transactions...</p>}
-        {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+        {error && <p className="ledger-error">Error: {error}</p>}
         {rowActionError && !loading && (
-          <p style={{ color: 'red', fontSize: 12, marginTop: 0 }}>{rowActionError}</p>
+          <p className="ledger-row-error">{rowActionError}</p>
         )}
 
         {!loading && !error && (
@@ -689,32 +689,14 @@ export function LedgerView({ onNavigateToTransfer }: LedgerViewProps) {
 
             {/* CC Settle action bar */}
             {selectedLineIds.size > 0 && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '8px 12px',
-                  marginBottom: 8,
-                  background: '#f0f9ff',
-                  borderRadius: 4,
-                }}
-              >
-                <span style={{ fontSize: 13, fontWeight: 500 }}>
+              <div className="cc-select-bar">
+                <span className="cc-select-bar__count">
                   {selectedLineIds.size} CC transaction{selectedLineIds.size !== 1 ? 's' : ''} selected
                 </span>
                 <button
                   type="button"
                   onClick={handleSettleSelectedCc}
-                  style={{
-                    background: '#2563eb',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 4,
-                    padding: '4px 12px',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
+                  className="cc-select-bar__btn-settle"
                 >
                   Settle Selected CC
                 </button>
@@ -724,15 +706,7 @@ export function LedgerView({ onNavigateToTransfer }: LedgerViewProps) {
                     setSelectedLineIds(new Set());
                     setCcSettleError(null);
                   }}
-                  style={{
-                    background: 'transparent',
-                    color: '#666',
-                    border: '1px solid #ccc',
-                    borderRadius: 4,
-                    padding: '4px 12px',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
+                  className="cc-select-bar__btn-clear"
                 >
                   Clear Selection
                 </button>
@@ -740,13 +714,13 @@ export function LedgerView({ onNavigateToTransfer }: LedgerViewProps) {
             )}
 
             {ccSettleError && (
-              <p style={{ color: '#dc2626', fontSize: 13, margin: '0 0 8px 0' }}>
+              <p className="cc-settle-error">
                 {ccSettleError}
               </p>
             )}
 
             {totalCount === 0 && (
-              <p style={{ fontSize: 13, color: '#777' }}>No transactions found for this selection.</p>
+              <p className="ledger-empty">No transactions found for this selection.</p>
             )}
 
             {totalCount > 0 && (

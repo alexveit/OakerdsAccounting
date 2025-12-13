@@ -22,15 +22,8 @@ export function InstallersView() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '0.75rem',
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Installers</h2>
+      <div className="page-header">
+        <h2 className="page-header__title">Installers</h2>
       </div>
 
       {/* Tabs */}
@@ -53,7 +46,7 @@ export function InstallersView() {
       </div>
 
       {/* Content */}
-      <div style={{ marginTop: '0.75rem' }}>
+      <div className="mt-1h">
         {tab === 'overview' && <InstallersOverview onInstallerSelect={handleInstallerSelect} />}
         {tab === 'manage' && (
           <InstallerManageView 

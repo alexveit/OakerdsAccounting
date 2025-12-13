@@ -98,56 +98,21 @@ export function LedgerClearModal({ row, onClose, onSuccess, onError }: LedgerCle
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.35)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1200,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 8,
-          padding: '1rem',
-          width: '90%',
-          maxWidth: 520,
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '0.75rem',
-          }}
-        >
-          <h3 style={{ margin: 0, fontSize: 16 }}>Clear transaction</h3>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal__header">
+          <h3 className="modal__title">Clear transaction</h3>
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              fontSize: 18,
-              cursor: saving ? 'default' : 'pointer',
-            }}
+            className="modal__close"
           >
             ×
           </button>
         </div>
 
-        <div style={{ fontSize: 12, color: '#555', marginBottom: '0.75rem' }}>
+        <div className="modal__info">
           <div>
             <strong>Account:</strong> {row.cash_account ?? '(unknown)'}
           </div>
@@ -160,55 +125,37 @@ export function LedgerClearModal({ row, onClose, onSuccess, onError }: LedgerCle
         </div>
 
         {error && (
-          <p style={{ color: 'red', fontSize: 13, marginBottom: '0.5rem' }}>{error}</p>
+          <p className="modal__error">{error}</p>
         )}
 
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
-            marginBottom: '0.75rem',
-            fontSize: 13,
-          }}
-        >
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="modal__form-fields">
+          <label className="modal__form-field">
             <span>Cleared date</span>
             <input
               type="date"
               value={clearDate}
               onChange={(e) => setClearDate(e.target.value)}
               disabled={saving}
-              style={{
-                padding: '4px 8px',
-                borderRadius: 4,
-                border: '1px solid #ccc',
-                fontSize: 13,
-              }}
+              className="modal__form-input"
             />
-            <span style={{ fontSize: 11, color: '#777' }}>
+            <span className="modal__form-hint">
               Leave blank to keep the existing transaction date.
             </span>
           </label>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label className="modal__form-field">
             <span>Description</span>
             <input
               type="text"
               value={clearDescription}
               onChange={(e) => setClearDescription(e.target.value)}
               disabled={saving}
-              style={{
-                padding: '4px 8px',
-                borderRadius: 4,
-                border: '1px solid #ccc',
-                fontSize: 13,
-              }}
+              className="modal__form-input"
               placeholder="Leave blank to keep the existing description"
             />
           </label>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label className="modal__form-field">
             <span>Final cleared amount (tip included)</span>
             <input
               type="number"
@@ -216,39 +163,20 @@ export function LedgerClearModal({ row, onClose, onSuccess, onError }: LedgerCle
               value={clearAmount}
               onChange={(e) => setClearAmount(e.target.value)}
               disabled={saving}
-              style={{
-                padding: '4px 8px',
-                borderRadius: 4,
-                border: '1px solid #ccc',
-                fontSize: 13,
-              }}
+              className="modal__form-input"
             />
-            <span style={{ fontSize: 11, color: '#777' }}>
+            <span className="modal__form-hint">
               Enter a positive amount. The system will keep the debit/credit sign automatically.
             </span>
           </label>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '0.5rem',
-            marginTop: '0.25rem',
-          }}
-        >
+        <div className="modal__actions">
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
-            style={{
-              padding: '4px 10px',
-              fontSize: 13,
-              borderRadius: 4,
-              border: '1px solid #ccc',
-              background: '#f5f5f5',
-              cursor: saving ? 'default' : 'pointer',
-            }}
+            className="modal__btn-cancel"
           >
             Cancel
           </button>
@@ -256,15 +184,7 @@ export function LedgerClearModal({ row, onClose, onSuccess, onError }: LedgerCle
             type="button"
             onClick={() => void handleConfirm()}
             disabled={saving}
-            style={{
-              padding: '4px 10px',
-              fontSize: 13,
-              borderRadius: 4,
-              border: '1px solid #111',
-              background: '#111',
-              color: '#fff',
-              cursor: saving ? 'default' : 'pointer',
-            }}
+            className="modal__btn-save"
           >
             {saving ? 'Saving...' : 'Confirm clear'}
           </button>

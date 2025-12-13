@@ -289,104 +289,36 @@ export function ProfitSummary() {
 
   const currency = (value: number) => formatCurrency(value, 0);
 
-  // Styles
-  const thStyle: React.CSSProperties = {
-    textAlign: 'right',
-    padding: '4px 6px',
-    borderBottom: '2px solid #ccc',
-    background: '#f5f5f5',
-    whiteSpace: 'nowrap',
-    fontSize: 12,
-  };
-
-  const thGroupStyle: React.CSSProperties = {
-    textAlign: 'center',
-    padding: '4px 6px',
-    borderBottom: '1px solid #ddd',
-    background: '#e8e8e8',
-    fontWeight: 600,
-    fontSize: 13,
-  };
-
-  const tdStyle: React.CSSProperties = {
-    textAlign: 'right',
-    padding: '4px 6px',
-    borderBottom: '1px solid #eee',
-    fontSize: 13,
-  };
-
-  const rowHeaderStyle: React.CSSProperties = {
-    textAlign: 'left',
-    padding: '4px 6px',
-    borderBottom: '1px solid #eee',
-    fontWeight: 500,
-    background: '#fafafa',
-    fontSize: 13,
-  };
-
-  // Vertical divider style for section separators
-  const sectionBorder = '2px solid #ccc';
-
-  const profitColor = (val: number) => (val >= 0 ? '#0a7a3c' : '#b00020');
-  const expenseColor = '#b00020';
-  const incomeColor = '#0a7a3c';
+  // Color helpers
+  const profitClass = (val: number) => (val >= 0 ? 'profit-positive' : 'profit-negative');
 
   const renderRow = (bucket: MonthlyBucket, isHighlight = false) => {
-    const bgStyle = isHighlight ? { background: '#f0f4ff' } : {};
-    const fontWeight = isHighlight ? 600 : 400;
+    const rowClass = isHighlight ? 'highlight' : '';
 
     return (
-      <tr key={bucket.label}>
-        <td style={{ ...rowHeaderStyle, fontWeight: isHighlight ? 700 : 500, ...bgStyle }}>
-          {bucket.label}
-        </td>
+      <tr key={bucket.label} className={rowClass}>
+        <td className="row-header">{bucket.label}</td>
         {/* Job */}
-        <td style={{ ...tdStyle, color: incomeColor, fontWeight, ...bgStyle }}>
-          {currency(bucket.jobIncome)}
-        </td>
-        <td style={{ ...tdStyle, color: expenseColor, fontWeight, ...bgStyle }}>
-          {currency(bucket.jobExpenses)}
-        </td>
-        <td style={{ ...tdStyle, color: profitColor(bucket.jobProfit), fontWeight, borderRight: sectionBorder, ...bgStyle }}>
-          {currency(bucket.jobProfit)}
-        </td>
+        <td className="profit-income">{currency(bucket.jobIncome)}</td>
+        <td className="profit-expense">{currency(bucket.jobExpenses)}</td>
+        <td className={`section-end ${profitClass(bucket.jobProfit)}`}>{currency(bucket.jobProfit)}</td>
         {/* Rentals */}
-        <td style={{ ...tdStyle, color: incomeColor, fontWeight, ...bgStyle }}>
-          {currency(bucket.rentalIncome)}
-        </td>
-        <td style={{ ...tdStyle, color: expenseColor, fontWeight, ...bgStyle }}>
-          {currency(bucket.rentalExpenses)}
-        </td>
-        <td style={{ ...tdStyle, color: profitColor(bucket.rentalProfit), fontWeight, borderRight: sectionBorder, ...bgStyle }}>
-          {currency(bucket.rentalProfit)}
-        </td>
+        <td className="profit-income">{currency(bucket.rentalIncome)}</td>
+        <td className="profit-expense">{currency(bucket.rentalExpenses)}</td>
+        <td className={`section-end ${profitClass(bucket.rentalProfit)}`}>{currency(bucket.rentalProfit)}</td>
         {/* Flip Inventory */}
-        <td style={{ ...tdStyle, color: expenseColor, fontWeight, borderRight: sectionBorder, ...bgStyle }}>
-          {currency(bucket.flipExpenses)}
-        </td>
+        <td className="section-end profit-expense">{currency(bucket.flipExpenses)}</td>
         {/* Overhead */}
-        <td style={{ ...tdStyle, color: expenseColor, fontWeight, ...bgStyle }}>
-          {currency(bucket.marketing)}
-        </td>
-        <td style={{ ...tdStyle, color: expenseColor, fontWeight, borderRight: sectionBorder, ...bgStyle }}>
-          {currency(bucket.overhead)}
-        </td>
-        {/* Taxable Net (excludes flip) */}
-        <td style={{ ...tdStyle, color: profitColor(bucket.taxableNet), fontWeight, borderRight: sectionBorder, ...bgStyle }}>
-          {currency(bucket.taxableNet)}
-        </td>
-        {/* Economic Net (includes flip cash out) */}
-        <td style={{ ...tdStyle, color: profitColor(bucket.economicNet), fontWeight, borderRight: sectionBorder, ...bgStyle }}>
-          {currency(bucket.economicNet)}
-        </td>
+        <td className="profit-expense">{currency(bucket.marketing)}</td>
+        <td className="section-end profit-expense">{currency(bucket.overhead)}</td>
+        {/* Taxable Net */}
+        <td className={`section-end ${profitClass(bucket.taxableNet)}`}>{currency(bucket.taxableNet)}</td>
+        {/* Economic Net */}
+        <td className={`section-end ${profitClass(bucket.economicNet)}`}>{currency(bucket.economicNet)}</td>
         {/* Personal */}
-        <td style={{ ...tdStyle, color: expenseColor, fontWeight, borderRight: sectionBorder, ...bgStyle }}>
-          {currency(bucket.personal)}
-        </td>
+        <td className="section-end profit-expense">{currency(bucket.personal)}</td>
         {/* True Net */}
-        <td style={{ ...tdStyle, color: profitColor(bucket.trueNet), fontWeight, ...bgStyle }}>
-          {currency(bucket.trueNet)}
-        </td>
+        <td className={profitClass(bucket.trueNet)}>{currency(bucket.trueNet)}</td>
       </tr>
     );
   };
@@ -395,64 +327,56 @@ export function ProfitSummary() {
     <thead>
       {/* Group headers */}
       <tr>
-        <th style={{ ...thGroupStyle, textAlign: 'left' }}></th>
-        <th colSpan={3} style={{ ...thGroupStyle, borderRight: sectionBorder }}>Jobs (Schedule C)</th>
-        <th colSpan={3} style={{ ...thGroupStyle, borderRight: sectionBorder }}>Rentals (Schedule E)</th>
-        <th style={{ ...thGroupStyle, borderRight: sectionBorder }}>Flips</th>
-        <th colSpan={2} style={{ ...thGroupStyle, borderRight: sectionBorder }}>Overhead</th>
-        <th style={{ ...thGroupStyle, borderRight: sectionBorder }}>Tax Net</th>
-        <th style={{ ...thGroupStyle, borderRight: sectionBorder }}>Econ Net</th>
-        <th style={{ ...thGroupStyle, borderRight: sectionBorder }}>Personal</th>
-        <th style={thGroupStyle}>True Net</th>
+        <th className="group left"></th>
+        <th colSpan={3} className="group section-end">Jobs (Schedule C)</th>
+        <th colSpan={3} className="group section-end">Rentals (Schedule E)</th>
+        <th className="group section-end">Flips</th>
+        <th colSpan={2} className="group section-end">Overhead</th>
+        <th className="group section-end">Tax Net</th>
+        <th className="group section-end">Econ Net</th>
+        <th className="group section-end">Personal</th>
+        <th className="group">True Net</th>
       </tr>
       {/* Column headers */}
       <tr>
-        <th style={{ ...thStyle, textAlign: 'left' }}>Period</th>
+        <th className="left">Period</th>
         {/* Job */}
-        <th style={thStyle}>Income</th>
-        <th style={thStyle}>Expenses</th>
-        <th style={{ ...thStyle, borderRight: sectionBorder }}>Profit</th>
+        <th>Income</th>
+        <th>Expenses</th>
+        <th className="section-end">Profit</th>
         {/* Rentals */}
-        <th style={thStyle}>Income</th>
-        <th style={thStyle}>Expenses</th>
-        <th style={{ ...thStyle, borderRight: sectionBorder }}>Profit</th>
-        {/* Flip Inventory (capitalized, not deductible) */}
-        <th style={{ ...thStyle, borderRight: sectionBorder }} title="Capitalized inventory, not deductible until sale">Inventory</th>
+        <th>Income</th>
+        <th>Expenses</th>
+        <th className="section-end">Profit</th>
+        {/* Flip Inventory */}
+        <th className="section-end" title="Capitalized inventory, not deductible until sale">Inventory</th>
         {/* Overhead */}
-        <th style={thStyle}>Marketing</th>
-        <th style={{ ...thStyle, borderRight: sectionBorder }}>Other</th>
-        {/* Tax Net (excludes flip) */}
-        <th style={{ ...thStyle, borderRight: sectionBorder }} title="Excludes flip inventory">(No Flip)</th>
-        {/* Economic Net (includes flip cash out) */}
-        <th style={{ ...thStyle, borderRight: sectionBorder }} title="Includes flip cash outflow">(+Flip)</th>
+        <th>Marketing</th>
+        <th className="section-end">Other</th>
+        {/* Tax Net */}
+        <th className="section-end" title="Excludes flip inventory">(No Flip)</th>
+        {/* Economic Net */}
+        <th className="section-end" title="Includes flip cash outflow">(+Flip)</th>
         {/* Personal */}
-        <th style={{ ...thStyle, borderRight: sectionBorder }}>Expenses</th>
+        <th className="section-end">Expenses</th>
         {/* True Net */}
-        <th style={thStyle}>Cash Flow</th>
+        <th>Cash Flow</th>
       </tr>
     </thead>
   );
 
   if (loading) return <p>Loading profit summary...</p>;
-  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  if (error) return <p className="text-danger">Error: {error}</p>;
 
   return (
     <div>
-      <div
-        style={{
-          marginBottom: '0.75rem',
-          display: 'flex',
-          gap: '0.5rem',
-          alignItems: 'center',
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Profit Summary</h2>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 14 }}>
+      <div className="profit-header">
+        <h2>Profit Summary</h2>
+        <label className="profit-year-select">
           Year:
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            style={{ padding: '0.25rem 0.5rem', fontSize: 14 }}
           >
             {Array.from({ length: new Date().getFullYear() - 2019 }, (_, i) => new Date().getFullYear() - i).map((y) => (
               <option key={y} value={y}>{y}</option>
@@ -462,9 +386,9 @@ export function ProfitSummary() {
       </div>
 
       {/* Monthly table */}
-      <div className="card" style={{ marginBottom: '1.5rem', overflowX: 'auto' }}>
-        <h3 style={{ marginTop: 0 }}>Monthly Breakdown</h3>
-        <table className="table" style={{ minWidth: 1300 }}>
+      <div className="card profit-table-wrap">
+        <h3 className="mt-0">Monthly Breakdown</h3>
+        <table className="profit-table">
           {renderTableHeader()}
           <tbody>
             {monthlyBuckets.map((m) => renderRow(m))}
@@ -474,9 +398,9 @@ export function ProfitSummary() {
       </div>
 
       {/* Quarterly table */}
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <h3 style={{ marginTop: 0 }}>Quarterly Summary</h3>
-        <table className="table" style={{ minWidth: 1300 }}>
+      <div className="card profit-table-wrap">
+        <h3 className="mt-0">Quarterly Summary</h3>
+        <table className="profit-table">
           {renderTableHeader()}
           <tbody>
             {quarterlyBuckets.map((q) => renderRow(q))}

@@ -91,7 +91,7 @@ export function VendorsOverview({ onVendorSelect }: VendorsOverviewProps) {
   }, [year]);
 
   if (loading) return <p>Loading vendors...</p>;
-  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  if (error) return <p className="text-danger">Error: {error}</p>;
   if (vendors.length === 0) return <p>No vendors found.</p>;
 
   // Separate lenders from vendors
@@ -138,42 +138,32 @@ export function VendorsOverview({ onVendorSelect }: VendorsOverviewProps) {
   return (
     <div>
       {/* Controls row */}
-      <div
-        style={{
-          marginBottom: '1rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1.5rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ fontSize: 13 }}>Year:</label>
+      <div className="filter-row mb-2">
+        <label className="filter-label">
+          Year:
           <select
             value={year}
             onChange={(e) => setYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            style={{ padding: '0.25rem 0.5rem', fontSize: 13, width: 'auto' }}
           >
             <option value="all">All Time</option>
             {yearOptions.map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-        </div>
+        </label>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ fontSize: 13 }}>Sort by:</label>
+        <label className="filter-label">
+          Sort by:
           <select
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value as 'name' | 'spendDesc')}
-            style={{ padding: '0.25rem 0.5rem', fontSize: 13, width: 'auto' }}
           >
             <option value="name">Name (A to Z)</option>
             <option value="spendDesc">Spend (High to Low)</option>
           </select>
-        </div>
+        </label>
 
-        <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <label className="filter-label--sm">
           <input
             type="checkbox"
             checked={showInactive}
@@ -184,8 +174,8 @@ export function VendorsOverview({ onVendorSelect }: VendorsOverviewProps) {
       </div>
 
       {/* Vendors Table */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Vendors</h3>
+      <div className="card mb-3">
+        <h3 className="mt-0 mb-1h">Vendors</h3>
         <table className="table">
           <thead>
             <tr>
@@ -203,10 +193,7 @@ export function VendorsOverview({ onVendorSelect }: VendorsOverviewProps) {
               return (
                 <tr 
                   key={v.id} 
-                  style={{ 
-                    opacity: v.is_active ? 1 : 0.5,
-                    cursor: onVendorSelect ? 'pointer' : 'default',
-                  }}
+                  className={`${!v.is_active ? 'opacity-50' : ''} ${onVendorSelect ? 'cursor-pointer' : ''}`}
                   onClick={() => onVendorSelect?.(v.id)}
                   title={onVendorSelect ? 'Click to edit' : undefined}
                 >
@@ -233,7 +220,7 @@ export function VendorsOverview({ onVendorSelect }: VendorsOverviewProps) {
       {/* Lenders Table */}
       {sortedLenders.length > 0 && (
         <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Lenders</h3>
+          <h3 className="mt-0 mb-1h">Lenders</h3>
           <table className="table">
             <thead>
               <tr>
@@ -251,10 +238,7 @@ export function VendorsOverview({ onVendorSelect }: VendorsOverviewProps) {
                 return (
                   <tr 
                     key={v.id} 
-                    style={{ 
-                      opacity: v.is_active ? 1 : 0.5,
-                      cursor: onVendorSelect ? 'pointer' : 'default',
-                    }}
+                    className={`${!v.is_active ? 'opacity-50' : ''} ${onVendorSelect ? 'cursor-pointer' : ''}`}
                     onClick={() => onVendorSelect?.(v.id)}
                     title={onVendorSelect ? 'Click to edit' : undefined}
                   >

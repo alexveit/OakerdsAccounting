@@ -537,30 +537,20 @@ export function JobDetailView({
       <div
         key={job.id}
         onClick={() => handleToggleJob(job.id)}
-        style={{
-          marginBottom: '1rem',
-          borderRadius: 12,
-          border: '1px solid #eee',
-          padding: '1rem 1.25rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-          background: '#fff',
-          cursor: 'pointer',
-        }}
+        className="job-card"
       >
         {/* NAME */}
-        <h3 style={{ marginTop: 0, marginBottom: '0.25rem' }}>{job.name}</h3>
+        <h3 className="job-card__title">{job.name}</h3>
 
         {job.address && (
-          <div style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
-            {job.address}
-          </div>
+          <div className="job-card__address">{job.address}</div>
         )}
 
         {/* STATUS + LEAD SOURCE */}
-        <div style={{ fontSize: 12, color: '#777', marginBottom: 4, display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+        <div className="job-card__meta">
           <span>
             Status:{' '}
-            <strong style={{ color: job.status === 'closed' ? '#b00020' : '#0a7a3c' }}>
+            <strong className={job.status === 'closed' ? 'text-danger' : 'text-success'}>
               {job.status || 'open'}
             </strong>
           </span>
@@ -579,17 +569,7 @@ export function JobDetailView({
         />
 
         {/* --- Start / End / Close job on same row --- */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            fontSize: 12,
-            color: '#555',
-            marginBottom: 8,
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="job-card__dates">
           {/* START DATE */}
           <span>
             <strong>Start:</strong>{' '}
@@ -597,7 +577,7 @@ export function JobDetailView({
           </span>
 
           {/* END DATE + CLOSE BUTTON */}
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span className="flex items-center gap-1">
             <strong>End:</strong>{' '}
             {job.status === 'closed' ? (
               job.end_date ? formatLocalDate(job.end_date) : '-'
@@ -612,7 +592,7 @@ export function JobDetailView({
                   }))
                 }
                 onClick={(e) => e.stopPropagation()}
-                style={{ fontSize: 12 }}
+                className="text-sm"
               />
             )}
 
@@ -623,15 +603,7 @@ export function JobDetailView({
                   e.stopPropagation();
                   void handleCloseJob(job);
                 }}
-                style={{
-                  padding: '0.3rem 0.8rem',
-                  borderRadius: 999,
-                  border: '1px solid #b00020',
-                  background: '#fff5f5',
-                  color: '#b00020',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                }}
+                className="btn-pill btn-pill--danger"
               >
                 Close Job
               </button>
@@ -641,22 +613,14 @@ export function JobDetailView({
 
         {/* QUICK ADD TRANSACTION BUTTON (only for open jobs) */}
         {job.status !== 'closed' && onAddJobTransaction && (
-          <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+          <div className="my-1">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onAddJobTransaction(job.id);
               }}
-              style={{
-                padding: '0.3rem 0.8rem',
-                borderRadius: 999,
-                border: '1px solid #111',
-                background: '#111',
-                color: '#fff',
-                fontSize: 12,
-                cursor: 'pointer',
-              }}
+              className="btn-pill btn-pill--primary"
             >
               + Add Transaction
             </button>
@@ -664,15 +628,7 @@ export function JobDetailView({
         )}
 
         {/* STATS */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
-            gap: '0.75rem',
-            fontSize: 14,
-            marginBottom: '0.75rem',
-          }}
-        >
+        <div className="job-card__stats">
           <Stat label="Income" value={totals.income} money />
           <Stat label="Materials" value={totals.materials} money />
           <Stat label="Labor" value={totals.labor} money />
@@ -687,17 +643,7 @@ export function JobDetailView({
         </div>
 
         {/* TRANSACTIONS */}
-        <h3
-          style={{
-            marginTop: '1.25rem',
-            borderTop: '1px solid #eee',
-            paddingTop: '0.75rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            fontSize: 15,
-          }}
-        >
+        <h3 className="job-card__transactions-header">
           <span>{isExpanded ? '▼' : '▶'}</span>
           <span>Transactions</span>
         </h3>
@@ -705,7 +651,7 @@ export function JobDetailView({
         {isExpanded && (
           <div onClick={(e) => e.stopPropagation()}>
             {ledgerRows.length === 0 && (
-              <p style={{ fontSize: 13 }}>No transactions found for this job.</p>
+              <p className="text-base">No transactions found for this job.</p>
             )}
 
             {ledgerRows.length > 0 && (
@@ -718,19 +664,8 @@ export function JobDetailView({
                   if (selectedInJob.length === 0) return null;
                   
                   return (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '1rem',
-                        padding: '0.5rem 0.75rem',
-                        backgroundColor: '#f0f9ff',
-                        borderRadius: 4,
-                        marginBottom: '0.5rem',
-                        fontSize: 13,
-                      }}
-                    >
-                      <span style={{ fontWeight: 500 }}>
+                    <div className="action-bar">
+                      <span className="font-medium">
                         {selectedInJob.length} CC transaction{selectedInJob.length > 1 ? 's' : ''} selected
                       </span>
                       <button
@@ -739,15 +674,7 @@ export function JobDetailView({
                           e.stopPropagation();
                           handleSettleSelectedCc(job.id, job.name);
                         }}
-                        style={{
-                          padding: '0.25rem 0.75rem',
-                          backgroundColor: '#2563eb',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: 4,
-                          cursor: 'pointer',
-                          fontSize: 12,
-                        }}
+                        className="btn-pill btn-pill--info"
                       >
                         Settle Selected CC
                       </button>
@@ -757,32 +684,18 @@ export function JobDetailView({
                           e.stopPropagation();
                           setSelectedCcLineIds(new Set());
                         }}
-                        style={{
-                          padding: '0.25rem 0.5rem',
-                          backgroundColor: 'transparent',
-                          color: '#666',
-                          border: '1px solid #ccc',
-                          borderRadius: 4,
-                          cursor: 'pointer',
-                          fontSize: 12,
-                        }}
+                        className="btn-pill btn-pill--secondary"
                       >
                         Clear
                       </button>
                       {ccSettleError && (
-                        <span style={{ color: '#b91c1c', fontSize: 12 }}>{ccSettleError}</span>
+                        <span className="text-danger text-sm">{ccSettleError}</span>
                       )}
                     </div>
                   );
                 })()}
 
-                <table
-                  style={{
-                    borderCollapse: 'collapse',
-                    width: '100%',
-                    fontSize: 13,
-                  }}
-                >
+                <table className="table table--compact w-full">
                   <thead>
                     <tr>
                       <Th align="center" style={{ width: 30 }}></Th>
@@ -822,7 +735,7 @@ export function JobDetailView({
                                 checked={isSelected}
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={() => row.lineId !== null && handleToggleCcSelect(row.lineId)}
-                                style={{ cursor: 'pointer' }}
+                                className="cursor-pointer"
                               />
                             )}
                           </Td>
@@ -862,26 +775,17 @@ export function JobDetailView({
   // ------------------------------------------------------------
   return (
     <div>
-      <h2 style={{ margin: 0, marginBottom: '0.75rem' }}>Jobs</h2>
+      <h2 className="mt-0 mb-1h">Jobs</h2>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p className="text-danger">{error}</p>}
 
       {/* Filters row */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1.5rem',
-          flexWrap: 'wrap',
-          marginBottom: '1rem',
-        }}
-      >
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: 14 }}>
+      <div className="filter-row">
+        <label className="filter-label">
           Year:
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            style={{ padding: '0.25rem 0.5rem', fontSize: 14 }}
           >
             <option value="all">All years</option>
             {years.map((y) => (
@@ -892,12 +796,11 @@ export function JobDetailView({
           </select>
         </label>
 
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: 14 }}>
+        <label className="filter-label">
           Lead Source:
           <select
             value={selectedLeadSource}
             onChange={(e) => setSelectedLeadSource(e.target.value)}
-            style={{ padding: '0.25rem 0.5rem', fontSize: 14 }}
           >
             <option value="all">All sources</option>
             <option value="none">No lead source</option>
@@ -909,7 +812,7 @@ export function JobDetailView({
           </select>
         </label>
 
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: 13 }}>
+        <label className="filter-label--sm">
           <input
             type="checkbox"
             checked={groupByLeadSource}
@@ -920,7 +823,7 @@ export function JobDetailView({
       </div>
 
       {filteredJobs.length === 0 && (
-        <p style={{ marginTop: '1rem' }}>No jobs found for the selected filters.</p>
+        <p className="mt-2">No jobs found for the selected filters.</p>
       )}
 
       {filteredJobs.length > 0 && (
@@ -928,21 +831,14 @@ export function JobDetailView({
           {/* Open Jobs Section */}
           {openJobs.length > 0 && (
             <>
-              <h3 style={{ marginTop: '0.5rem', marginBottom: '0.75rem', color: '#0a7a3c' }}>
+              <h3 className="section-header section-header--open">
                 Open Jobs ({openJobs.length})
               </h3>
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '1rem',
-                  alignItems: 'flex-start',
-                  marginBottom: '1.5rem',
-                }}
-              >
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div className="job-columns-container mb-3">
+                <div className="job-column">
                   {openCols.left.map((job) => renderJobCard(job))}
                 </div>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div className="job-column">
                   {openCols.right.map((job) => renderJobCard(job))}
                 </div>
               </div>
@@ -965,21 +861,14 @@ export function JobDetailView({
                     const sourceCols = buildColumns(sourceJobs);
                     return (
                       <div key={sourceName}>
-                        <h3 style={{ marginTop: '1rem', marginBottom: '0.75rem', color: '#555' }}>
+                        <h3 className="section-header section-header--muted">
                           {sourceName} ({sourceJobs.length})
                         </h3>
-                        <div
-                          style={{
-                            display: 'flex',
-                            gap: '1rem',
-                            alignItems: 'flex-start',
-                            marginBottom: '1rem',
-                          }}
-                        >
-                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        <div className="job-columns-container">
+                          <div className="job-column">
                             {sourceCols.left.map((job) => renderJobCard(job))}
                           </div>
-                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                          <div className="job-column">
                             {sourceCols.right.map((job) => renderJobCard(job))}
                           </div>
                         </div>
@@ -989,20 +878,14 @@ export function JobDetailView({
               ) : (
                 // Not grouped
                 <>
-                  <h3 style={{ marginTop: '1rem', marginBottom: '0.75rem', color: '#b00020' }}>
+                  <h3 className="section-header section-header--closed">
                     Closed Jobs ({closedJobs.length})
                   </h3>
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: '1rem',
-                      alignItems: 'flex-start',
-                    }}
-                  >
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <div className="job-columns-container">
+                    <div className="job-column">
                       {closedCols.left.map((job) => renderJobCard(job))}
                     </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <div className="job-column">
                       {closedCols.right.map((job) => renderJobCard(job))}
                     </div>
                   </div>
@@ -1085,9 +968,9 @@ function Stat({
   suffix?: string;
   highlight?: 'positive' | 'negative';
 }) {
-  let color = '#111';
-  if (highlight === 'positive') color = '#0a7a3c';
-  if (highlight === 'negative') color = '#b00020';
+  const colorClass = highlight === 'positive' ? 'text-success' 
+    : highlight === 'negative' ? 'text-danger' 
+    : 'text-main';
 
   const display = money
     ? `$${value.toLocaleString(undefined, {
@@ -1098,10 +981,8 @@ function Stat({
 
   return (
     <div>
-      <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#777' }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 18, fontWeight: 600, color }}>{display}</div>
+      <div className="stat__label">{label}</div>
+      <div className={`stat__value ${colorClass}`}>{display}</div>
     </div>
   );
 }

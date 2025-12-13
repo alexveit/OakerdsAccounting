@@ -70,35 +70,11 @@ export function CcSettleModal({
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          padding: '1.5rem',
-          maxWidth: 400,
-          width: '90%',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Settle CC Balance</h3>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="cc-settle-modal" onClick={(e) => e.stopPropagation()}>
+        <h3 className="cc-settle-modal__title">Settle CC Balance</h3>
         
-        <p style={{ fontSize: 14, color: '#555', marginBottom: '1rem' }}>
+        <p className="cc-settle-modal__info">
           <strong>{entityName}</strong>
           <br />
           {cc.accountName}: ${cc.unclearedAmount.toLocaleString(undefined, { 
@@ -108,24 +84,17 @@ export function CcSettleModal({
         </p>
 
         {error && (
-          <p style={{ color: '#b91c1c', fontSize: 13, marginBottom: '0.75rem' }}>
+          <p className="cc-settle-modal__error">
             {error}
           </p>
         )}
 
-        <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
+        <div className="cc-settle-modal__actions">
           <button
             type="button"
             disabled={settling}
             onClick={() => void handleJustMarkSettled()}
-            style={{
-              padding: '0.6rem 1rem',
-              borderRadius: 6,
-              border: '1px solid #ddd',
-              background: '#f9f9f9',
-              cursor: settling ? 'not-allowed' : 'pointer',
-              fontSize: 14,
-            }}
+            className="cc-settle-modal__btn cc-settle-modal__btn--secondary"
           >
             {settling ? 'Settling...' : 'Just Mark Settled'}
           </button>
@@ -135,15 +104,7 @@ export function CcSettleModal({
               type="button"
               disabled={settling}
               onClick={handleCreateTransferAndSettle}
-              style={{
-                padding: '0.6rem 1rem',
-                borderRadius: 6,
-                border: '1px solid #0a7a3c',
-                background: '#0a7a3c',
-                color: '#fff',
-                cursor: settling ? 'not-allowed' : 'pointer',
-                fontSize: 14,
-              }}
+              className="cc-settle-modal__btn cc-settle-modal__btn--primary"
             >
               Create Transfer &amp; Settle
             </button>
@@ -152,15 +113,7 @@ export function CcSettleModal({
           <button
             type="button"
             onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              borderRadius: 6,
-              border: 'none',
-              background: 'transparent',
-              color: '#777',
-              cursor: 'pointer',
-              fontSize: 13,
-            }}
+            className="cc-settle-modal__btn cc-settle-modal__btn--cancel"
           >
             Cancel
           </button>

@@ -1,7 +1,7 @@
 {
   "name": "oakerds-accounting",
   "private": true,
-  "version": "2.6.7",
+  "version": "2.8.5",
   "type": "module",
   "scripts": {
     "dev": "vite",

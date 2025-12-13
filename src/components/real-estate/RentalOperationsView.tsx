@@ -434,7 +434,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
     });
 
   if (loading) return <p>Loading rental data...</p>;
-  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  if (error) return <p className="text-danger">Error: {error}</p>;
 
   const propertyList = Object.values(properties);
   const propertyCount = propertyList.length;
@@ -471,7 +471,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
     <div>
       {propertyCount === 0 && (
         <div className="card">
-          <p style={{ fontSize: 14, color: '#777' }}>
+          <p className="rental-empty">
             No rental properties found. Create a real estate deal with type "rental" to track properties here.
           </p>
         </div>
@@ -480,79 +480,60 @@ export function RentalOperationsView({ selectedYear }: Props) {
       {propertyCount > 0 && (
         <>
           {/* Portfolio Summary - Two Cards */}
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          <div className="rental-summary-row">
             {/* Card 1: Operations */}
-            <div
-              className="card"
-              style={{
-                padding: '0.6rem 1rem',
-                display: 'flex',
-                gap: '1.25rem',
-                alignItems: 'center',
-                fontSize: 15,
-                flexWrap: 'wrap',
-              }}
-            >
+            <div className="card rental-summary-card">
               <div>
-                <span style={{ color: '#777' }}>Props </span>
-                <span style={{ fontWeight: 700 }}>{propertyCount}</span>
+                <span className="rental-stat-label">Props </span>
+                <span className="rental-stat-value">{propertyCount}</span>
               </div>
               <div>
-                <span style={{ color: '#777' }}>Income </span>
-                <span style={{ fontWeight: 700, color: '#0a7a3c' }}>{currency(portfolioTotalIncome)}</span>
+                <span className="rental-stat-label">Income </span>
+                <span className="rental-stat-value profit-positive">{currency(portfolioTotalIncome)}</span>
               </div>
               <div>
-                <span style={{ color: '#777' }}>Deduct </span>
-                <span style={{ fontWeight: 700, color: '#b00020' }}>-{currency(portfolioDeductibleExpenses)}</span>
+                <span className="rental-stat-label">Deduct </span>
+                <span className="rental-stat-value profit-negative">-{currency(portfolioDeductibleExpenses)}</span>
               </div>
               <div>
-                <span style={{ color: '#777' }}>Tax NOI </span>
-                <span style={{ fontWeight: 700, color: portfolioTaxableNOI >= 0 ? '#0a7a3c' : '#b00020' }}>
+                <span className="rental-stat-label">Tax NOI </span>
+                <span className={`rental-stat-value ${portfolioTaxableNOI >= 0 ? 'profit-positive' : 'profit-negative'}`}>
                   {currency(portfolioTaxableNOI)}
                 </span>
               </div>
               <div>
-                <span style={{ color: '#777' }}>Principal </span>
-                <span style={{ fontWeight: 700, color: '#1565c0' }}>{currency(portfolioPrincipalPaydown)}</span>
+                <span className="rental-stat-label">Principal </span>
+                <span className="rental-stat-value rental-principal">{currency(portfolioPrincipalPaydown)}</span>
               </div>
               <div>
-                <span style={{ color: '#777' }}>Cash Flow </span>
-                <span style={{ fontWeight: 700, color: portfolioTrueCashFlow >= 0 ? '#0a7a3c' : '#b00020' }}>
+                <span className="rental-stat-label">Cash Flow </span>
+                <span className={`rental-stat-value ${portfolioTrueCashFlow >= 0 ? 'profit-positive' : 'profit-negative'}`}>
                   {currency(portfolioTrueCashFlow)}
                 </span>
               </div>
               <div>
-                <span style={{ color: '#777' }}>Mo Avg </span>
-                <span style={{ fontWeight: 700, color: portfolioAvgMonthlyNet >= 0 ? '#0a7a3c' : '#b00020' }}>
+                <span className="rental-stat-label">Mo Avg </span>
+                <span className={`rental-stat-value ${portfolioAvgMonthlyNet >= 0 ? 'profit-positive' : 'profit-negative'}`}>
                   {currency(portfolioAvgMonthlyNet)}
                 </span>
               </div>
             </div>
 
             {/* Card 2: Balance Sheet */}
-            <div
-              className="card"
-              style={{
-                padding: '0.6rem 1rem',
-                display: 'flex',
-                gap: '1.25rem',
-                alignItems: 'center',
-                fontSize: 15,
-              }}
-            >
+            <div className="card rental-summary-card">
               <div>
-                <span style={{ color: '#777' }}>Loans </span>
-                <span style={{ fontWeight: 700, color: '#b00020' }}>{currency(portfolioTotalLoanBalance)}</span>
+                <span className="rental-stat-label">Loans </span>
+                <span className="rental-stat-value rental-loan">{currency(portfolioTotalLoanBalance)}</span>
               </div>
               <div>
-                <span style={{ color: '#777' }}>Equity </span>
-                <span style={{ fontWeight: 700, color: '#0a7a3c' }}>{currency(portfolioTotalEquity)}</span>
+                <span className="rental-stat-label">Equity </span>
+                <span className="rental-stat-value profit-positive">{currency(portfolioTotalEquity)}</span>
               </div>
             </div>
           </div>
 
           {/* Property Cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="rental-properties">
             {propertyList.map((property) => {
               const isExpanded = expandedProperties[property.dealId] ?? false;
               const marginPct =
@@ -566,38 +547,19 @@ export function RentalOperationsView({ selectedYear }: Props) {
                 <div
                   key={property.dealId}
                   onClick={() => handleToggleProperty(property.dealId)}
-                  style={{
-                    borderRadius: 12,
-                    border: '1px solid #eee',
-                    padding: '1rem 1.25rem',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                    background: '#fff',
-                    cursor: 'pointer',
-                  }}
+                  className="rental-property-card"
                 >
                   {/* Property Header */}
-                  <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>
+                  <h3>
                     {property.nickname}
-                    <span style={{ fontSize: 13, fontWeight: 400, color: '#666', marginLeft: '0.5rem' }}>
-                      {property.address}
-                    </span>
+                    <span className="address">{property.address}</span>
                   </h3>
 
                   {/* Loan Balance, ARV & Equity */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '1.5rem',
-                      fontSize: 13,
-                      color: '#555',
-                      marginBottom: '0.5rem',
-                      flexWrap: 'wrap',
-                    }}
-                  >
+                  <div className="rental-property-meta">
                     <span>
                       <strong>Loan Balance:</strong>{' '}
-                      <span style={{ color: '#b00020' }}>{currency(property.loanBalance)}</span>
+                      <span className="rental-loan">{currency(property.loanBalance)}</span>
                     </span>
                     <span>
                       <strong>{property.propertyValueSource}:</strong>{' '}
@@ -605,49 +567,26 @@ export function RentalOperationsView({ selectedYear }: Props) {
                     </span>
                     <span>
                       <strong>Equity:</strong>{' '}
-                      <span style={{ color: property.equity >= 0 ? '#0a7a3c' : '#b00020' }}>
+                      <span className={property.equity >= 0 ? 'profit-positive' : 'profit-negative'}>
                         {currency(property.equity)}
                       </span>
                     </span>
                   </div>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '1rem',
-                      fontSize: 13,
-                      color: '#555',
-                      marginBottom: '0.75rem',
-                      flexWrap: 'wrap',
-                    }}
-                  >
+                  <div className="rental-property-averages">
                     <span>
                       <strong>Avg Rent:</strong> {currency(property.avgMonthlyRent)}/mo
                     </span>
                     <span>
                       <strong>Avg Expenses:</strong> {currency(property.avgMonthlyExpenses)}/mo
                     </span>
-                    <span
-                      style={{
-                        color: property.avgMonthlyNet >= 0 ? '#0a7a3c' : '#b00020',
-                        fontWeight: 600,
-                      }}
-                    >
+                    <span className={`avg-net ${property.avgMonthlyNet >= 0 ? 'profit-positive' : 'profit-negative'}`}>
                       <strong>Avg Net:</strong> {currency(property.avgMonthlyNet)}/mo
                     </span>
                   </div>
 
                   {/* Period Stats */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                      gap: '0.75rem',
-                      fontSize: 14,
-                      marginBottom: '0.75rem',
-                    }}
-                  >
+                  <div className="rental-stats-grid">
                     <Stat label={`${periodLabel} Income`} value={property.totalIncome} money />
                     <Stat label="Mortgage (P+I)" value={totalMortgage} money />
                     <Stat label="Taxes & Ins" value={property.totalTaxesInsurance} money />
@@ -663,17 +602,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
                   </div>
 
                   {/* Transactions */}
-                  <h4
-                    style={{
-                      marginTop: '1rem',
-                      borderTop: '1px solid #eee',
-                      paddingTop: '0.75rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      fontSize: 15,
-                    }}
-                  >
+                  <h4 className="rental-tx-header">
                     <span>{isExpanded ? '▾' : '▸'}</span>
                     <span>Transactions ({property.transactions.length})</span>
                   </h4>
@@ -681,18 +610,11 @@ export function RentalOperationsView({ selectedYear }: Props) {
                   {isExpanded && (
                     <>
                       {property.transactions.length === 0 && (
-                        <p style={{ fontSize: 13 }}>No transactions found for this period.</p>
+                        <p className="rental-tx-empty">No transactions found for this period.</p>
                       )}
 
                       {property.transactions.length > 0 && (
-                        <table
-                          style={{
-                            borderCollapse: 'collapse',
-                            width: '100%',
-                            fontSize: 13,
-                            marginTop: '0.5rem',
-                          }}
-                        >
+                        <table className="rental-tx-table">
                           <thead>
                             <tr>
                               <Th>Date</Th>
@@ -712,18 +634,18 @@ export function RentalOperationsView({ selectedYear }: Props) {
                                   <React.Fragment key={idx}>
                                     <tr
                                       onClick={(e) => handleToggleMortgage(mortgageKey, e)}
-                                      style={{ cursor: 'pointer', backgroundColor: isMortgageExpanded ? '#f8f9fa' : undefined }}
+                                      className={`mortgage-row ${isMortgageExpanded ? 'mortgage-row--expanded' : ''}`}
                                     >
                                       <Td>{formatLocalDate(tx.date)}</Td>
                                       <Td>
-                                        <span style={{ marginRight: '0.4rem' }}>
+                                        <span className="mortgage-expand">
                                           {isMortgageExpanded ? '▾' : '▸'}
                                         </span>
                                         {tx.description}
                                       </Td>
                                       <Td>{tx.accountName}</Td>
                                       <Td align="right">
-                                        <span style={{ color: '#b00020', fontWeight: 500 }}>
+                                        <span className="rental-loan fw-500">
                                           {currency(tx.amount)}
                                         </span>
                                       </Td>
@@ -731,17 +653,17 @@ export function RentalOperationsView({ selectedYear }: Props) {
                                     {isMortgageExpanded && tx.mortgageDetails.map((detail, detailIdx) => (
                                       <tr
                                         key={`${idx}-detail-${detailIdx}`}
-                                        style={{ backgroundColor: '#f8f9fa' }}
+                                        className="mortgage-detail"
                                       >
                                         <Td>&nbsp;</Td>
                                         <Td>
-                                          <span style={{ paddingLeft: '1.5rem', color: '#666', fontSize: 12 }}>
+                                          <span className="mortgage-detail-name">
                                             └ {detail.accountName}
                                           </span>
                                         </Td>
                                         <Td>&nbsp;</Td>
                                         <Td align="right">
-                                          <span style={{ color: '#666', fontSize: 12 }}>
+                                          <span className="mortgage-detail-amount">
                                             {currency(detail.amount)}
                                           </span>
                                         </Td>
@@ -758,11 +680,7 @@ export function RentalOperationsView({ selectedYear }: Props) {
                                   <Td>{tx.description}</Td>
                                   <Td>{tx.accountName}</Td>
                                   <Td align="right">
-                                    <span
-                                      style={{
-                                        color: tx.amount >= 0 ? '#0a7a3c' : '#b00020',
-                                      }}
-                                    >
+                                    <span className={tx.amount >= 0 ? 'profit-positive' : 'profit-negative'}>
                                       {currency(tx.amount)}
                                     </span>
                                   </Td>
@@ -801,9 +719,9 @@ function Stat({
   suffix?: string;
   highlight?: 'positive' | 'negative';
 }) {
-  let color = '#111';
-  if (highlight === 'positive') color = '#0a7a3c';
-  if (highlight === 'negative') color = '#b00020';
+  let colorClass = '';
+  if (highlight === 'positive') colorClass = 'profit-positive';
+  if (highlight === 'negative') colorClass = 'profit-negative';
 
   const display = money
     ? `$${value.toLocaleString(undefined, {
@@ -814,10 +732,8 @@ function Stat({
 
   return (
     <div>
-      <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#777' }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 16, fontWeight: 600, color }}>{display}</div>
+      <div className="rental-stat__label">{label}</div>
+      <div className={`rental-stat__value ${colorClass}`}>{display}</div>
     </div>
   );
 }
@@ -830,13 +746,7 @@ function Th({
   align?: 'left' | 'right' | 'center';
 }) {
   return (
-    <th
-      style={{
-        borderBottom: '1px solid #ccc',
-        textAlign: align,
-        padding: '4px 6px',
-      }}
-    >
+    <th className={align === 'right' ? 'right' : ''}>
       {children}
     </th>
   );
@@ -850,13 +760,7 @@ function Td({
   align?: 'left' | 'right' | 'center';
 }) {
   return (
-    <td
-      style={{
-        padding: '3px 6px',
-        textAlign: align,
-        borderBottom: '1px solid #f2f2f2',
-      }}
-    >
+    <td className={align === 'right' ? 'right' : ''}>
       {children}
     </td>
   );

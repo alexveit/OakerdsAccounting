@@ -67,11 +67,11 @@ export const ACCOUNT_CODE_RANGES = {
   MARKETING_MIN: 55000,
   MARKETING_MAX: 55999,
 
-  // Expenses - Personal
+  // Expenses - Personal (general)
   PERSONAL_MIN: 60000,
   PERSONAL_MAX: 60999,
 
-  // Expenses - Real estate operations
+  // Expenses - Business Real estate operations
   REAL_ESTATE_EXPENSE_MIN: 62000,
   REAL_ESTATE_EXPENSE_MAX: 62999,
 
@@ -90,6 +90,10 @@ export const ACCOUNT_CODE_RANGES = {
   // Real estate liabilities (mortgages, hard money)
   RE_MORTGAGE_MIN: 64000,
   RE_MORTGAGE_MAX: 64999,
+
+  // Expenses - Personal Real estate (home ownership costs)
+  PERSONAL_RE_EXPENSE_MIN: 65000,
+  PERSONAL_RE_EXPENSE_MAX: 65999,
 } as const;
 
 /**
@@ -109,7 +113,7 @@ export const ACCOUNT_CODES = {
   FLIP_SERVICES: '62104',
   FLIP_HOLDING_COSTS: '62105',
 
-  // Rental expenses
+  // Rental expenses (62000-62099)
   RENTAL_REPAIRS: '62005',
   RENTAL_PROPERTY_MGMT: '62006',
   RENTAL_UTILITIES: '62007',
@@ -119,9 +123,11 @@ export const ACCOUNT_CODES = {
   RENTAL_TAXES_INSURANCE: '62011',
   RENTAL_MORTGAGE_INTEREST: '62012',
 
-  // Personal property expenses (60019-60020)
-  PERSONAL_MORTGAGE_INTEREST: '60019',
-  PERSONAL_TAXES_INSURANCE: '60020',
+  // Personal RE expenses (65000-65999)
+  PERSONAL_MORTGAGE_INTEREST: '65001',
+  PERSONAL_TAXES_INSURANCE: '65002',
+  PERSONAL_HOA: '65003',
+  PERSONAL_HOME_MAINTENANCE: '65004',
 } as const;
 
 /**
@@ -255,6 +261,10 @@ export function isRentalExpenseCode(code: string | null | undefined): boolean {
 
 export function isFlipExpenseCode(code: string | null | undefined): boolean {
   return isCodeInRange(code, ACCOUNT_CODE_RANGES.FLIP_EXPENSE_MIN, ACCOUNT_CODE_RANGES.FLIP_EXPENSE_MAX);
+}
+
+export function isPersonalREExpenseCode(code: string | null | undefined): boolean {
+  return isCodeInRange(code, ACCOUNT_CODE_RANGES.PERSONAL_RE_EXPENSE_MIN, ACCOUNT_CODE_RANGES.PERSONAL_RE_EXPENSE_MAX);
 }
 
 export function isBankCode(code: string | null | undefined): boolean {

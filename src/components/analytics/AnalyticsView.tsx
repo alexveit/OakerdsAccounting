@@ -10,7 +10,7 @@ export function Analytics() {
 
   return (
     <div>
-      <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>Analytics</h2>
+      <h2 className="mt-0 mb-2">Analytics</h2>
 
       {/* Tab Navigation */}
       <div className="tab-strip">
@@ -38,7 +38,7 @@ export function Analytics() {
       </div>
 
       {/* Content */}
-      <div style={{ marginTop: '0.75rem' }}>
+      <div className="mt-1h">
         {tab === 'balances' && <AnalyticsBalances />}
         {tab === 'expenses' && <AnalyticsExpenses />}
         {tab === 'cashflow' && <AnalyticsCashFlow />}

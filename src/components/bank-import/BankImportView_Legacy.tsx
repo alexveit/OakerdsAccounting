@@ -1,6 +1,6 @@
 // src/components/bank-import/BankImportView.tsx
 
-import { useEffect, useState, useRef, type CSSProperties } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatCurrency } from '../../utils/format';
 import { formatLocalDate } from '../../utils/date';
@@ -458,7 +458,9 @@ export function BankImportView() {
     }
   }
 
-  // Commit transactions
+  // ============================================================================
+  // COMMIT TRANSACTIONS
+  // ============================================================================
   async function handleCommit() {
     const selected = reviewTransactions.filter((tx) => tx.selected);
     if (selected.length === 0) {
@@ -478,6 +480,14 @@ export function BankImportView() {
       for (const tx of selected) {
         // Mark as cleared: only for posted bank transactions matching pending DB entries
         if (tx.bank_status === 'posted' && tx.match_type === 'matched_pending' && tx.matched_transaction_id) {
+          // Update transaction date to bank's cleared date
+          const { error: dateErr } = await supabase
+            .from('transactions')
+            .update({ date: tx.date })
+            .eq('id', tx.matched_transaction_id);
+
+          if (dateErr) throw dateErr;
+
           // Mark ALL lines for this transaction as cleared
           const { error: clearErr } = await supabase
             .from('transaction_lines')
@@ -486,7 +496,16 @@ export function BankImportView() {
 
           if (clearErr) throw clearErr;
           clearedCount++;
+
         } else if (tx.match_type === 'tip_adjustment' && tx.matched_transaction_id && tx.original_amount) {
+          // Update transaction date to bank's cleared date
+          const { error: dateErr } = await supabase
+            .from('transactions')
+            .update({ date: tx.date })
+            .eq('id', tx.matched_transaction_id);
+
+          if (dateErr) throw dateErr;
+
           // Tip adjustment: scale all lines atomically and mark as cleared
           const scaleFactor = Math.abs(tx.amount) / Math.abs(tx.original_amount);
           
@@ -497,6 +516,7 @@ export function BankImportView() {
           
           if (tipErr) throw tipErr;
           tipAdjustedCount++;
+
         } else if (tx.match_type === 'new') {
           const categoryAccountId = tx.override_account_id ?? tx.suggested_account_id;
           const vendorId = tx.override_vendor_id ?? tx.suggested_vendor_id;
@@ -515,7 +535,7 @@ export function BankImportView() {
           
           // Build line object, only including optional fields if they have values
           const buildLine = (acctId: number, amt: number, isCategoryLine: boolean) => {
-            const line: Record<string, any> = {
+            const line: Record<string, unknown> = {
               account_id: acctId,
               amount: amt,
               purpose,
@@ -534,8 +554,6 @@ export function BankImportView() {
             ? [buildLine(categoryAccountId, absAmount, true), buildLine(accountId, -absAmount, false)]
             : [buildLine(accountId, absAmount, false), buildLine(categoryAccountId, -absAmount, true)];
 
-          console.log('Creating transaction:', { date: tx.date, description, purpose, lines });
-
           const { error: rpcErr } = await supabase.rpc('create_transaction_multi', {
             p_date: tx.date,
             p_description: description,
@@ -553,15 +571,16 @@ export function BankImportView() {
       setRawBankData('');
       setProcessingState('idle');
       clearSavedState();
+
     } catch (err: unknown) {
       console.error('Commit error:', err);
       console.error('Error JSON:', JSON.stringify(err, null, 2));
       const errMsg = err instanceof Error 
         ? err.message 
         : typeof err === 'object' && err !== null && 'message' in err
-          ? String((err as any).message)
+          ? String((err as unknown as { message: string }).message)
           : typeof err === 'object' && err !== null && 'details' in err
-            ? String((err as any).details)
+            ? String((err as unknown as { details: string }).details)
             : 'Failed to commit transactions';
       setError(errMsg);
       setProcessingState('review');
@@ -634,13 +653,13 @@ export function BankImportView() {
   // Convert reference data to SelectOption arrays for SearchableSelect
   const expenseAccountOptions: SelectOption[] = (referenceData?.expenseAccounts ?? []).map((acc) => ({
     value: acc.id,
-    label: `${acc.code} "“ ${acc.name}`,
+    label: `${acc.code}  –  ${acc.name}`,
     searchText: `${acc.code} ${acc.name}`,
   }));
 
   const incomeAccountOptions: SelectOption[] = (referenceData?.incomeAccounts ?? []).map((acc) => ({
     value: acc.id,
-    label: `${acc.code} "“ ${acc.name}`,
+    label: `${acc.code}  –  ${acc.name}`,
     searchText: `${acc.code} ${acc.name}`,
   }));
 
@@ -655,38 +674,30 @@ export function BankImportView() {
     label: v.name,
   }));
 
-  // Styles
-  const cardStyle: CSSProperties = { background: '#fff', borderRadius: 8, padding: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' };
-  const textareaStyle: CSSProperties = { width: '100%', minHeight: 200, padding: '0.75rem', fontSize: 13, fontFamily: 'monospace', border: '1px solid #ddd', borderRadius: 4, resize: 'vertical' };
-  const confidenceBadge = (confidence: string): CSSProperties => ({
-    display: 'inline-block', padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-    background: confidence === 'high' ? '#d4edda' : confidence === 'medium' ? '#fff3cd' : '#f8d7da',
-    color: confidence === 'high' ? '#155724' : confidence === 'medium' ? '#856404' : '#721c24',
-  });
-  const comparisonBoxStyle: CSSProperties = { background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginTop: '0.5rem', marginLeft: 40, fontSize: 12 };
-  const comparisonRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: '60px 1fr', gap: '0.5rem', padding: '0.25rem 0' };
-  const comparisonLabelStyle: CSSProperties = { fontWeight: 600, color: '#64748b' };
+  // Helper for confidence badge class
+  const confidenceBadgeClass = (confidence: string): string => 
+    `confidence-badge confidence-badge--${confidence}`;
 
   const isProcessing = processingState === 'loading-context' || processingState === 'processing-ai';
 
   return (
     <div>
-      <h2 style={{ margin: 0, marginBottom: '0.75rem' }}>Bank Import</h2>
+      <h2 className="mt-0 mb-1h">Bank Import</h2>
 
       {error && (
-        <div style={{ background: '#f8d7da', color: '#721c24', padding: '0.75rem', borderRadius: 4, marginBottom: '1rem' }}>
+        <div className="alert alert--error">
           {error}
         </div>
       )}
 
       {warnings.length > 0 && (
-        <div style={{ background: '#fff3cd', color: '#856404', padding: '0.75rem', borderRadius: 4, marginBottom: '1rem' }}>
+        <div className="alert alert--warning">
           {warnings.map((w, i) => <div key={i}>{w}</div>)}
         </div>
       )}
 
       {commitResult && (
-        <div style={{ background: '#d4edda', color: '#155724', padding: '0.75rem', borderRadius: 4, marginBottom: '1rem' }}>
+        <div className="alert alert--success">
           ✓ Committed: {[
             commitResult.cleared > 0 && `${commitResult.cleared} marked cleared`,
             commitResult.tipAdjusted > 0 && `${commitResult.tipAdjusted} tip adjustments`,
@@ -697,45 +708,45 @@ export function BankImportView() {
 
       {/* Processing Progress */}
       {isProcessing && (
-        <div style={{ ...cardStyle, marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>Processing Bank Data...</div>
-            <div style={{ fontFamily: 'monospace', fontSize: 14, color: '#666', background: '#f3f4f6', padding: '0.25rem 0.5rem', borderRadius: 4 }}>
+        <div className="import-card">
+          <div className="processing-header">
+            <div className="processing-title">Processing Bank Data...</div>
+            <div className="processing-timer">
               {formatTime(elapsedSeconds)}
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div className="processing-steps">
             {processingSteps.map((step, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ width: 20, textAlign: 'center' }}>
-                  {step.status === 'done' ? '✓' : step.status === 'active' ? <span style={{ display: 'inline-block', animation: 'pulse 1s infinite' }}>●</span> : '○'}
+              <div key={i} className="processing-step">
+                <span className="processing-step__icon">
+                  {step.status === 'done' ? '✓' : step.status === 'active' ? <span className="pulse-icon">●</span> : '○'}
                 </span>
-                <span style={{ color: step.status === 'done' ? '#0a7a3c' : step.status === 'active' ? '#2563eb' : '#999', fontWeight: step.status === 'active' ? 600 : 400 }}>
+                <span className={`processing-step__label--${step.status}`}>
                   {step.label}
                 </span>
-                {step.detail && <span style={{ color: '#666', fontSize: 12 }}>({step.detail})</span>}
+                {step.detail && <span className="processing-step__detail">({step.detail})</span>}
               </div>
             ))}
           </div>
-          <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+          
         </div>
       )}
 
       {/* Input Section */}
       {processingState === 'idle' && (
-        <div style={cardStyle}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Account</label>
-            <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)} style={{ padding: '0.5rem', fontSize: 14, minWidth: 300 }}>
+        <div className="import-card">
+          <div className="mb-2">
+            <label className="filter-control__label">Account</label>
+            <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)} style={{ minWidth: 300 }}>
               <option value="">Select account...</option>
-              {accounts.map((acc) => <option key={acc.id} value={acc.id}>{acc.code ? `${acc.code} "“ ${acc.name}` : acc.name}</option>)}
+              {accounts.map((acc) => <option key={acc.id} value={acc.id}>{acc.code ? `${acc.code}  –  ${acc.name}` : acc.name}</option>)}
             </select>
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Paste Bank Transactions</label>
-            <textarea value={rawBankData} onChange={(e) => setRawBankData(e.target.value)} placeholder="Copy and paste transaction data from Bank of America website..." style={textareaStyle} />
-            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+          <div className="mb-2">
+            <label className="filter-control__label">Paste Bank Transactions</label>
+            <textarea value={rawBankData} onChange={(e) => setRawBankData(e.target.value)} placeholder="Copy and paste transaction data from Bank of America website..." className="import-textarea" />
+            <div className="text-muted text-sm mt-1">
               Paste the full transaction list. Transactions already in both systems (pending/pending) will be hidden.
             </div>
           </div>
@@ -743,7 +754,7 @@ export function BankImportView() {
           <button
             onClick={handleProcess}
             disabled={!selectedAccountId || !rawBankData.trim()}
-            style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: 4, fontSize: 14, fontWeight: 600, cursor: selectedAccountId && rawBankData.trim() ? 'pointer' : 'not-allowed', opacity: selectedAccountId && rawBankData.trim() ? 1 : 0.6 }}
+            className="btn btn-blue"
           >
             Process with AI
           </button>
@@ -753,22 +764,22 @@ export function BankImportView() {
       {/* Review Section */}
       {(processingState === 'review' || processingState === 'committing') && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <div>
+          <div className="review-summary">
+            <div className="review-stats">
               <strong>{actionableItems.length}</strong> transactions require action
-              {toMarkCleared.length > 0 && <span style={{ color: '#0a7a3c', marginLeft: 8 }}>({toMarkCleared.length} to mark cleared)</span>}
-              {tipAdjustments.length > 0 && <span style={{ color: '#f59e0b', marginLeft: 8 }}>({tipAdjustments.length} tip adjustments)</span>}
-              {newTransactions.length > 0 && <span style={{ color: '#2563eb', marginLeft: 8 }}>({newTransactions.length} new)</span>}
-              {anomalies.length > 0 && <span style={{ color: '#dc2626', marginLeft: 8 }}>+ {anomalies.length} anomalies to review</span>}
+              {toMarkCleared.length > 0 && <span className="review-stats--cleared">({toMarkCleared.length} to mark cleared)</span>}
+              {tipAdjustments.length > 0 && <span className="review-stats--tips">({tipAdjustments.length} tip adjustments)</span>}
+              {newTransactions.length > 0 && <span className="review-stats--new">({newTransactions.length} new)</span>}
+              {anomalies.length > 0 && <span className="review-stats--anomalies">+ {anomalies.length} anomalies to review</span>}
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button onClick={selectAll} style={{ fontSize: 13 }}>Select All</button>
-              <button onClick={selectNone} style={{ fontSize: 13 }}>Select None</button>
+            <div className="review-actions">
+              <button onClick={selectAll} className="btn btn-sm">Select All</button>
+              <button onClick={selectNone} className="btn btn-sm">Select None</button>
             </div>
           </div>
 
           {(hiddenStats.bankPending > 0 || hiddenStats.alreadyCleared > 0) && (
-            <div style={{ background: '#f3f4f6', color: '#666', padding: '0.5rem 0.75rem', borderRadius: 4, marginBottom: '1rem', fontSize: 13 }}>
+            <div className="hidden-stats">
               Not shown: {hiddenStats.bankPending > 0 && <span>{hiddenStats.bankPending} pending in both bank &amp; ledger</span>}
               {hiddenStats.bankPending > 0 && hiddenStats.alreadyCleared > 0 && ', '}
               {hiddenStats.alreadyCleared > 0 && <span>{hiddenStats.alreadyCleared} already reconciled</span>}
@@ -777,40 +788,40 @@ export function BankImportView() {
 
           {/* Mark as Cleared */}
           {toMarkCleared.length > 0 && (
-            <div style={{ ...cardStyle, marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: 15, color: '#0a7a3c' }}>✓ Mark as Cleared ({toMarkCleared.length})</h3>
-              <div style={{ fontSize: 12, color: '#666', marginBottom: '0.5rem' }}>Posted bank transactions matching pending ledger entries. Click to expand.</div>
+            <div className="import-card">
+              <h3 className="import-section-title import-section-title--success">✓ Mark as Cleared ({toMarkCleared.length})</h3>
+              <div className="import-section-hint">Posted bank transactions matching pending ledger entries. Click to expand.</div>
               {reviewTransactions.map((tx, idx) => ({ tx, idx })).filter(({ tx }) => tx.bank_status === 'posted' && tx.match_type === 'matched_pending').map(({ tx, idx }) => {
                 const isExpanded = expandedMatches.has(idx);
                 const pendingTx = tx.matched_line_id ? pendingTransactionsMap.get(tx.matched_line_id) : null;
                 return (
-                  <div key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                  <div key={idx} className="tx-row-wrapper">
                     <div
-                      style={{ display: 'grid', gridTemplateColumns: '40px 90px 1fr 100px 120px 30px', gap: '0.5rem', alignItems: 'center', padding: '0.5rem', fontSize: 13, cursor: 'pointer', background: isExpanded ? '#f8fafc' : 'transparent' }}
+                      className={`tx-row tx-row--6col ${isExpanded ? 'tx-row--expanded' : ''}`}
                       onClick={() => toggleMatchExpanded(idx)}
                     >
                       <input type="checkbox" checked={tx.selected} onChange={(e) => { e.stopPropagation(); toggleTransaction(idx); }} onClick={(e) => e.stopPropagation()} />
                       <span>{formatLocalDate(tx.date)}</span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description}</span>
-                      <span style={{ textAlign: 'right', color: tx.amount < 0 ? '#b00020' : '#0a7a3c', fontWeight: 500 }}>{formatCurrency(tx.amount, 2)}</span>
-                      <span style={confidenceBadge(tx.match_confidence)}>{tx.match_confidence} confidence</span>
-                      <span style={{ color: '#999', fontSize: 11 }}>{isExpanded ? '▼' : '▶'}</span>
+                      <span className="tx-row__description">{tx.description}</span>
+                      <span className={`tx-row__amount ${tx.amount < 0 ? 'tx-row__amount--negative' : 'tx-row__amount--positive'}`}>{formatCurrency(tx.amount, 2)}</span>
+                      <span className={confidenceBadgeClass(tx.match_confidence)}>{tx.match_confidence} confidence</span>
+                      <span className="tx-row__expand">{isExpanded ? '▼' : '▶'}</span>
                     </div>
                     {isExpanded && pendingTx && (
-                      <div style={comparisonBoxStyle}>
-                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>BANK:</span><span>{formatLocalDate(tx.date)} · "{tx.description}" · <strong>{formatCurrency(tx.amount, 2)}</strong></span></div>
-                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>LEDGER:</span><span>{formatLocalDate(pendingTx.date)} · "{pendingTx.description || '(no description)'}" · <strong>{formatCurrency(pendingTx.amount, 2)}</strong></span></div>
+                      <div className="comparison-box">
+                        <div className="comparison-row"><span className="comparison-label">BANK:</span><span>{formatLocalDate(tx.date)} · "{tx.description}" · <strong>{formatCurrency(tx.amount, 2)}</strong></span></div>
+                        <div className="comparison-row"><span className="comparison-label">LEDGER:</span><span>{formatLocalDate(pendingTx.date)} · "{pendingTx.description || '(no description)'}" · <strong>{formatCurrency(pendingTx.amount, 2)}</strong></span></div>
                         {(pendingTx.job_name || pendingTx.vendor_name || pendingTx.installer_name) && (
-                          <div style={{ ...comparisonRowStyle, marginTop: '0.25rem', paddingTop: '0.25rem', borderTop: '1px solid #e2e8f0' }}>
-                            <span style={comparisonLabelStyle}>DETAILS:</span>
+                          <div className="comparison-row comparison-row--bordered">
+                            <span className="comparison-label">DETAILS:</span>
                             <span>
                               {pendingTx.job_name && <span>Job: <strong>{pendingTx.job_name}</strong></span>}
-                              {pendingTx.vendor_name && <span style={{ marginLeft: pendingTx.job_name ? 12 : 0 }}>Vendor: <strong>{pendingTx.vendor_name}</strong></span>}
-                              {pendingTx.installer_name && <span style={{ marginLeft: (pendingTx.job_name || pendingTx.vendor_name) ? 12 : 0 }}>Installer: <strong>{pendingTx.installer_name}</strong></span>}
+                              {pendingTx.vendor_name && <span className={pendingTx.job_name ? 'ml-12' : ''}>Vendor: <strong>{pendingTx.vendor_name}</strong></span>}
+                              {pendingTx.installer_name && <span className={(pendingTx.job_name || pendingTx.vendor_name) ? 'ml-12' : ''}>Installer: <strong>{pendingTx.installer_name}</strong></span>}
                             </span>
                           </div>
                         )}
-                        {tx.reasoning && <div style={{ marginTop: '0.5rem', color: '#666', fontStyle: 'italic' }}>AI: {tx.reasoning}</div>}
+                        {tx.reasoning && <div className="comparison-note">AI: {tx.reasoning}</div>}
                       </div>
                     )}
                   </div>
@@ -821,9 +832,9 @@ export function BankImportView() {
 
           {/* Tip Adjustments - Restaurant charges with tips added */}
           {tipAdjustments.length > 0 && (
-            <div style={{ ...cardStyle, marginBottom: '1rem', borderLeft: '4px solid #f59e0b' }}>
-              <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: 15, color: '#f59e0b' }}>âš¡ Tip Adjustments ({tipAdjustments.length})</h3>
-              <div style={{ fontSize: 12, color: '#666', marginBottom: '0.5rem' }}>
+            <div className="import-card import-card--bordered-warning">
+              <h3 className="import-section-title import-section-title--warning">⚡ Tip Adjustments ({tipAdjustments.length})</h3>
+              <div className="import-section-hint">
                 Restaurant charges where the final amount (with tip) differs from the original. Will update the ledger amount and mark as cleared.
               </div>
               {reviewTransactions.map((tx, idx) => ({ tx, idx })).filter(({ tx }) => tx.match_type === 'tip_adjustment').map(({ tx, idx }) => {
@@ -831,41 +842,41 @@ export function BankImportView() {
                 const pendingTx = tx.matched_line_id ? pendingTransactionsMap.get(tx.matched_line_id) : null;
                 const tipAmount = tx.original_amount ? Math.abs(tx.amount) - Math.abs(tx.original_amount) : 0;
                 return (
-                  <div key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                  <div key={idx} className="tx-row-wrapper">
                     <div
-                      style={{ display: 'grid', gridTemplateColumns: '40px 90px 1fr 100px 100px 30px', gap: '0.5rem', alignItems: 'center', padding: '0.5rem', fontSize: 13, cursor: 'pointer', background: isExpanded ? '#fffbeb' : 'transparent' }}
+                      className={`tx-row tx-row--6col ${isExpanded ? 'tx-row--expanded-warning' : ''}`}
                       onClick={() => toggleMatchExpanded(idx)}
                     >
                       <input type="checkbox" checked={tx.selected} onChange={(e) => { e.stopPropagation(); toggleTransaction(idx); }} onClick={(e) => e.stopPropagation()} />
                       <span>{formatLocalDate(tx.date)}</span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description}</span>
-                      <span style={{ textAlign: 'right', color: '#b00020', fontWeight: 500 }}>{formatCurrency(tx.amount, 2)}</span>
-                      <span style={{ display: 'inline-block', padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#fef3c7', color: '#92400e' }}>
+                      <span className="tx-row__description">{tx.description}</span>
+                      <span className="tx-row__amount tx-row__amount--negative">{formatCurrency(tx.amount, 2)}</span>
+                      <span className="tip-badge">
                         +{formatCurrency(tipAmount, 2)} tip
                       </span>
-                      <span style={{ color: '#999', fontSize: 11 }}>{isExpanded ? '▼' : '▶'}</span>
+                      <span className="tx-row__expand">{isExpanded ? '▼' : '▶'}</span>
                     </div>
                     {isExpanded && (
-                      <div style={{ ...comparisonBoxStyle, background: '#fffbeb', borderColor: '#fcd34d' }}>
-                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>BANK:</span><span>{formatLocalDate(tx.date)} · "{tx.description}" · <strong>{formatCurrency(tx.amount, 2)}</strong> (final with tip)</span></div>
-                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>LEDGER:</span><span>{pendingTx ? `${formatLocalDate(pendingTx.date)} · "${pendingTx.description || '(no description)'}"` : `line_id: ${tx.matched_line_id}`} · <strong>{formatCurrency(tx.original_amount ?? 0, 2)}</strong> (original)</span></div>
-                        <div style={{ ...comparisonRowStyle, marginTop: '0.25rem', paddingTop: '0.25rem', borderTop: '1px solid #fcd34d' }}>
-                          <span style={comparisonLabelStyle}>TIP:</span>
+                      <div className="comparison-box comparison-box--warning">
+                        <div className="comparison-row"><span className="comparison-label">BANK:</span><span>{formatLocalDate(tx.date)} · "{tx.description}" · <strong>{formatCurrency(tx.amount, 2)}</strong> (final with tip)</span></div>
+                        <div className="comparison-row"><span className="comparison-label">LEDGER:</span><span>{pendingTx ? `${formatLocalDate(pendingTx.date)} · "${pendingTx.description || '(no description)'}"` : `line_id: ${tx.matched_line_id}`} · <strong>{formatCurrency(tx.original_amount ?? 0, 2)}</strong> (original)</span></div>
+                        <div className="comparison-row comparison-row--bordered comparison-row--bordered-warning">
+                          <span className="comparison-label">TIP:</span>
                           <span><strong>{formatCurrency(tipAmount, 2)}</strong> ({tx.original_amount ? ((tipAmount / Math.abs(tx.original_amount)) * 100).toFixed(1) : 0}%)</span>
                         </div>
                         {pendingTx && (pendingTx.job_name || pendingTx.vendor_name) && (
-                          <div style={comparisonRowStyle}>
-                            <span style={comparisonLabelStyle}>DETAILS:</span>
+                          <div className="comparison-row">
+                            <span className="comparison-label">DETAILS:</span>
                             <span>
                               {pendingTx.job_name && <span>Job: <strong>{pendingTx.job_name}</strong></span>}
-                              {pendingTx.vendor_name && <span style={{ marginLeft: pendingTx.job_name ? 12 : 0 }}>Vendor: <strong>{pendingTx.vendor_name}</strong></span>}
+                              {pendingTx.vendor_name && <span className={pendingTx.job_name ? 'ml-12' : ''}>Vendor: <strong>{pendingTx.vendor_name}</strong></span>}
                             </span>
                           </div>
                         )}
-                        <div style={{ marginTop: '0.5rem', color: '#92400e', fontWeight: 500 }}>
+                        <div className="comparison-action comparison-action--warning">
                           ✓ Will update ledger amount to {formatCurrency(tx.amount, 2)} and mark as cleared
                         </div>
-                        {tx.reasoning && <div style={{ marginTop: '0.5rem', color: '#666', fontStyle: 'italic' }}>AI: {tx.reasoning}</div>}
+                        {tx.reasoning && <div className="comparison-note">AI: {tx.reasoning}</div>}
                       </div>
                     )}
                   </div>
@@ -876,35 +887,35 @@ export function BankImportView() {
 
           {/* Anomalies - Bank processing but DB shows cleared */}
           {anomalies.length > 0 && (
-            <div style={{ ...cardStyle, marginBottom: '1rem', borderLeft: '4px solid #dc2626' }}>
-              <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: 15, color: '#dc2626' }}>âš  Anomalies ({anomalies.length})</h3>
-              <div style={{ fontSize: 12, color: '#666', marginBottom: '0.5rem' }}>
-                These transactions are still processing at the bank but already marked as cleared in the ledger. This may indicate duplicates or timing issues. <strong>No action will be taken</strong> "” review and investigate in the Ledger.
+            <div className="import-card import-card--bordered-danger">
+              <h3 className="import-section-title import-section-title--danger">⚠ Anomalies ({anomalies.length})</h3>
+              <div className="import-section-hint">
+                These transactions are still processing at the bank but already marked as cleared in the ledger. This may indicate duplicates or timing issues. <strong>No action will be taken</strong> "" review and investigate in the Ledger.
               </div>
               {reviewTransactions.map((tx, idx) => ({ tx, idx })).filter(({ tx }) => tx.bank_status === 'pending' && tx.match_type === 'matched_cleared').map(({ tx, idx }) => {
                 const isExpanded = expandedMatches.has(idx);
                 return (
-                  <div key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                  <div key={idx} className="tx-row-wrapper">
                     <div
-                      style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 120px 30px', gap: '0.5rem', alignItems: 'center', padding: '0.5rem', fontSize: 13, cursor: 'pointer', background: isExpanded ? '#fef2f2' : 'transparent' }}
+                      className={`tx-row tx-row--5col ${isExpanded ? 'tx-row--expanded-danger' : ''}`}
                       onClick={() => toggleMatchExpanded(idx)}
                     >
                       <span>{formatLocalDate(tx.date)}</span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description}</span>
-                      <span style={{ textAlign: 'right', color: tx.amount < 0 ? '#b00020' : '#0a7a3c', fontWeight: 500 }}>{formatCurrency(tx.amount, 2)}</span>
-                      <span style={{ display: 'inline-block', padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#fef2f2', color: '#dc2626' }}>
+                      <span className="tx-row__description">{tx.description}</span>
+                      <span className={`tx-row__amount ${tx.amount < 0 ? 'tx-row__amount--negative' : 'tx-row__amount--positive'}`}>{formatCurrency(tx.amount, 2)}</span>
+                      <span className="status-badge--pending">
                         bank pending
                       </span>
-                      <span style={{ color: '#999', fontSize: 11 }}>{isExpanded ? '▼' : '▶'}</span>
+                      <span className="tx-row__expand">{isExpanded ? '▼' : '▶'}</span>
                     </div>
                     {isExpanded && (
-                      <div style={{ ...comparisonBoxStyle, background: '#fef2f2', borderColor: '#fecaca' }}>
-                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>BANK:</span><span>{formatLocalDate(tx.date)} · "{tx.description}" · <strong>{formatCurrency(tx.amount, 2)}</strong> · <em>Still processing</em></span></div>
-                        <div style={comparisonRowStyle}><span style={comparisonLabelStyle}>LEDGER:</span><span>Matched to cleared transaction (line_id: {tx.matched_line_id})</span></div>
-                        <div style={{ marginTop: '0.5rem', color: '#dc2626', fontWeight: 500 }}>
-                          âš  Investigate in the Ledger "” this may be a duplicate or timing issue.
+                      <div className="comparison-box comparison-box--danger">
+                        <div className="comparison-row"><span className="comparison-label">BANK:</span><span>{formatLocalDate(tx.date)} · "{tx.description}" · <strong>{formatCurrency(tx.amount, 2)}</strong> · <em>Still processing</em></span></div>
+                        <div className="comparison-row"><span className="comparison-label">LEDGER:</span><span>Matched to cleared transaction (line_id: {tx.matched_line_id})</span></div>
+                        <div className="comparison-action comparison-action--danger">
+                          ⚠  Investigate in the Ledger "" this may be a duplicate or timing issue.
                         </div>
-                        {tx.reasoning && <div style={{ marginTop: '0.5rem', color: '#666', fontStyle: 'italic' }}>AI: {tx.reasoning}</div>}
+                        {tx.reasoning && <div className="comparison-note">AI: {tx.reasoning}</div>}
                       </div>
                     )}
                   </div>
@@ -915,51 +926,51 @@ export function BankImportView() {
 
           {/* New Transactions */}
           {newTransactions.length > 0 && (
-            <div style={cardStyle}>
-              <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: 15, color: '#2563eb' }}>+ New Transactions ({newTransactions.length})</h3>
-              <div style={{ fontSize: 12, color: '#666', marginBottom: '0.5rem' }}>Bank transactions with no ledger match. Review and adjust categories.</div>
+            <div className="import-card">
+              <h3 className="import-section-title import-section-title--info">+ New Transactions ({newTransactions.length})</h3>
+              <div className="import-section-hint">Bank transactions with no ledger match. Review and adjust categories.</div>
               {reviewTransactions.map((tx, idx) => ({ tx, idx })).filter(({ tx }) => tx.match_type === 'new').map(({ tx, idx }) => (
-                <div key={idx} style={{ padding: '0.75rem', borderBottom: '1px solid #eee', background: tx.selected ? '#f8fafc' : '#fff' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div key={idx} className={`new-tx-item ${tx.selected ? 'new-tx-item--selected' : ''}`}>
+                  <div className="new-tx-header">
                     <input type="checkbox" checked={tx.selected} onChange={() => toggleTransaction(idx)} />
-                    <span style={{ width: 90 }}>{formatLocalDate(tx.date)}</span>
-                    <span style={{ flex: 1 }}>{tx.description}</span>
-                    <span style={{ fontWeight: 600, color: tx.amount < 0 ? '#b00020' : '#0a7a3c' }}>{formatCurrency(tx.amount, 2)}</span>
+                    <span className="new-tx-date">{formatLocalDate(tx.date)}</span>
+                    <span className="new-tx-desc">{tx.description}</span>
+                    <span className={`new-tx-amount ${tx.amount < 0 ? 'tx-row__amount--negative' : 'tx-row__amount--positive'}`}>{formatCurrency(tx.amount, 2)}</span>
                   </div>
                   {tx.selected && (
-                    <div style={{ marginTop: '0.5rem', marginLeft: 28, fontSize: 13 }}>
-                      <div style={{ marginBottom: '0.5rem' }}>
-                        <label style={{ fontSize: 11, color: '#666' }}>Description</label>
+                    <div className="new-tx-form">
+                      <div className="new-tx-form__field">
+                        <label className="new-tx-form__label">Description</label>
                         <input
                           type="text"
                           value={tx.override_description ?? tx.description}
                           onChange={(e) => updateTransaction(idx, { override_description: e.target.value })}
-                          style={{ width: '100%', padding: '0.25rem 0.5rem', fontSize: 13, border: '1px solid #ddd', borderRadius: 4 }}
+                          className="form-input"
                           placeholder="Enter description..."
                         />
                         {tx.override_description !== tx.description && tx.override_description !== null && (
-                          <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
+                          <div className="new-tx-form__original">
                             Original: {tx.description}
                           </div>
                         )}
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr', gap: '0.75rem', alignItems: 'start' }}>
-                        <div style={{ minWidth: 90 }}>
-                          <label style={{ fontSize: 11, color: '#666' }}>Status</label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0' }}>
+                      <div className="new-tx-form__grid">
+                        <div className="new-tx-form__status">
+                          <label className="new-tx-form__label">Status</label>
+                          <div className="new-tx-form__status-row">
                             <input
                               type="checkbox"
                               id={`cleared-${idx}`}
                               checked={tx.override_is_cleared ?? (tx.bank_status === 'posted')}
                               onChange={(e) => updateTransaction(idx, { override_is_cleared: e.target.checked })}
                             />
-                            <label htmlFor={`cleared-${idx}`} style={{ fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <label htmlFor={`cleared-${idx}`} className="text-sm">
                               {(tx.override_is_cleared ?? (tx.bank_status === 'posted')) ? '✓ Cleared' : '○ Pending'}
                             </label>
                           </div>
                         </div>
                         <div>
-                          <label style={{ fontSize: 11, color: '#666' }}>Category</label>
+                          <label className="new-tx-form__label">Category</label>
                           <SearchableSelect
                             options={tx.amount < 0 ? expenseAccountOptions : incomeAccountOptions}
                             value={tx.override_account_id ?? tx.suggested_account_id ?? null}
@@ -969,7 +980,7 @@ export function BankImportView() {
                           />
                         </div>
                         <div>
-                          <label style={{ fontSize: 11, color: '#666' }}>Job</label>
+                          <label className="new-tx-form__label">Job</label>
                           <SearchableSelect
                             options={jobOptions}
                             value={tx.override_job_id ?? tx.suggested_job_id ?? null}
@@ -979,7 +990,7 @@ export function BankImportView() {
                           />
                         </div>
                         <div>
-                          <label style={{ fontSize: 11, color: '#666' }}>Vendor</label>
+                          <label className="new-tx-form__label">Vendor</label>
                           <SearchableSelect
                             options={vendorOptions}
                             value={tx.override_vendor_id ?? tx.suggested_vendor_id ?? null}
@@ -994,17 +1005,17 @@ export function BankImportView() {
                       </div>
                     </div>
                   )}
-                  {tx.reasoning && <div style={{ marginTop: '0.5rem', marginLeft: 28, fontSize: 12, color: '#666', fontStyle: 'italic' }}>AI: {tx.reasoning}</div>}
+                  {tx.reasoning && <div className="ai-note">AI: {tx.reasoning}</div>}
                 </div>
               ))}
             </div>
           )}
 
           {actionableItems.length === 0 && anomalies.length === 0 && (
-            <div style={{ ...cardStyle, textAlign: 'center', color: '#666' }}>
-              <p style={{ margin: 0 }}>No transactions require action.</p>
+            <div className="import-card text-center text-muted">
+              <p className="m-0">No transactions require action.</p>
               {(hiddenStats.bankPending > 0 || hiddenStats.alreadyCleared > 0) && (
-                <p style={{ margin: '0.5rem 0 0', fontSize: 13 }}>
+                <p className="text-sm mt-1">
                   {hiddenStats.bankPending > 0 && `${hiddenStats.bankPending} are pending in both bank & ledger. `}
                   {hiddenStats.alreadyCleared > 0 && `${hiddenStats.alreadyCleared} were already reconciled.`}
                 </p>
@@ -1013,19 +1024,19 @@ export function BankImportView() {
           )}
 
           {actionableItems.length > 0 && (
-            <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem' }}>
-              <button onClick={handleCommit} disabled={selectedCount === 0 || processingState === 'committing'} style={{ background: '#0a7a3c', color: '#fff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: 4, fontSize: 14, fontWeight: 600, cursor: selectedCount > 0 ? 'pointer' : 'not-allowed', opacity: selectedCount > 0 ? 1 : 0.6 }}>
+            <div className="btn-row">
+              <button onClick={handleCommit} disabled={selectedCount === 0 || processingState === 'committing'} className="btn btn-success">
                 {processingState === 'committing' ? 'Committing...' : `Commit Selected (${selectedCount})`}
               </button>
-              <button onClick={() => { setReviewTransactions([]); setProcessingState('idle'); clearSavedState(); }} style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', padding: '0.75rem 1.5rem', borderRadius: 4, fontSize: 14, cursor: 'pointer' }}>
+              <button onClick={() => { setReviewTransactions([]); setProcessingState('idle'); clearSavedState(); }} className="btn">
                 Cancel
               </button>
             </div>
           )}
 
           {actionableItems.length === 0 && (
-            <div style={{ marginTop: '1rem' }}>
-              <button onClick={() => { setReviewTransactions([]); setRawBankData(''); setProcessingState('idle'); clearSavedState(); }} style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', padding: '0.75rem 1.5rem', borderRadius: 4, fontSize: 14, cursor: 'pointer' }}>
+            <div className="mt-2">
+              <button onClick={() => { setReviewTransactions([]); setRawBankData(''); setProcessingState('idle'); clearSavedState(); }} className="btn">
                 Done
               </button>
             </div>

@@ -22,15 +22,8 @@ export function LeadSourcesView() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '0.75rem',
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Lead Sources</h2>
+      <div className="page-header">
+        <h2 className="page-header__title">Lead Sources</h2>
       </div>
 
       {/* Tabs */}
@@ -53,7 +46,7 @@ export function LeadSourcesView() {
       </div>
 
       {/* Content */}
-      <div style={{ marginTop: '0.75rem' }}>
+      <div className="mt-1h">
         {tab === 'overview' && <LeadSourcesOverview onLeadSourceSelect={handleLeadSourceSelect} />}
         {tab === 'manage' && (
           <LeadSourceManageView 

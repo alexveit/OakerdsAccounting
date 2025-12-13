@@ -70,29 +70,14 @@ export function LedgerFilters({
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        marginBottom: '0.5rem',
-        fontSize: 13,
-        gap: '0.75rem',
-        flexWrap: 'wrap',
-      }}
-    >
+    <div className="filter-bar">
       {/* page size */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div className="filter-bar__group">
         <span>Show</span>
         <select
           value={pageSize}
           onChange={handlePageSizeChange}
-          style={{
-            padding: '4px 8px',
-            fontSize: 13,
-            borderRadius: 4,
-            border: '1px solid #ccc',
-            width: 'auto',
-          }}
+          className="filter-bar__select"
         >
           <option value={25}>25</option>
           <option value={50}>50</option>
@@ -102,18 +87,12 @@ export function LedgerFilters({
       </div>
 
       {/* date range picker */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div className="filter-bar__group">
         <span>Date:</span>
         <select
           value={dateRangePreset}
           onChange={(e) => onDateRangePresetChange(e.target.value as DateRangePreset)}
-          style={{
-            padding: '4px 8px',
-            fontSize: 13,
-            borderRadius: 4,
-            border: '1px solid #ccc',
-            width: 'auto',
-          }}
+          className="filter-bar__select"
         >
           <option value="last-12-months">Last 12 months</option>
           <option value="custom">Custom range</option>
@@ -124,42 +103,26 @@ export function LedgerFilters({
               type="date"
               value={customStartDate}
               onChange={(e) => onCustomStartDateChange(e.target.value)}
-              style={{
-                padding: '4px 6px',
-                fontSize: 13,
-                borderRadius: 4,
-                border: '1px solid #ccc',
-              }}
+              className="filter-bar__input"
             />
             <span>-</span>
             <input
               type="date"
               value={customEndDate}
               onChange={(e) => onCustomEndDateChange(e.target.value)}
-              style={{
-                padding: '4px 6px',
-                fontSize: 13,
-                borderRadius: 4,
-                border: '1px solid #ccc',
-              }}
+              className="filter-bar__input"
             />
           </>
         )}
       </div>
 
       {/* account selector - tiered dropdown */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div className="filter-bar__group">
         <span>Account:</span>
         <select
           value={typeof accountFilter === 'number' ? String(accountFilter) : accountFilter}
           onChange={handleAccountFilterChange}
-          style={{
-            padding: '4px 8px',
-            fontSize: 13,
-            borderRadius: 4,
-            border: '1px solid #ccc',
-            minWidth: 220,
-          }}
+          className="filter-bar__select filter-bar__select--wide"
         >
           <option value="all">All Accounts</option>
 
@@ -236,42 +199,19 @@ export function LedgerFilters({
       </div>
 
       {/* fast search */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          flex: 1,
-          maxWidth: 560,
-          minWidth: 220,
-        }}
-      >
+      <div className="filter-bar__search">
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => onSearchTermChange(e.target.value)}
           placeholder="Search: date, description, job, vendor, account, type, amount..."
-          style={{
-            flex: 1,
-            minWidth: 0,
-            padding: '4px 8px',
-            fontSize: 13,
-            borderRadius: 4,
-            border: '1px solid #ccc',
-          }}
+          className="filter-bar__search-input"
         />
         {searchTerm && (
           <button
             type="button"
             onClick={() => onSearchTermChange('')}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              cursor: 'pointer',
-              fontSize: 14,
-              lineHeight: 1,
-              padding: '0 4px',
-            }}
+            className="filter-bar__search-clear"
             aria-label="Clear fast search"
           >
             ×
@@ -280,13 +220,7 @@ export function LedgerFilters({
       </div>
 
       {/* summary */}
-      <div
-        style={{
-          marginLeft: 'auto',
-          whiteSpace: 'nowrap',
-          fontSize: 12,
-        }}
-      >
+      <div className="filter-bar__summary">
         Showing {totalCount === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, totalCount)} of{' '}
         {totalCount} {accountFilter !== 'all' ? '(filtered)' : ''}
       </div>

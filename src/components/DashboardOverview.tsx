@@ -35,6 +35,12 @@ type Job = {
 //   64xxx      RE Mortgages (not shown in liquid balances)
 // -----------------------------------------------------------------------------------------------
 
+/** Returns appropriate color class based on value sign */
+function amountColorClass(value: number, forceNegative = false): string {
+  if (forceNegative) return 'text-danger';
+  return value >= 0 ? 'text-success' : 'text-danger';
+}
+
 export function DashboardOverview() {
   const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
   const [realEstateDeals, setRealEstateDeals] = useState<RealEstateDeal[]>([]);
@@ -182,7 +188,7 @@ export function DashboardOverview() {
   }, []);
 
   if (loading) return <p>Loading...</p>;
-  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  if (error) return <p className="text-danger">Error: {error}</p>;
 
   // RE portfolio calculations
   // Loan balances are NEGATIVE (amount owed)
@@ -216,121 +222,72 @@ export function DashboardOverview() {
   const currency = (val: number, decimals = 0) => formatCurrency(val, decimals);
   const pct = (val: number) => `${val.toFixed(1)}%`;
 
-  // Styles
-  const rowStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '4px 0',
-    fontSize: 14,
-  };
-
-  const dividerStyle: React.CSSProperties = {
-    borderTop: '1px solid #e0e0e0',
-    margin: '6px 0',
-  };
-
-  const thickDividerStyle: React.CSSProperties = {
-    borderTop: '2px solid #ccc',
-    margin: '8px 0',
-  };
-
-  const subtotalStyle: React.CSSProperties = {
-    ...rowStyle,
-    fontWeight: 600,
-    color: '#555',
-  };
-
-  const totalStyle: React.CSSProperties = {
-    ...rowStyle,
-    fontWeight: 700,
-    fontSize: 15,
-  };
-
-  const sectionLabelStyle: React.CSSProperties = {
-    ...rowStyle,
-    fontWeight: 600,
-    fontSize: 12,
-    color: '#888',
-    marginTop: '4px',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  };
-
-  const metricsStyle: React.CSSProperties = {
-    fontSize: 12,
-    color: '#888',
-    padding: '2px 0',
-  };
-
-  const green = '#0a7a3c';
-  const red = '#b00020';
-
   return (
     <div>
-      <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>Dashboard</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1rem', alignItems: 'start' }}>
+      <h2 className="mt-0 mb-2">Dashboard</h2>
+      <div className="dashboard-grid">
         
         {/* YTD Snapshot Card */}
         <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>YTD Snapshot</h3>
+          <h3 className="mt-0 mb-1h">YTD Snapshot</h3>
           
           {/* Job Section */}
-          <div style={sectionLabelStyle}><span>Jobs</span></div>
-          <div style={rowStyle}>
+          <div className="balance-section-label">Jobs</div>
+          <div className="balance-row">
             <span>Income</span>
-            <span style={{ color: green }}>{currency(jobIncomeYtd)}</span>
+            <span className="text-success">{currency(jobIncomeYtd)}</span>
           </div>
-          <div style={rowStyle}>
+          <div className="balance-row">
             <span>Job Expenses</span>
-            <span style={{ color: red }}>{currency(jobExpenseYtd)}</span>
+            <span className="text-danger">{currency(jobExpenseYtd)}</span>
           </div>
-          <div style={rowStyle}>
+          <div className="balance-row">
             <span>Marketing</span>
-            <span style={{ color: red }}>{currency(marketingExpenseYtd)}</span>
+            <span className="text-danger">{currency(marketingExpenseYtd)}</span>
           </div>
-          <div style={rowStyle}>
+          <div className="balance-row">
             <span>Overhead</span>
-            <span style={{ color: red }}>{currency(overheadExpenseYtd)}</span>
+            <span className="text-danger">{currency(overheadExpenseYtd)}</span>
           </div>
-          <div style={subtotalStyle}>
+          <div className="balance-row balance-row--subtotal">
             <span>Job Profit</span>
-            <span style={{ color: jobProfit >= 0 ? green : red }}>{currency(jobProfit)}</span>
+            <span className={amountColorClass(jobProfit)}>{currency(jobProfit)}</span>
           </div>
-          <div style={metricsStyle}>
+          <div className="balance-metrics">
             Margin: {pct(jobMargin)} | Avg: {currency(avgJobSize)} | Count: {jobCount}
           </div>
           
-          <div style={dividerStyle} />
+          <div className="balance-divider" />
           
           {/* Rental Section */}
-          <div style={sectionLabelStyle}><span>Rentals</span></div>
-          <div style={rowStyle}>
+          <div className="balance-section-label">Rentals</div>
+          <div className="balance-row">
             <span>Income</span>
-            <span style={{ color: green }}>{currency(rentalIncomeYtd)}</span>
+            <span className="text-success">{currency(rentalIncomeYtd)}</span>
           </div>
-          <div style={rowStyle}>
+          <div className="balance-row">
             <span>Expenses</span>
-            <span style={{ color: red }}>{currency(rentalExpenseYtd)}</span>
+            <span className="text-danger">{currency(rentalExpenseYtd)}</span>
           </div>
-          <div style={subtotalStyle}>
+          <div className="balance-row balance-row--subtotal">
             <span>Rental NOI</span>
-            <span style={{ color: rentalNoi >= 0 ? green : red }}>{currency(rentalNoi)}</span>
+            <span className={amountColorClass(rentalNoi)}>{currency(rentalNoi)}</span>
           </div>
           
-          <div style={dividerStyle} />
+          <div className="balance-divider" />
           
           {/* Other Expenses */}
-          <div style={sectionLabelStyle}><span>Other</span></div>
-          <div style={rowStyle}>
+          <div className="balance-section-label">Other</div>
+          <div className="balance-row">
             <span>Personal</span>
-            <span style={{ color: red }}>{currency(personalExpenseYtd)}</span>
+            <span className="text-danger">{currency(personalExpenseYtd)}</span>
           </div>
           
-          <div style={thickDividerStyle} />
+          <div className="balance-divider--thick" />
           
-          <div style={totalStyle}>
+          <div className="balance-row balance-row--total">
             <span>Net</span>
-            <span style={{ color: netYtd >= 0 ? green : red }}>
+            <span className={amountColorClass(netYtd)}>
               {currency(Math.abs(netYtd))}
             </span>
           </div>
@@ -346,21 +303,21 @@ export function DashboardOverview() {
 
         {/* Real Estate Card */}
         <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Real Estate</h3>
+          <h3 className="mt-0 mb-1h">Real Estate</h3>
           
           {rePortfolio.map((p) => (
-            <div key={p.id} style={rowStyle}>
-              <span style={{ color: '#555' }}>{p.nickname}</span>
-              <span style={{ color: p.equity >= 0 ? green : red }}>{currency(p.equity)}</span>
+            <div key={p.id} className="balance-row">
+              <span className="balance-account-name">{p.nickname}</span>
+              <span className={amountColorClass(p.equity)}>{currency(p.equity)}</span>
             </div>
           ))}
           
           {rePortfolio.length > 1 && (
             <>
-              <div style={dividerStyle} />
-              <div style={subtotalStyle}>
+              <div className="balance-divider" />
+              <div className="balance-row balance-row--subtotal">
                 <span>Total Equity</span>
-                <span style={{ color: totalEquity >= 0 ? green : red }}>{currency(totalEquity)}</span>
+                <span className={amountColorClass(totalEquity)}>{currency(totalEquity)}</span>
               </div>
             </>
           )}

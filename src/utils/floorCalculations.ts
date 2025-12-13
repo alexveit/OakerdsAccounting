@@ -101,9 +101,9 @@ export function createMeasurement(
 /**
  * Parse a single dimension string like "11.6" or "11'6" into feet and inches.
  * Supports formats:
- *   - "11.6" → 11'6" (decimal = inches shorthand)
- *   - "11'6" or "11'6\"" → 11'6"
- *   - "11" → 11'0"
+ *   - "11.6" ←’ 11'6" (decimal = inches shorthand)
+ *   - "11'6" or "11'6\"" ←’ 11'6"
+ *   - "11" ←’ 11'0"
  */
 function parseDimension(dim: string): { feet: number; inches: number } {
   const trimmed = dim.trim();
@@ -147,9 +147,13 @@ const MAX_REASONABLE_FEET = 50; // Flag anything over 50' as suspicious
  * Parse bulk measurement input with validation feedback.
  * Supports:
  *   - Newline or comma separated entries
- *   - Room labels like "LR 11.6x13.6" (labels stripped)
+ *   - Room labels like "LR 11.6x13.6" or "Bedroom 12'6" x 8'3"" (labels stripped)
  *   - Separators: x, *, :
- *   - Format: 11.6x13.6 (decimal = inches) or 11'6"x13'6"
+ *   - Formats: 
+ *     - Decimal shorthand: 11.6x13.6 (decimal = inches, so 11'6" x 13'6")
+ *     - Feet-inches: 12'6"x8'3" or 12'6x8'3 (with or without closing quote)
+ *     - Just feet: 12x10
+ *   - Flexible spacing: 12'6" x 8'3", 12'6"x8'3", 14'4" x13'6"
  * 
  * @param input Raw text from bulk entry textarea
  * @param startId Starting ID for measurements
@@ -173,9 +177,13 @@ export function parseBulkMeasurements(input: string, startId: number): BulkParse
       const raw = rawEntry.trim();
       if (!raw) continue;
       
-      // Extract the measurement pattern directly: number[.number] separator number[.number]
-      // This handles room names like "Bed2", "Room10", etc.
-      const measurementMatch = raw.match(/(\d+\.?\d*)\s*[x*:]\s*(\d+\.?\d*)/i);
+      // Extract the measurement pattern directly
+      // Supports:
+      // - Decimal shorthand: 11.6x13.6 (means 11'6" x 13'6")
+      // - Feet-inches notation: 12'6"x8'3" or 12'6x8'3
+      // - Mixed spacing: 12'6" x 8'3", 14'4" x13'6"
+      // This handles room names like "Bed2", "Room10", "bed room 3", etc.
+      const measurementMatch = raw.match(/(\d+(?:'\d+"?|\.\d+)?)\s*[x*:]\s*(\d+(?:'\d+"?|\.\d+)?)/i);
       
       if (!measurementMatch) {
         entries.push({ raw, measurement: null, error: 'No dimensions found', warning: null });

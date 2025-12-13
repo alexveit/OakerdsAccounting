@@ -234,7 +234,7 @@ export function PriceListView() {
       </div>
 
       {/* Filters Row */}
-      <div className="filters-row" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div className="filter-row mb-2">
         {/* Type Filter */}
         <div className="filter-group">
           <label>Type</label>
@@ -266,7 +266,7 @@ export function PriceListView() {
         </div>
 
         {/* Search */}
-        <div className="filter-group" style={{ flex: 1, minWidth: '200px' }}>
+        <div className="filter-group filter-group--grow">
           <label>Search</label>
           <input
             type="text"
@@ -283,7 +283,7 @@ export function PriceListView() {
       </div>
 
       {/* Stats */}
-      <div style={{ marginBottom: '1rem', color: '#6b7280', fontSize: '0.875rem' }}>
+      <div className="stats-line">
         Showing {filteredItems.length} items
       </div>
 
@@ -352,27 +352,15 @@ export function PriceListView() {
 
       {/* Price List Table */}
       {Array.from(groupedItems.entries()).map(([category, categoryItems]) => (
-        <div key={category} className="category-section" style={{ marginBottom: '2rem' }}>
-          <h3 style={{ 
-            fontSize: '1rem', 
-            fontWeight: 600, 
-            color: '#374151', 
-            marginBottom: '0.5rem',
-            borderBottom: '2px solid #e5e7eb',
-            paddingBottom: '0.5rem'
-          }}>
+        <div key={category} className="category-section">
+          <h3 className="category-header">
             {category}
-            <span style={{ 
-              marginLeft: '0.5rem', 
-              fontSize: '0.75rem', 
-              color: '#9ca3af',
-              fontWeight: 400
-            }}>
+            <span className="category-header__count">
               ({categoryItems.length})
             </span>
           </h3>
           
-          <table className="data-table" style={{ width: '100%' }}>
+          <table className="data-table">
             <thead>
               <tr>
                 <th style={{ width: '50%' }}>Item</th>
@@ -391,7 +379,7 @@ export function PriceListView() {
                           type="text"
                           value={editForm.item_name ?? ''}
                           onChange={(e) => setEditForm({ ...editForm, item_name: e.target.value })}
-                          style={{ width: '100%' }}
+                          className="data-table__input"
                         />
                       </td>
                       <td>
@@ -400,14 +388,14 @@ export function PriceListView() {
                           step="0.01"
                           value={editForm.price ?? ''}
                           onChange={(e) => setEditForm({ ...editForm, price: e.target.value ? parseFloat(e.target.value) : null })}
-                          style={{ width: '100%', textAlign: 'right' }}
+                          className="data-table__input--right"
                         />
                       </td>
                       <td>
                         <select
                           value={editForm.type ?? 'wood'}
                           onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
-                          style={{ width: '100%' }}
+                          className="data-table__input"
                         >
                           <option value="wood">wood</option>
                           <option value="tile">tile</option>
@@ -415,32 +403,25 @@ export function PriceListView() {
                       </td>
                       <td>
                         <button className="btn btn-sm btn-primary" onClick={saveEdit}>Save</button>
-                        <button className="btn btn-sm btn-secondary" onClick={cancelEdit} style={{ marginLeft: '0.25rem' }}>Cancel</button>
+                        <button className="btn btn-sm btn-secondary ml-1" onClick={cancelEdit}>Cancel</button>
                       </td>
                     </>
                   ) : (
                     <>
                       <td>{item.item_name}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
+                      <td className="text-right font-mono">
                         {item.price != null ? `$${item.price.toFixed(2)}` : '—'}
                       </td>
                       <td>
-                        <span style={{
-                          fontSize: '0.75rem',
-                          padding: '0.125rem 0.5rem',
-                          borderRadius: '9999px',
-                          backgroundColor: item.type === 'wood' ? '#fef3c7' : '#dbeafe',
-                          color: item.type === 'wood' ? '#92400e' : '#1e40af',
-                        }}>
+                        <span className={`type-badge type-badge--${item.type}`}>
                           {item.type}
                         </span>
                       </td>
                       <td>
                         <button className="btn btn-sm btn-secondary" onClick={() => startEdit(item)}>Edit</button>
                         <button 
-                          className="btn btn-sm btn-danger" 
+                          className="btn btn-sm btn-danger ml-1" 
                           onClick={() => deleteItem(item.id)}
-                          style={{ marginLeft: '0.25rem' }}
                         >
                           Delete
                         </button>
@@ -455,112 +436,10 @@ export function PriceListView() {
       ))}
 
       {filteredItems.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
+        <div className="empty-state">
           No items found. Try adjusting your filters or add a new item.
         </div>
       )}
-
-      <style>{`
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-        .modal-content {
-          background: white;
-          padding: 1.5rem;
-          border-radius: 8px;
-          width: 90%;
-          max-width: 500px;
-          max-height: 90vh;
-          overflow-y: auto;
-        }
-        .modal-content h2 {
-          margin: 0 0 1rem;
-          font-size: 1.25rem;
-        }
-        .form-grid {
-          display: grid;
-          gap: 1rem;
-        }
-        .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-        }
-        .form-group label {
-          font-size: 0.875rem;
-          font-weight: 500;
-          color: #374151;
-        }
-        .form-group input,
-        .form-group select {
-          padding: 0.5rem;
-          border: 1px solid #d1d5db;
-          border-radius: 4px;
-          font-size: 0.875rem;
-        }
-        .modal-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 0.5rem;
-          margin-top: 1.5rem;
-        }
-        .filter-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-        }
-        .filter-group label {
-          font-size: 0.75rem;
-          font-weight: 500;
-          color: #6b7280;
-        }
-        .filter-group select,
-        .filter-group input {
-          padding: 0.5rem;
-          border: 1px solid #d1d5db;
-          border-radius: 4px;
-          font-size: 0.875rem;
-        }
-        .btn-danger {
-          background: #ef4444;
-          color: white;
-          border: none;
-        }
-        .btn-danger:hover {
-          background: #dc2626;
-        }
-        .data-table {
-          border-collapse: collapse;
-        }
-        .data-table th,
-        .data-table td {
-          padding: 0.5rem;
-          border-bottom: 1px solid #e5e7eb;
-          text-align: left;
-        }
-        .data-table th {
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: #6b7280;
-          text-transform: uppercase;
-        }
-        .data-table tbody tr:hover {
-          background: #f9fafb;
-        }
-        .btn-sm {
-          padding: 0.25rem 0.5rem;
-          font-size: 0.75rem;
-        }
-      `}</style>
     </div>
   );
 }

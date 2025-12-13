@@ -198,14 +198,7 @@ function App() {
   // Show loading while checking auth
   if (authState === 'loading') {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+      <div className="app-loading">
         <p>Loading...</p>
       </div>
     );
@@ -358,7 +351,7 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
           <img
             src="/OakerdsLogo.svg"
             alt="Oakerds Logo"
-            style={{ width: '32px', height: '32px' }}
+            className="app-logo"
           />
           <span>Oakerds Accounting</span>
         </div>
@@ -430,12 +423,11 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
               <div key={sectionIndex} className="sidebar-section">
                 {section.title && !sidebarCollapsed && (
                   <div 
-                    className="sidebar-section-title" 
+                    className="sidebar-section-title sidebar-section-title--clickable" 
                     onClick={toggleSection}
-                    style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                   >
                     <span>{section.title}</span>
-                    <span style={{ fontSize: 10, opacity: 0.6 }}>{isCollapsed ? '>' : 'v'}</span>
+                    <span className="sidebar-collapse-icon">{isCollapsed ? '>' : 'v'}</span>
                   </div>
                 )}
                 {(!section.title || !isCollapsed) && section.items.map(({ view: navView, label, icon }) => (
@@ -456,9 +448,8 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
 
         {/* Logout Button */}
         <button
-          className="sidebar-nav-item"
+          className="sidebar-nav-item sidebar-logout"
           onClick={onLogout}
-          style={{ marginTop: 'auto', marginBottom: '1rem' }}
           title={sidebarCollapsed ? 'Logout' : undefined}
         >
           <span className="sidebar-icon">🚪</span>

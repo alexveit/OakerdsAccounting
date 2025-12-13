@@ -66,46 +66,39 @@ function SimpleTable({
   showTotal = false,
   totalLabel = 'Total',
 }: SimpleTableProps) {
-  const thStyle: React.CSSProperties = {
-    textAlign: 'left',
-    borderBottom: '1px solid #ccc',
-    padding: '6px 4px',
-  };
-  const tdStyle: React.CSSProperties = {
-    borderBottom: '1px solid #eee',
-    padding: '6px 4px',
-  };
-
   const total = rows.reduce((sum, r) => sum + r.value, 0);
 
   return (
-    <table className="table">
+    <table className="table simple-table">
       <thead>
         <tr>
-          <th style={thStyle}>{headerLabel}</th>
-          <th style={{ ...thStyle, textAlign: 'right' }}>{headerValue}</th>
+          <th>{headerLabel}</th>
+          <th className="right">{headerValue}</th>
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => (
-          <tr
-            key={r.key}
-            onClick={r.onClick}
-            style={{
-              cursor: r.onClick ? 'pointer' : undefined,
-              background: r.highlight ? '#fffde7' : undefined,
-            }}
-          >
-            <td style={tdStyle}>{r.label}</td>
-            <td style={{ ...tdStyle, textAlign: 'right' }}>
-              {formatMoney(r.value)}
-            </td>
-          </tr>
-        ))}
+        {rows.map((r) => {
+          const rowClasses = [
+            r.onClick ? 'clickable' : '',
+            r.highlight ? 'highlight' : '',
+          ].filter(Boolean).join(' ');
+          return (
+            <tr
+              key={r.key}
+              onClick={r.onClick}
+              className={rowClasses || undefined}
+            >
+              <td>{r.label}</td>
+              <td className="right">
+                {formatMoney(r.value)}
+              </td>
+            </tr>
+          );
+        })}
         {showTotal && (
-          <tr style={{ fontWeight: 600, background: '#f5f5f5' }}>
-            <td style={{ ...tdStyle, borderTop: '2px solid #ccc' }}>{totalLabel}</td>
-            <td style={{ ...tdStyle, borderTop: '2px solid #ccc', textAlign: 'right' }}>
+          <tr className="total-row">
+            <td>{totalLabel}</td>
+            <td className="right">
               {formatMoney(total)}
             </td>
           </tr>
@@ -345,40 +338,11 @@ export function ExpenseByCategory() {
     setShowAllTransactions(false);
   };
 
-  const thStyle: React.CSSProperties = {
-    textAlign: 'left',
-    borderBottom: '1px solid #ccc',
-    padding: '6px 4px',
-  };
-  const tdStyle: React.CSSProperties = {
-    borderBottom: '1px solid #eee',
-    padding: '6px 4px',
-  };
-  const btnStyle: React.CSSProperties = {
-    borderRadius: 999,
-    border: '1px solid #ccc',
-    padding: '2px 8px',
-    background: '#f5f5f5',
-    cursor: 'pointer',
-    fontSize: 12,
-    marginRight: '0.5rem',
-  };
-  const breadcrumbBtn: React.CSSProperties = {
-    border: 'none',
-    background: 'none',
-    padding: 0,
-    margin: 0,
-    cursor: 'pointer',
-    textDecoration: 'underline',
-    fontSize: 12,
-    color: '#1976d2',
-  };
-
   return (
     <div className="card">
       
 
-      <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+      <label className="expenses-detail__year-select">
         Year:{' '}
         <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
           {Array.from({ length: 6 }).map((_, i) => {
@@ -393,12 +357,12 @@ export function ExpenseByCategory() {
       </label>
 
       {/* Clickable breadcrumbs */}
-      <div style={{ fontSize: 12, color: '#777', marginBottom: '0.75rem' }}>
+      <div className="expenses-detail__breadcrumbs">
         <strong>View:</strong>{' '}
         {viewMode === 'year' ? (
           <span>{year}</span>
         ) : (
-          <button type="button" onClick={resetToYear} style={breadcrumbBtn}>
+          <button type="button" onClick={resetToYear} className="expenses-detail__breadcrumb-btn">
             {year}
           </button>
         )}
@@ -408,7 +372,7 @@ export function ExpenseByCategory() {
             {viewMode === 'month' ? (
               <span>{selectedAccountName}</span>
             ) : (
-              <button type="button" onClick={backToCategory} style={breadcrumbBtn}>
+              <button type="button" onClick={backToCategory} className="expenses-detail__breadcrumb-btn">
                 {selectedAccountName}
               </button>
             )}
@@ -420,7 +384,7 @@ export function ExpenseByCategory() {
             {viewMode === 'day' ? (
               <span>{formatMonthShort(selectedMonth)}</span>
             ) : (
-              <button type="button" onClick={backToMonth} style={breadcrumbBtn}>
+              <button type="button" onClick={backToMonth} className="expenses-detail__breadcrumb-btn">
                 {formatMonthShort(selectedMonth)}
               </button>
             )}
@@ -435,7 +399,7 @@ export function ExpenseByCategory() {
       </div>
 
       {loading && <p>Loading...</p>}
-      {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+      {error && <p className="text-error">Error: {error}</p>}
       {!loading && !error && viewMode === 'year' && rows.length === 0 && (
         <p>No data for {year}.</p>
       )}
@@ -443,23 +407,15 @@ export function ExpenseByCategory() {
       {/* YEAR VIEW */}
       {viewMode === 'year' && rows.length > 0 && (
         <>
-          <div
-            style={{
-              marginBottom: '0.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}
-          >
-            <p style={{ fontSize: 12, color: '#777', margin: 0 }}>
+          <div className="expenses-detail__toolbar">
+            <p className="expenses-detail__hint">
               Click a category to see a month-by-month breakdown.
             </p>
-            <span style={{ marginLeft: 'auto', fontSize: 12 }}>
+            <span className="expenses-detail__sort">
               Sort by:{' '}
               <select
                 value={categorySort}
                 onChange={(e) => setCategorySort(e.target.value as CategorySort)}
-                style={{ fontSize: 12 }}
               >
                 <option value="total">Total (largest first)</option>
                 <option value="name">Category name (A-Z)</option>
@@ -486,17 +442,17 @@ export function ExpenseByCategory() {
       {/* MONTH VIEW */}
       {viewMode === 'month' && selectedAccountId && (
         <>
-          <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button type="button" onClick={resetToYear} style={btnStyle}>← All categories</button>
+          <div className="expenses-detail__toolbar">
+            <button type="button" onClick={resetToYear} className="btn-pill">← All categories</button>
             <button
               type="button"
               onClick={handleShowAllTransactions}
-              style={{ ...btnStyle, background: '#e3f2fd' }}
+              className="btn-pill btn-pill--highlight"
             >
               View all transactions
             </button>
           </div>
-          <p style={{ fontSize: 12, color: '#777', marginBottom: '0.5rem' }}>
+          <p className="expenses-detail__hint expenses-detail__hint--mb">
             Click a month to see daily totals.
           </p>
           <SimpleTable
@@ -519,18 +475,18 @@ export function ExpenseByCategory() {
       {/* DAY VIEW */}
       {viewMode === 'day' && selectedAccountId && selectedMonth && (
         <>
-          <div style={{ marginBottom: '0.75rem' }}>
-            <button type="button" onClick={backToCategory} style={btnStyle}>
+          <div className="expenses-detail__nav">
+            <button type="button" onClick={backToCategory} className="btn-pill">
               ← Months
             </button>
-            <button type="button" onClick={resetToYear} style={btnStyle}>
+            <button type="button" onClick={resetToYear} className="btn-pill">
               ← All categories
             </button>
           </div>
           {dayRows.length === 0 && <p>No expense lines for this month.</p>}
           {dayRows.length > 0 && (
             <>
-              <p style={{ fontSize: 12, color: '#777', marginBottom: '0.5rem' }}>
+              <p className="expenses-detail__hint expenses-detail__hint--mb">
                 Click a day to see individual transactions.
               </p>
               <SimpleTable
@@ -554,38 +510,38 @@ export function ExpenseByCategory() {
       {/* DETAIL VIEW */}
       {viewMode === 'detail' && selectedAccountId && (
         <>
-          <div style={{ marginBottom: '0.75rem' }}>
+          <div className="expenses-detail__nav">
             {!showAllTransactions && selectedDate && (
-              <button type="button" onClick={backToMonth} style={btnStyle}>
+              <button type="button" onClick={backToMonth} className="btn-pill">
                 ← Days
               </button>
             )}
             {!showAllTransactions && (
-              <button type="button" onClick={backToCategory} style={btnStyle}>
+              <button type="button" onClick={backToCategory} className="btn-pill">
                 ← Months
               </button>
             )}
             {showAllTransactions && (
-              <button type="button" onClick={backToCategory} style={btnStyle}>
+              <button type="button" onClick={backToCategory} className="btn-pill">
                 ← Back to months
               </button>
             )}
-            <button type="button" onClick={resetToYear} style={btnStyle}>
+            <button type="button" onClick={resetToYear} className="btn-pill">
               ← All categories
             </button>
           </div>
           {detailLinesWithRunning.length === 0 && <p>No transactions found.</p>}
           {detailLinesWithRunning.length > 0 && (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table">
+            <div className="expenses-detail__scroll">
+              <table className="table simple-table">
                 <thead>
                   <tr>
-                    <th style={thStyle}>Date</th>
-                    <th style={thStyle}>Description</th>
-                    <th style={thStyle}>Job</th>
-                    <th style={thStyle}>Vendor / Installer</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Amount</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Running</th>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Job</th>
+                    <th>Vendor / Installer</th>
+                    <th className="right">Amount</th>
+                    <th className="right">Running</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -600,28 +556,28 @@ export function ExpenseByCategory() {
                     }
                     return (
                       <tr key={line.id}>
-                        <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{tDate}</td>
-                        <td style={tdStyle}>{desc}</td>
-                        <td style={tdStyle}>{jobName}</td>
-                        <td style={tdStyle}>{party}</td>
-                        <td style={{ ...tdStyle, textAlign: 'right' }}>
+                        <td className="nowrap">{tDate}</td>
+                        <td>{desc}</td>
+                        <td>{jobName}</td>
+                        <td>{party}</td>
+                        <td className="right">
                           {formatMoney(line.amount)}
                         </td>
-                        <td style={{ ...tdStyle, textAlign: 'right', color: '#777' }}>
+                        <td className="right muted">
                           {formatMoney(line.runningTotal)}
                         </td>
                       </tr>
                     );
                   })}
                   {/* Total row */}
-                  <tr style={{ fontWeight: 600, background: '#f5f5f5' }}>
-                    <td style={{ ...tdStyle, borderTop: '2px solid #ccc' }} colSpan={4}>
+                  <tr className="total-row">
+                    <td colSpan={4}>
                       Total ({detailLinesWithRunning.length} transactions)
                     </td>
-                    <td style={{ ...tdStyle, borderTop: '2px solid #ccc', textAlign: 'right' }}>
+                    <td className="right">
                       {formatMoney(detailLinesWithRunning.reduce((sum, l) => sum + l.amount, 0))}
                     </td>
-                    <td style={{ ...tdStyle, borderTop: '2px solid #ccc' }}>&nbsp;</td>
+                    <td>&nbsp;</td>
                   </tr>
                 </tbody>
               </table>

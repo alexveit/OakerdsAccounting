@@ -325,39 +325,31 @@ export function Transfers({
   return (
     <div>
       
-      <p style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: 13 }}>
+      <p className="transfer-form__intro">
         Move money between <strong>bank accounts</strong> and/or{' '}
         <strong>credit cards</strong> without affecting P&amp;L.
       </p>
 
       <form onSubmit={handleSubmit}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            columnGap: '0.75rem',
-            rowGap: '0.5rem',
-            marginBottom: '1rem',
-          }}
-        >
+        <div className="transfer-form__grid">
           {/* Date */}
-          <label style={{ display: 'flex', flexDirection: 'column', fontSize: 13 }}>
-            <span style={{ marginBottom: 2 }}>Date</span>
+          <label className="transfer-form__label">
+            <span className="transfer-form__label-text">Date</span>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              style={{ padding: '4px 6px' }}
+              className="transfer-form__input"
             />
           </label>
 
           {/* Purpose */}
-          <label style={{ display: 'flex', flexDirection: 'column', fontSize: 13 }}>
-            <span style={{ marginBottom: 2 }}>Purpose</span>
+          <label className="transfer-form__label">
+            <span className="transfer-form__label-text">Purpose</span>
             <select
               value={purpose}
               onChange={(e) => setPurpose(e.target.value as Purpose)}
-              style={{ padding: '4px 6px' }}
+              className="transfer-form__input"
             >
               <option value="business">Business</option>
               <option value="personal">Personal</option>
@@ -366,19 +358,19 @@ export function Transfers({
           </label>
 
           {/* From Account */}
-          <label style={{ display: 'flex', flexDirection: 'column', fontSize: 13 }}>
-            <span style={{ marginBottom: 2 }}>From</span>
+          <label className="transfer-form__label">
+            <span className="transfer-form__label-text">From</span>
             {loadingAccounts ? (
-              <span style={{ fontSize: 12 }}>Loading accounts...</span>
+              <span className="transfer-form__loading">Loading accounts...</span>
             ) : accountsError ? (
-              <span style={{ fontSize: 12, color: 'red' }}>{accountsError}</span>
+              <span className="transfer-form__field-error">{accountsError}</span>
             ) : !hasAccounts ? (
-              <span style={{ fontSize: 12 }}>No transferable accounts found.</span>
+              <span className="transfer-form__loading">No transferable accounts found.</span>
             ) : (
               <select
                 value={fromAccountId}
                 onChange={(e) => setFromAccountId(e.target.value)}
-                style={{ padding: '4px 6px' }}
+                className="transfer-form__input"
               >
                 <option value="">Select account...</option>
                 {bankAccounts.length > 0 && (
@@ -396,19 +388,19 @@ export function Transfers({
           </label>
 
           {/* To Account */}
-          <label style={{ display: 'flex', flexDirection: 'column', fontSize: 13 }}>
-            <span style={{ marginBottom: 2 }}>To</span>
+          <label className="transfer-form__label">
+            <span className="transfer-form__label-text">To</span>
             {loadingAccounts ? (
-              <span style={{ fontSize: 12 }}>Loading accounts...</span>
+              <span className="transfer-form__loading">Loading accounts...</span>
             ) : accountsError ? (
-              <span style={{ fontSize: 12, color: 'red' }}>{accountsError}</span>
+              <span className="transfer-form__field-error">{accountsError}</span>
             ) : !hasAccounts ? (
-              <span style={{ fontSize: 12 }}>No transferable accounts found.</span>
+              <span className="transfer-form__loading">No transferable accounts found.</span>
             ) : (
               <select
                 value={toAccountId}
                 onChange={(e) => setToAccountId(e.target.value)}
-                style={{ padding: '4px 6px' }}
+                className="transfer-form__input"
               >
                 <option value="">Select account...</option>
                 {bankAccounts.length > 0 && (
@@ -426,33 +418,33 @@ export function Transfers({
           </label>
 
           {/* Amount */}
-          <label style={{ display: 'flex', flexDirection: 'column', fontSize: 13 }}>
-            <span style={{ marginBottom: 2 }}>Amount</span>
+          <label className="transfer-form__label">
+            <span className="transfer-form__label-text">Amount</span>
             <input
               type="number"
               step="0.01"
               min="0"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              style={{ padding: '4px 6px' }}
+              className="transfer-form__input"
             />
           </label>
 
           {/* Description */}
-          <label style={{ display: 'flex', flexDirection: 'column', fontSize: 13 }}>
-            <span style={{ marginBottom: 2 }}>Description</span>
+          <label className="transfer-form__label">
+            <span className="transfer-form__label-text">Description</span>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              style={{ padding: '4px 6px' }}
+              className="transfer-form__input"
               placeholder="Transfer description"
             />
           </label>
         </div>
 
         {/* Cleared checkbox */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 13, marginBottom: '0.75rem' }}>
+        <label className="transfer-form__checkbox-label">
           <input
             type="checkbox"
             checked={isCleared}
@@ -462,13 +454,13 @@ export function Transfers({
         </label>
 
         {saveError && (
-          <p style={{ color: 'red', fontSize: 12, marginBottom: '0.5rem' }}>{saveError}</p>
+          <p className="transfer-form__error">{saveError}</p>
         )}
         {saveSuccess && (
-          <p style={{ color: 'green', fontSize: 12, marginBottom: '0.5rem' }}>{saveSuccess}</p>
+          <p className="transfer-form__success">{saveSuccess}</p>
         )}
 
-        <button type="submit" disabled={saving || !hasAccounts} style={{ padding: '6px 10px' }}>
+        <button type="submit" disabled={saving || !hasAccounts} className="transfer-form__submit">
           {saving ? 'Saving...' : 'Save transfer'}
         </button>
       </form>

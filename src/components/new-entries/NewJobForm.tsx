@@ -14,7 +14,7 @@ type JobInsertPayload = {
   address: string | null;
   status: string;
   start_date: string;
-  lead_source_id?: number;
+  lead_source_id: number;
 };
 
 export function NewJobForm() {
@@ -62,18 +62,20 @@ export function NewJobForm() {
       return;
     }
 
+    if (!leadSourceId) {
+      setError('Lead source is required.');
+      return;
+    }
+
     setSaving(true);
     try {
       const payload: JobInsertPayload = {
         name: name.trim(),
         address: address.trim() || null,
         status: 'open',
-        start_date: startDate, // explicitly set, even though DB has default
+        start_date: startDate,
+        lead_source_id: Number(leadSourceId),
       };
-
-      if (leadSourceId) {
-        payload.lead_source_id = Number(leadSourceId);
-      }
 
       const { error } = await supabase.from('jobs').insert(payload);
 
@@ -95,16 +97,16 @@ export function NewJobForm() {
   }
 
   if (loading) return <p>Loading lead sources...</p>;
-  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  if (error) return <p className="text-danger">Error: {error}</p>;
 
   return (
     <div>
       
-      {success && <p style={{ color: 'green' }}>{success}</p>}
+      {success && <p className="text-success">{success}</p>}
 
       <form
         onSubmit={handleSubmit}
-        style={{ maxWidth: 480, display: 'grid', gap: '0.75rem' }}
+        className="tx-form"
       >
         <label>
           Job name
@@ -132,7 +134,7 @@ export function NewJobForm() {
             value={leadSourceId}
             onChange={(e) => setLeadSourceId(e.target.value)}
           >
-            <option value="">(optional) Select lead source...</option>
+            <option value="">Select lead source...</option>
             {leadSources.map((ls) => (
               <option key={ls.id} value={ls.id}>
                 {ls.nick_name}

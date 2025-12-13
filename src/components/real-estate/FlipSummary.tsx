@@ -276,7 +276,7 @@ export function FlipSummary({ initialDealId, onDealChange }: Props) {
   // ─────────────────────────────────────────────────────────────────────────
 
   if (loading) return <p>Loading flip deals...</p>;
-  if (error) return <p style={{ color: '#c00' }}>{error}</p>;
+  if (error) return <p className="text-error">{error}</p>;
   if (deals.length === 0) return <p>No flip deals found.</p>;
 
   const status = parseStatus(selectedDeal?.status);
@@ -284,11 +284,11 @@ export function FlipSummary({ initialDealId, onDealChange }: Props) {
   return (
     <div>
       {/* Deal Selector */}
-      <div style={{ marginBottom: '1rem' }}>
+      <div className="flip-summary__selector">
         <select
           value={selectedDealId ?? ''}
           onChange={(e) => handleDealChange(Number(e.target.value) || null)}
-          style={{ fontSize: 16, padding: '0.5rem', minWidth: 300 }}
+          className="flip-summary__select"
         >
           {deals.map((d) => (
             <option key={d.id} value={d.id}>
@@ -301,20 +301,20 @@ export function FlipSummary({ initialDealId, onDealChange }: Props) {
       {selectedDeal && metrics && (
         <div>
           {/* Header */}
-          <div style={{ marginBottom: '1rem' }}>
-            <h2 style={{ margin: 0 }}>{selectedDeal.nickname}</h2>
-            <p style={{ margin: '0.25rem 0', color: '#666' }}>{selectedDeal.address}</p>
+          <div className="flip-summary__header">
+            <h2 className="flip-summary__title">{selectedDeal.nickname}</h2>
+            <p className="flip-summary__address">{selectedDeal.address}</p>
             <StatusBadge status={status} />
           </div>
 
           {/* Selling cost selector */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ fontSize: 13 }}>
+          <div className="flip-summary__option">
+            <label className="flip-summary__option-label">
               Selling Cost Estimate:{' '}
               <select
                 value={sellingCostRate}
                 onChange={(e) => setSellingCostRate(Number(e.target.value))}
-                style={{ marginLeft: '0.5rem' }}
+                className="flip-summary__option-select"
               >
                 {SELLING_COST_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -324,7 +324,7 @@ export function FlipSummary({ initialDealId, onDealChange }: Props) {
           </div>
 
           {/* Metrics Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+          <div className="flip-summary__grid">
             {/* Timeline */}
             <Card title="Timeline">
               <MetricRow label="Close Date" value={selectedDeal.close_date ? formatLocalDate(selectedDeal.close_date) : '—'} />
@@ -360,8 +360,8 @@ export function FlipSummary({ initialDealId, onDealChange }: Props) {
           </div>
 
           {/* Profit Projection */}
-          <Card title="Profit Projection" accent style={{ marginTop: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+          <Card title="Profit Projection" accent className="flip-card--mt">
+            <div className="flip-summary__profit-grid">
               <div>
                 <MetricRow label="ARV (Expected Sale)" value={formatCurrency(selectedDeal.arv ?? 0, 0)} />
                 <MetricRow label="Less: Total Cost Basis" value={`(${formatCurrency(metrics.totalCostBasis, 0)})`} />
@@ -375,7 +375,7 @@ export function FlipSummary({ initialDealId, onDealChange }: Props) {
                   large
                 />
               </div>
-              <div style={{ borderLeft: '1px solid #e0e0e0', paddingLeft: '1.5rem' }}>
+              <div className="flip-summary__profit-sidebar">
                 <MetricRow label="Profit Margin" value={formatPercent(metrics.profitMargin)} highlight={metrics.profitMargin >= 0 ? 'positive' : 'negative'} large />
                 <MetricRow label="ROI on Cash" value={formatPercent(metrics.roiOnCash)} large />
                 <MetricRow label="Break-Even Price" value={formatCurrency(metrics.breakEvenPrice, 0)} />
@@ -385,17 +385,17 @@ export function FlipSummary({ initialDealId, onDealChange }: Props) {
 
           {/* Warnings */}
           {metrics.projectedProfit < 0 && (
-            <Alert type="error" style={{ marginTop: '1rem' }}>
+            <Alert type="error">
               ⚠️ This deal is projected to lose <strong>{formatCurrency(Math.abs(metrics.projectedProfit), 0)}</strong>. Review costs or adjust ARV.
             </Alert>
           )}
           {metrics.profitMargin < 0.1 && metrics.projectedProfit >= 0 && (
-            <Alert type="warning" style={{ marginTop: '1rem' }}>
+            <Alert type="warning">
               ⚡ Profit margin is below 10%. Consider whether the risk justifies the return.
             </Alert>
           )}
           {metrics.daysInProject > 180 && status !== 'sold' && (
-            <Alert type="warning" style={{ marginTop: '1rem' }}>
+            <Alert type="warning">
               ⏱️ This project has been active for {metrics.daysInProject} days. Holding costs are accumulating at {formatCurrency(metrics.monthlyHoldingBurn, 0)}/month.
             </Alert>
           )}
@@ -409,49 +409,54 @@ export function FlipSummary({ initialDealId, onDealChange }: Props) {
 // Helper Components
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Card({ title, accent, style, children }: { title?: string; accent?: boolean; style?: React.CSSProperties; children: React.ReactNode }) {
+function Card({ title, accent, className, children }: { title?: string; accent?: boolean; className?: string; children: React.ReactNode }) {
+  const cardClass = ['flip-card', accent ? 'flip-card--accent' : '', className || ''].filter(Boolean).join(' ');
   return (
-    <div style={{ background: accent ? '#f8fdf8' : '#fff', border: accent ? '2px solid #2e7d32' : '1px solid #e0e0e0', borderRadius: 8, padding: '1rem', ...style }}>
-      {title && <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: accent ? '#2e7d32' : '#666', marginBottom: '0.75rem', letterSpacing: 0.5 }}>{title}</div>}
+    <div className={cardClass}>
+      {title && <div className="flip-card__title">{title}</div>}
       {children}
     </div>
   );
 }
 
 function MetricRow({ label, value, sublabel, highlight, bold, large }: { label: string; value: string; sublabel?: string; highlight?: 'positive' | 'negative' | 'neutral'; bold?: boolean; large?: boolean }) {
-  let valueColor = '#111';
-  if (highlight === 'positive') valueColor = '#2e7d32';
-  if (highlight === 'negative') valueColor = '#c62828';
+  const rowClass = ['metric-row', large ? 'metric-row--lg' : ''].filter(Boolean).join(' ');
+  const valueClass = [
+    'metric-row__value',
+    large ? 'metric-row__value--lg' : '',
+    (bold && !large) ? 'metric-row__value--bold' : '',
+    highlight === 'positive' ? 'metric-row__value--positive' : '',
+    highlight === 'negative' ? 'metric-row__value--negative' : '',
+  ].filter(Boolean).join(' ');
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: large ? '0.75rem' : '0.4rem' }}>
+    <div className={rowClass}>
       <div>
-        <span style={{ fontSize: 13, color: '#555' }}>{label}</span>
-        {sublabel && <span style={{ fontSize: 11, color: '#999', marginLeft: 6 }}>{sublabel}</span>}
+        <span className="metric-row__label">{label}</span>
+        {sublabel && <span className="metric-row__sublabel">{sublabel}</span>}
       </div>
-      <span style={{ fontSize: large ? 18 : 14, fontWeight: bold || large ? 600 : 400, color: valueColor }}>{value}</span>
+      <span className={valueClass}>{value}</span>
     </div>
   );
 }
 
 function Divider() {
-  return <div style={{ borderTop: '1px solid #e0e0e0', margin: '0.5rem 0' }} />;
+  return <div className="flip-divider" />;
 }
 
 function StatusBadge({ status }: { status: DealStatus }) {
+  const color = STATUS_COLORS[status];
   return (
-    <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 12, fontSize: 12, fontWeight: 500, background: `${STATUS_COLORS[status]}15`, color: STATUS_COLORS[status], border: `1px solid ${STATUS_COLORS[status]}40` }}>
+    <span 
+      className="flip-status-badge"
+      style={{ background: `${color}15`, color: color, border: `1px solid ${color}40` }}
+    >
       {STATUS_LABELS[status]}
     </span>
   );
 }
 
-function Alert({ type, style, children }: { type: 'error' | 'warning' | 'info'; style?: React.CSSProperties; children: React.ReactNode }) {
-  const colors = {
-    error: { bg: '#ffebee', border: '#c62828', text: '#b71c1c' },
-    warning: { bg: '#fff8e1', border: '#f9a825', text: '#e65100' },
-    info: { bg: '#e3f2fd', border: '#1976d2', text: '#0d47a1' },
-  };
-  const c = colors[type];
-  return <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 6, padding: '0.75rem 1rem', fontSize: 13, color: c.text, ...style }}>{children}</div>;
+function Alert({ type, className, children }: { type: 'error' | 'warning' | 'info'; className?: string; children: React.ReactNode }) {
+  const alertClass = ['flip-alert', `flip-alert--${type}`, className || ''].filter(Boolean).join(' ');
+  return <div className={alertClass}>{children}</div>;
 }

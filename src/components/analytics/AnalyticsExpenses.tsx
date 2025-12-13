@@ -44,10 +44,10 @@ const ExpenseBarChart = ({
   color: string;
   title: string;
 }) => (
-  <div className="card" style={{ padding: '1rem' }}>
-    <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>{title}</h3>
+  <div className="card chart-card">
+    <h3 className="chart-card__title">{title}</h3>
     {data.length === 0 ? (
-      <p style={{ color: '#555', margin: 0 }}>No {title.toLowerCase()} for this period</p>
+      <p className="text-muted m-0">No {title.toLowerCase()} for this period</p>
     ) : (
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={data} margin={{ top: 10, right: 10, bottom: 60, left: 45 }}>
@@ -72,16 +72,9 @@ const ExpenseBarChart = ({
               if (active && payload && payload.length) {
                 const item = payload[0].payload;
                 return (
-                  <div
-                    style={{
-                      backgroundColor: 'white',
-                      padding: '10px',
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                    }}
-                  >
-                    <p style={{ margin: '0 0 4px 0', fontWeight: 600 }}>{item.fullName}</p>
-                    <p style={{ margin: 0, color: '#333' }}>{formatCurrency(item.amount, 2)}</p>
+                  <div className="chart-tooltip">
+                    <p className="chart-tooltip__title">{item.fullName}</p>
+                    <p className="m-0">{formatCurrency(item.amount, 2)}</p>
                   </div>
                 );
               }
@@ -215,14 +208,7 @@ export function AnalyticsExpenses() {
   }, []);
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))',
-        gap: '1rem',
-        alignItems: 'start',
-      }}
-    >
+    <div className="expense-grid">
       <ExpenseBarChart data={expenseData.job} color="#1565c0" title="Direct Job Expenses" />
       <ExpenseBarChart data={expenseData.marketing} color="#e65100" title="Marketing Expenses" />
       <ExpenseBarChart data={expenseData.overhead} color="#7b1fa2" title="Overhead Expenses" />

@@ -666,15 +666,15 @@ export function NewTransactionForm({
 
   return (
     <div>
-      <h3 style={{ margin: 0, marginBottom: '0.75rem' }}>New Transaction</h3>
+      <h3 className="mt-0 mb-1h">New Transaction</h3>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {success && <p style={{ color: 'green' }}>{success}</p>}
+      {error && <p className="text-danger">{error}</p>}
+      {success && <p className="text-success">{success}</p>}
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <form onSubmit={handleSubmit} className="tx-form">
         {/* Job - always visible, optional */}
         <label>
-          Job <span style={{ color: '#999', fontWeight: 'normal', fontSize: 12 }}>(optional)</span>
+          Job <span className="tx-form__optional">(optional)</span>
           <JobSelect
             value={jobId}
             onChange={setJobId}
@@ -683,7 +683,7 @@ export function NewTransactionForm({
 
         {/* Real Estate Deal - always visible, optional */}
         <label>
-          Real Estate Deal <span style={{ color: '#999', fontWeight: 'normal', fontSize: 12 }}>(optional)</span>
+          Real Estate Deal <span className="tx-form__optional">(optional)</span>
           <SearchableSelect
             options={dealOptions}
             value={dealId ? Number(dealId) : null}
@@ -698,7 +698,7 @@ export function NewTransactionForm({
 
         {/* Mortgage toggle (rental deals only) */}
         {dealId && txType === 'expense' && !isFlipDeal && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <label className="tx-form__checkbox-label">
             <input type="checkbox" checked={isMortgagePayment} onChange={(e) => {
               setIsMortgagePayment(e.target.checked);
               if (!e.target.checked) { setMortgageInterest(''); setMortgageEscrow(''); setUseAutoSplit(true); }
@@ -709,13 +709,13 @@ export function NewTransactionForm({
 
         {/* Mortgage panel */}
         {dealId && txType === 'expense' && isMortgagePayment && !isFlipDeal && (
-          <div style={{ padding: '0.75rem', border: '1px solid #ddd', borderRadius: 8, background: '#fafafa' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
+          <div className="tx-form__panel">
+            <label className="tx-form__checkbox-label fw-500">
               <input type="checkbox" checked={useAutoSplit} onChange={(e) => { setUseAutoSplit(e.target.checked); if (e.target.checked) { setMortgageInterest(''); setMortgageEscrow(''); } }} disabled={!canAutoSplit} />
               Auto-calculate split
             </label>
             {!useAutoSplit && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <div className="tx-form__grid-2">
                 <label>Interest <input type="number" step="0.01" min="0" value={mortgageInterest} onChange={(e) => setMortgageInterest(e.target.value)} /></label>
                 <label>Escrow <input type="number" step="0.01" min="0" value={mortgageEscrow} onChange={(e) => setMortgageEscrow(e.target.value)} /></label>
               </div>
@@ -725,12 +725,12 @@ export function NewTransactionForm({
 
         {/* FLIP EXPENSE FIELDS */}
         {dealId && isFlipDeal && txType === 'expense' && (
-          <div style={{ padding: '0.75rem', border: '1px solid #ddd', borderRadius: 8, background: '#f5f5dc' }}>
-            <div style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: 14 }}>Flip Expense Details</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.5rem' }}>
+          <div className="tx-form__panel tx-form__panel--flip">
+            <div className="tx-form__panel-title">Flip Expense Details</div>
+            <div className="tx-form__grid-2-1">
               <label>
                 Rehab Category
-                <select value={rehabCategoryId} onChange={(e) => setRehabCategoryId(e.target.value)} style={{ width: '100%' }}>
+                <select value={rehabCategoryId} onChange={(e) => setRehabCategoryId(e.target.value)}>
                   <option value="">Select category...</option>
                   {groupOrder.map(group => {
                     const cats = groupedRehabCategories[group];
@@ -745,7 +745,7 @@ export function NewTransactionForm({
               </label>
               <label>
                 Cost Type
-                <select value={costType} onChange={(e) => setCostType(e.target.value as CostType)} style={{ width: '100%' }}>
+                <select value={costType} onChange={(e) => setCostType(e.target.value as CostType)}>
                   <option value="">Select...</option>
                   <option value="L">L - Labor</option>
                   <option value="M">M - Material</option>
@@ -756,7 +756,7 @@ export function NewTransactionForm({
               </label>
             </div>
             {(costType === 'M' || costType === 'S' || costType === 'H') && (
-              <label style={{ marginTop: '0.5rem', display: 'block' }}>
+              <label className="tx-form__field-block">
                 Vendor
                 <VendorSelect
                   value={vendorId}
@@ -766,7 +766,7 @@ export function NewTransactionForm({
               </label>
             )}
             {costType === 'L' && (
-              <label style={{ marginTop: '0.5rem', display: 'block' }}>
+              <label className="tx-form__field-block">
                 Installer
                 <InstallerSelect
                   value={installerId}
@@ -782,7 +782,7 @@ export function NewTransactionForm({
         <label>
           Date
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          {isDateFuture && <span style={{ fontSize: 12, color: '#ff9800', display: 'block' }}>[!] Future date</span>}
+          {isDateFuture && <span className="tx-form__warning">[!] Future date</span>}
         </label>
 
         {/* Type */}
@@ -855,7 +855,7 @@ export function NewTransactionForm({
         )}
 
         {dealId && isFlipDeal && txType === 'expense' && costType && (
-          <div style={{ fontSize: 12, color: '#666', marginTop: '-0.5rem' }}>
+          <div className="tx-form__hint">
             Account: {
               { L: 'RE - Flip Rehab Labor', M: 'RE - Flip Rehab Materials', S: 'RE - Flip Services', I: 'RE - Flip Interest', H: 'RE - Flip Holding Costs' }[costType]
             }
@@ -866,14 +866,14 @@ export function NewTransactionForm({
         {!jobId && !(dealId && isFlipDeal) && !isMortgagePayment && (
           <>
             <label>
-              Vendor <span style={{ color: '#999', fontWeight: 'normal', fontSize: 12 }}>(optional)</span>
+              Vendor <span className="tx-form__optional">(optional)</span>
               <VendorSelect
                 value={vendorId}
                 onChange={setVendorId}
               />
             </label>
             <label>
-              Installer <span style={{ color: '#999', fontWeight: 'normal', fontSize: 12 }}>(optional)</span>
+              Installer <span className="tx-form__optional">(optional)</span>
               <InstallerSelect
                 value={installerId}
                 onChange={setInstallerId}
@@ -887,31 +887,31 @@ export function NewTransactionForm({
         <label>
           Amount
           <input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-          {isAmountLarge && <span style={{ fontSize: 12, color: '#ff9800', display: 'block' }}>[!] Large amount</span>}
+          {isAmountLarge && <span className="tx-form__warning">[!] Large amount</span>}
         </label>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <label className="tx-form__checkbox-label">
           <input type="checkbox" checked={isCleared} onChange={(e) => setIsCleared(e.target.checked)} />
           Mark as cleared
         </label>
 
-        <button type="submit" disabled={saving} style={{ marginTop: '0.5rem', padding: '0.6rem 1rem', fontWeight: 500 }}>
+        <button type="submit" disabled={saving} className="btn btn-blue tx-form__submit">
           {saving ? 'Saving...' : 'Save Transaction'}
         </button>
       </form>
 
       {/* Mortgage Modal */}
       {showMortgageModal && mortgagePreview && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '0.5rem', maxWidth: '520px', width: '100%', boxShadow: '0 10px 30px rgba(0,0,0,0.25)' }}>
-            <h2 style={{ marginTop: 0 }}>Mortgage Payment Split</h2>
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: '520px' }}>
+            <h2 className="mt-0">Mortgage Payment Split</h2>
             <p><strong>Deal:</strong> {mortgagePreview.dealNickname}</p>
             <p><strong>Total:</strong> ${mortgagePreview.total.toFixed(2)}</p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <label>Principal<input type="number" step="0.01" value={editablePrincipal} onChange={(e) => setEditablePrincipal(e.target.value)} style={{ width: '100%' }} /></label>
-              <label>Interest<input type="number" step="0.01" value={editableInterest} onChange={(e) => setEditableInterest(e.target.value)} style={{ width: '100%' }} /></label>
-              <label>Escrow<input type="number" step="0.01" value={editableEscrow} onChange={(e) => setEditableEscrow(e.target.value)} style={{ width: '100%' }} /></label>
+            <div className="tx-form__grid-3">
+              <label>Principal<input type="number" step="0.01" value={editablePrincipal} onChange={(e) => setEditablePrincipal(e.target.value)} /></label>
+              <label>Interest<input type="number" step="0.01" value={editableInterest} onChange={(e) => setEditableInterest(e.target.value)} /></label>
+              <label>Escrow<input type="number" step="0.01" value={editableEscrow} onChange={(e) => setEditableEscrow(e.target.value)} /></label>
             </div>
 
             {(() => {
@@ -919,15 +919,15 @@ export function NewTransactionForm({
               const diff = editTotal - mortgagePreview.total;
               const isBalanced = Math.abs(diff) < 0.02;
               return (
-                <div style={{ padding: '0.5rem', borderRadius: 6, marginBottom: '0.75rem', backgroundColor: isBalanced ? '#d4edda' : '#f8d7da', fontSize: 13 }}>
+                <div className={`tx-form__balance ${isBalanced ? 'tx-form__balance--ok' : 'tx-form__balance--error'}`}>
                   Split: ${editTotal.toFixed(2)} {isBalanced ? 'OK' : `(${diff > 0 ? '+' : ''}${diff.toFixed(2)})`}
                 </div>
               );
             })()}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <div className="modal-footer">
               <button type="button" onClick={handleCancelMortgageSplit} disabled={saving}>Cancel</button>
-              <button type="button" onClick={handleConfirmMortgageSplit} disabled={saving} style={{ background: '#0066cc', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: 4 }}>
+              <button type="button" onClick={handleConfirmMortgageSplit} disabled={saving} className="btn btn-blue">
                 {saving ? 'Saving...' : 'Confirm & Save'}
               </button>
             </div>

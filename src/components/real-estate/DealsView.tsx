@@ -24,15 +24,8 @@ export function DealsView() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '0.75rem',
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Manage Deals</h2>
+      <div className="page-header">
+        <h2 className="page-header__title">Manage Deals</h2>
       </div>
 
       {/* Tabs */}
@@ -55,7 +48,7 @@ export function DealsView() {
       </div>
 
       {/* Content */}
-      <div style={{ marginTop: '0.75rem' }}>
+      <div className="page-content">
         {tab === 'overview' && <DealsOverview onDealSelect={handleDealSelect} />}
         {tab === 'manage' && (
           <DealsManageView

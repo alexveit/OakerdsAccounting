@@ -300,7 +300,7 @@ export function JobsTab() {
           <button
             key={mode}
             onClick={() => setFilter(mode)}
-            style={{ ...styles.filterBtn, ...(filter === mode ? styles.filterBtnActive : {}) }}
+            style={filter === mode ? { ...styles.filterBtn, ...styles.filterBtnActive } : styles.filterBtn}
           >
             {mode === 'open' ? 'Open' : 'Closed'}
           </button>
@@ -317,28 +317,18 @@ export function JobsTab() {
               <div style={styles.cardTouchable} onClick={() => setExpandedJobId(isExpanded ? null : job.id)}>
                 <div style={styles.cardHeader}>
                   <div style={styles.jobName}>{job.name}</div>
-                  <div style={{ ...styles.statusBadge, backgroundColor: job.status === 'open' ? '#10b981' : '#6b7280' }}>
+                  <div style={styles.statusBadge} className={job.status === 'open' ? 'jobs-tab__status--open' : 'jobs-tab__status--closed'}>
                     {job.status ?? 'open'}
                   </div>
                 </div>
                 {job.address && <div style={styles.address}>{job.address}</div>}
                 {/* CC Balance Indicator */}
                 {job.ccBalances.length > 0 && (
-                  <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginTop: 4, marginBottom: 4 }}>
+                  <div className="jobs-tab__cc-badges">
                     {job.ccBalances.map((cc) => (
                       <span
                         key={cc.accountName}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.2rem',
-                          fontSize: 10,
-                          background: '#fef2f2',
-                          color: '#b91c1c',
-                          padding: '2px 6px',
-                          borderRadius: 999,
-                          border: '1px solid #fecaca',
-                        }}
+                        className="jobs-tab__cc-badge"
                       >
                         💳 {cc.accountName}: ${cc.unclearedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
@@ -356,7 +346,7 @@ export function JobsTab() {
                   </div>
                   <div style={styles.finRow}>
                     <span style={styles.finLabel}>Profit</span>
-                    <span style={{ ...styles.finAmount, color: job.profit >= 0 ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                    <span style={styles.finAmount} className={job.profit >= 0 ? 'jobs-tab__profit--positive' : 'jobs-tab__profit--negative'}>
                       {formatCurrency(job.profit, 0)}
                     </span>
                   </div>
@@ -392,9 +382,9 @@ export function JobsTab() {
                             </div>
                             <div style={styles.txStatus}>
                               {isUnsettledCc && (
-                                <span style={{ color: '#f87171', marginRight: 4 }}>💳</span>
+                                <span className="jobs-tab__cc-icon">💳</span>
                               )}
-                              <span style={{ color: tx.cleared ? '#10b981' : '#ef4444' }}>
+                              <span className={tx.cleared ? 'jobs-tab__cleared--yes' : 'jobs-tab__cleared--no'}>
                                 {tx.cleared ? '✓' : '○'}
                               </span>
                             </div>

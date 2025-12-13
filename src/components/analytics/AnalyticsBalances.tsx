@@ -287,25 +287,18 @@ export function AnalyticsBalances() {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: '10px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-          }}
-        >
-          <p style={{ margin: '0 0 8px 0', fontWeight: 600 }}>{data.date}</p>
-          <p style={{ margin: '4px 0', color: '#0a7a3c' }}>
+        <div className="chart-tooltip">
+          <p className="chart-tooltip__title">{data.date}</p>
+          <p className="chart-tooltip__row chart-tooltip__row--open">
             <strong>Open:</strong> {formatCurrency(data.open, 2)}
           </p>
-          <p style={{ margin: '4px 0', color: '#1565c0' }}>
+          <p className="chart-tooltip__row chart-tooltip__row--high">
             <strong>High:</strong> {formatCurrency(data.high, 2)}
           </p>
-          <p style={{ margin: '4px 0', color: '#e65100' }}>
+          <p className="chart-tooltip__row chart-tooltip__row--low">
             <strong>Low:</strong> {formatCurrency(data.low, 2)}
           </p>
-          <p style={{ margin: '4px 0', color: '#b00020' }}>
+          <p className="chart-tooltip__row chart-tooltip__row--close">
             <strong>Close:</strong> {formatCurrency(data.close, 2)}
           </p>
         </div>
@@ -315,7 +308,7 @@ export function AnalyticsBalances() {
   };
 
   if (loading && accountBalances.length === 0) return <p>Loading accounts...</p>;
-  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  if (error) return <p className="text-danger">Error: {error}</p>;
 
   const selectedAccountName =
     selectedAccountId === 'all'
@@ -324,34 +317,17 @@ export function AnalyticsBalances() {
 
   return (
     <>
-      <div className="card" style={{ marginBottom: '1rem', padding: '1rem' }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: '1rem',
-            flexWrap: 'wrap',
-            marginBottom: '1rem',
-          }}
-        >
+      <div className="card mb-2 p-2">
+        <div className="filter-row mb-2">
           {/* Account selector */}
-          <div>
-            <label
-              htmlFor="account-select"
-              style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}
-            >
-              Account:
-            </label>
+          <div className="filter-group">
+            <label htmlFor="account-select">Account:</label>
             <select
               id="account-select"
               value={selectedAccountId}
               onChange={(e) =>
                 setSelectedAccountId(e.target.value === 'all' ? 'all' : Number(e.target.value))
               }
-              style={{
-                padding: '0.5rem',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-              }}
             >
               <option value="all">All Bank Accounts (Aggregated)</option>
               {accountBalances.map((acc) => (
@@ -363,22 +339,12 @@ export function AnalyticsBalances() {
           </div>
 
           {/* Period selector */}
-          <div>
-            <label
-              htmlFor="period-select"
-              style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}
-            >
-              Period:
-            </label>
+          <div className="filter-group">
+            <label htmlFor="period-select">Period:</label>
             <select
               id="period-select"
               value={period}
               onChange={(e) => setPeriod(e.target.value as 'daily' | 'weekly' | 'monthly')}
-              style={{
-                padding: '0.5rem',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-              }}
             >
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
@@ -387,22 +353,12 @@ export function AnalyticsBalances() {
           </div>
 
           {/* Date range selector */}
-          <div>
-            <label
-              htmlFor="range-select"
-              style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}
-            >
-              Time Range:
-            </label>
+          <div className="filter-group">
+            <label htmlFor="range-select">Time Range:</label>
             <select
               id="range-select"
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value as '90d' | 'ytd' | 'max' | 'custom')}
-              style={{
-                padding: '0.5rem',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-              }}
             >
               <option value="90d">Last 90 Days</option>
               <option value="ytd">Year to Date</option>
@@ -414,62 +370,42 @@ export function AnalyticsBalances() {
           {/* Custom date inputs */}
           {dateRange === 'custom' && (
             <>
-              <div>
-                <label
-                  htmlFor="start-date"
-                  style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}
-                >
-                  Start Date:
-                </label>
+              <div className="filter-group">
+                <label htmlFor="start-date">Start Date:</label>
                 <input
                   id="start-date"
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  style={{
-                    padding: '0.5rem',
-                    borderRadius: '4px',
-                    border: '1px solid #ccc',
-                  }}
                 />
               </div>
-              <div>
-                <label
-                  htmlFor="end-date"
-                  style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}
-                >
-                  End Date:
-                </label>
+              <div className="filter-group">
+                <label htmlFor="end-date">End Date:</label>
                 <input
                   id="end-date"
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  style={{
-                    padding: '0.5rem',
-                    borderRadius: '4px',
-                    border: '1px solid #ccc',
-                  }}
                 />
               </div>
             </>
           )}
         </div>
 
-        <p style={{ color: '#555', fontSize: '14px', margin: 0 }}>
+        <p className="text-muted text-sm m-0">
           Showing {dateRange === '90d' ? 'last 90 days' : dateRange === 'ytd' ? 'year to date' : dateRange === 'max' ? 'all time' : `${customStartDate} to ${customEndDate}`} balance history for: <strong>{selectedAccountName}</strong>
         </p>
       </div>
 
-      <div className="card" style={{ padding: '1rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>
+      <div className="card chart-card">
+        <h3 className="chart-card__title">
           Balance Candlestick Chart
         </h3>
 
         {loading ? (
           <p>Loading chart data...</p>
         ) : chartData.length === 0 ? (
-          <p style={{ color: '#555' }}>
+          <p className="text-muted">
             No transaction data available for the selected period.
           </p>
         ) : (
@@ -560,11 +496,11 @@ export function AnalyticsBalances() {
           </ResponsiveContainer>
         )}
 
-        <div style={{ marginTop: '1rem', fontSize: '14px', color: '#555' }}>
-          <p style={{ marginBottom: '0.5rem' }}>
+        <div className="chart-legend">
+          <p className="chart-legend__title">
             <strong>How to read this chart:</strong>
           </p>
-          <ul style={{ marginTop: '0.5rem', paddingLeft: '1.5rem', marginBottom: 0 }}>
+          <ul className="chart-legend__list">
             <li>
               <strong>Green candles:</strong> Balance increased during the period
               (close &gt; open)

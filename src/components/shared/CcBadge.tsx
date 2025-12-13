@@ -21,18 +21,7 @@ export function CcBadge({ cc, onClick }: Props) {
         e.stopPropagation();
         onClick();
       }}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '0.25rem',
-        fontSize: 11,
-        background: CC_COLORS.badgeBg,
-        color: CC_COLORS.unsettled,
-        padding: '2px 8px',
-        borderRadius: 999,
-        border: `1px solid ${CC_COLORS.badgeBorder}`,
-        cursor: 'pointer',
-      }}
+      className="cc-badge"
       title={`Click to settle ${cc.accountName}`}
     >
       💳 {cc.accountName}: ${cc.unclearedAmount.toLocaleString(undefined, { 
@@ -57,14 +46,7 @@ export function CcBadgeList({ ccBalances, onBadgeClick }: ListProps) {
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        gap: '0.5rem',
-        flexWrap: 'wrap',
-        marginBottom: 6,
-      }}
-    >
+    <div className="cc-badge-list">
       {ccBalances.map((cc) => (
         <CcBadge key={cc.accountId} cc={cc} onClick={() => onBadgeClick(cc)} />
       ))}

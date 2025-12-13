@@ -217,101 +217,43 @@ export function PlaidLinkView() {
     }
   };
 
-  // Styles
-  const containerStyle: React.CSSProperties = {
-    padding: 24,
-    maxWidth: 1000,
-  };
-
-  const headerStyle: React.CSSProperties = {
-    fontSize: 24,
-    fontWeight: 600,
-    marginBottom: 24,
-  };
-
-  const sectionStyle: React.CSSProperties = {
-    background: '#f8f9fa',
-    borderRadius: 8,
-    padding: 20,
-    marginBottom: 20,
-  };
-
-  const buttonStyle: React.CSSProperties = {
-    padding: '12px 24px',
-    fontSize: 14,
-    fontWeight: 600,
-    border: 'none',
-    borderRadius: 6,
-    cursor: 'pointer',
-    backgroundColor: '#2563eb',
-    color: 'white',
-  };
-
-  const dangerButtonStyle: React.CSSProperties = {
-    ...buttonStyle,
-    backgroundColor: '#dc2626',
-    padding: '8px 16px',
-  };
-
-  const tableStyle: React.CSSProperties = {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: 14,
-  };
-
-  const thStyle: React.CSSProperties = {
-    textAlign: 'left',
-    padding: '10px 12px',
-    borderBottom: '2px solid #e5e7eb',
-    fontWeight: 600,
-  };
-
-  const tdStyle: React.CSSProperties = {
-    padding: '10px 12px',
-    borderBottom: '1px solid #e5e7eb',
-  };
-
   return (
-    <div style={containerStyle}>
-      <div style={headerStyle}>Bank Connections (Plaid)</div>
+    <div className="p-3" style={{ maxWidth: 1000 }}>
+      <h2 className="mt-0 mb-3">Bank Connections (Plaid)</h2>
 
       {error && (
-        <div style={{ ...sectionStyle, background: '#fee2e2', color: '#dc2626', marginBottom: 16 }}>
-          {error}
-        </div>
+        <div className="alert alert--error">{error}</div>
       )}
 
       {successMessage && (
-        <div style={{ ...sectionStyle, background: '#dcfce7', color: '#16a34a', marginBottom: 16 }}>
-          {successMessage}
-        </div>
+        <div className="alert alert--success">{successMessage}</div>
       )}
 
       {/* Connected Accounts */}
-      <div style={sectionStyle}>
-        <h3 style={{ marginTop: 0, marginBottom: 16 }}>Connected Accounts</h3>
+      <div className="section-panel">
+        <h3 className="section-panel__title">Connected Accounts</h3>
 
         {plaidItems.length === 0 ? (
-          <p style={{ color: '#6b7280' }}>No bank accounts connected</p>
+          <p className="text-muted">No bank accounts connected</p>
         ) : (
-          <table style={tableStyle}>
+          <table className="data-table">
             <thead>
               <tr>
-                <th style={thStyle}>Institution</th>
-                <th style={thStyle}>Connected</th>
-                <th style={thStyle}>Last Sync</th>
-                <th style={thStyle}>Actions</th>
+                <th>Institution</th>
+                <th>Connected</th>
+                <th>Last Sync</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {plaidItems.map((item) => (
                 <tr key={item.id}>
-                  <td style={tdStyle}>{item.institution_name}</td>
-                  <td style={tdStyle}>{new Date(item.created_at).toLocaleDateString()}</td>
-                  <td style={tdStyle}>{new Date(item.updated_at).toLocaleString()}</td>
-                  <td style={tdStyle}>
+                  <td>{item.institution_name}</td>
+                  <td>{new Date(item.created_at).toLocaleDateString()}</td>
+                  <td>{new Date(item.updated_at).toLocaleString()}</td>
+                  <td>
                     <button
-                      style={dangerButtonStyle}
+                      className="btn btn-danger btn-sm"
                       onClick={() => deletePlaidItem(item.id)}
                     >
                       Disconnect
@@ -323,9 +265,9 @@ export function PlaidLinkView() {
           </table>
         )}
 
-        <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
+        <div className="btn-row">
           <button
-            style={buttonStyle}
+            className="btn btn-blue"
             onClick={createLinkToken}
             disabled={loading}
           >
@@ -334,7 +276,7 @@ export function PlaidLinkView() {
 
           {plaidItems.length > 0 && (
             <button
-              style={{ ...buttonStyle, backgroundColor: '#16a34a' }}
+              className="btn btn-success"
               onClick={syncTransactions}
               disabled={syncing}
             >
@@ -346,7 +288,7 @@ export function PlaidLinkView() {
 
       {/* Transaction Review */}
       {transactions.length > 0 && (
-        <div style={sectionStyle}>
+        <div className="section-panel">
           <PlaidTransactionReview
             transactions={transactions}
             onComplete={() => {

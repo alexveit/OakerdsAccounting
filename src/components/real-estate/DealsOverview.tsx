@@ -88,54 +88,38 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
   }
 
   if (error) {
-    return <p style={{ color: 'red' }}>{error}</p>;
+    return <p className="text-danger">{error}</p>;
   }
 
   return (
     <div>
       {/* Summary cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
-          <div style={{ fontSize: 24, fontWeight: 600 }}>{summary.rental}</div>
-          <div style={{ fontSize: 12, color: '#666' }}>Rentals</div>
+      <div className="deals-summary-grid">
+        <div className="card deals-summary-card">
+          <div className="deals-summary-card__count">{summary.rental}</div>
+          <div className="deals-summary-card__label">Rentals</div>
         </div>
-        <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
-          <div style={{ fontSize: 24, fontWeight: 600 }}>{summary.flip}</div>
-          <div style={{ fontSize: 12, color: '#666' }}>Flips</div>
+        <div className="card deals-summary-card">
+          <div className="deals-summary-card__count">{summary.flip}</div>
+          <div className="deals-summary-card__label">Flips</div>
         </div>
-        <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
-          <div style={{ fontSize: 24, fontWeight: 600 }}>{summary.wholesale}</div>
-          <div style={{ fontSize: 12, color: '#666' }}>Wholesales</div>
+        <div className="card deals-summary-card">
+          <div className="deals-summary-card__count">{summary.wholesale}</div>
+          <div className="deals-summary-card__label">Wholesales</div>
         </div>
-        <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
-          <div style={{ fontSize: 24, fontWeight: 600 }}>{summary.personal}</div>
-          <div style={{ fontSize: 12, color: '#666' }}>Personal</div>
+        <div className="card deals-summary-card">
+          <div className="deals-summary-card__count">{summary.personal}</div>
+          <div className="deals-summary-card__label">Personal</div>
         </div>
       </div>
 
       {/* Filters */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '1rem',
-          alignItems: 'center',
-          marginBottom: '1rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 14 }}>
+      <div className="deals-filters">
+        <label className="deals-filter-label">
           Type:
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as DealType | 'all')}
-            style={{ padding: '0.25rem 0.5rem' }}
           >
             <option value="all">All Types</option>
             <option value="rental">Rentals</option>
@@ -145,7 +129,7 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
           </select>
         </label>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 14 }}>
+        <label className="deals-filter-label">
           <input
             type="checkbox"
             checked={showArchived}
@@ -154,25 +138,25 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
           Show archived
         </label>
 
-        <div style={{ marginLeft: 'auto', fontSize: 13, color: '#666' }}>
+        <div className="deals-count">
           {filteredDeals.length} deal{filteredDeals.length !== 1 ? 's' : ''}
         </div>
       </div>
 
       {/* Deals table */}
       {filteredDeals.length === 0 ? (
-        <p style={{ color: '#666', fontStyle: 'italic' }}>No deals found.</p>
+        <p className="deals-empty">No deals found.</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+        <div className="deals-table-wrap">
+          <table className="deals-table">
             <thead>
-              <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
-                <th style={{ padding: '0.5rem' }}>Nickname</th>
-                <th style={{ padding: '0.5rem' }}>Address</th>
-                <th style={{ padding: '0.5rem' }}>Type</th>
-                <th style={{ padding: '0.5rem' }}>Status</th>
-                <th style={{ padding: '0.5rem', textAlign: 'right' }}>Purchase</th>
-                <th style={{ padding: '0.5rem', textAlign: 'right' }}>
+              <tr>
+                <th>Nickname</th>
+                <th>Address</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th className="right">Purchase</th>
+                <th className="right">
                   {filterType === 'personal' ? 'Market Value' : 'ARV'}
                 </th>
               </tr>
@@ -182,69 +166,26 @@ export function DealsOverview({ onDealSelect }: DealsOverviewProps) {
                 <tr
                   key={deal.id}
                   onClick={() => onDealSelect?.(deal.id)}
-                  style={{
-                    borderBottom: '1px solid #eee',
-                    cursor: onDealSelect ? 'pointer' : 'default',
-                    backgroundColor: deal.status === 'failed' ? '#f9f9f9' : undefined,
-                  }}
-                  onMouseOver={(e) => {
-                    if (onDealSelect) e.currentTarget.style.backgroundColor = '#f5f5f5';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor =
-                      deal.status === 'failed' ? '#f9f9f9' : '';
-                  }}
+                  className={deal.status === 'failed' ? 'archived' : ''}
                 >
-                  <td style={{ padding: '0.5rem', fontWeight: 500 }}>{deal.nickname}</td>
-                  <td style={{ padding: '0.5rem', color: '#666' }}>{deal.address || '-'}</td>
-                  <td style={{ padding: '0.5rem' }}>
+                  <td className="nickname">{deal.nickname}</td>
+                  <td className="address">{deal.address || '-'}</td>
+                  <td>
                     <span
-                      style={{
-                        padding: '0.15rem 0.4rem',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        backgroundColor: deal.type === 'personal' ? '#f3e5f5' : '#f5f5f5',
-                        color: deal.type === 'personal' ? '#7b1fa2' : '#666',
-                      }}
+                      className={`deal-type-badge ${deal.type === 'personal' ? 'deal-type-badge--personal' : ''}`}
                     >
                       {TYPE_LABELS[deal.type]}
                     </span>
                   </td>
-                  <td style={{ padding: '0.5rem' }}>
-                    <span
-                      style={{
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: 4,
-                        fontSize: 12,
-                        backgroundColor:
-                          deal.status === 'sold'
-                            ? '#e8f5e9'
-                            : deal.status === 'failed'
-                              ? '#ffebee'
-                              : deal.status === 'rehab'
-                                ? '#fff3e0'
-                                : deal.status === 'stabilized'
-                                  ? '#e8f5e9'
-                                  : '#e3f2fd',
-                        color:
-                          deal.status === 'sold'
-                            ? '#2e7d32'
-                            : deal.status === 'failed'
-                              ? '#c62828'
-                              : deal.status === 'rehab'
-                                ? '#e65100'
-                                : deal.status === 'stabilized'
-                                  ? '#2e7d32'
-                                  : '#1565c0',
-                      }}
-                    >
+                  <td>
+                    <span className={`deal-status-badge deal-status-badge--${deal.status}`}>
                       {STATUS_LABELS[deal.status]}
                     </span>
                   </td>
-                  <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                  <td className="right">
                     {deal.purchase_price ? formatMoney(deal.purchase_price) : '-'}
                   </td>
-                  <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                  <td className="right">
                     {deal.arv ? formatMoney(deal.arv) : '-'}
                   </td>
                 </tr>

@@ -749,29 +749,6 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
 
   if (loading) return <p>Loading...</p>;
 
-  const labelStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem',
-    fontSize: 14,
-  };
-
-  const sectionStyle: React.CSSProperties = {
-    fontWeight: 600,
-    fontSize: 14,
-    color: '#555',
-    borderBottom: '1px solid #ddd',
-    paddingBottom: '0.25rem',
-    marginTop: '1rem',
-    marginBottom: '0.5rem',
-  };
-
-  const gridStyle: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '0.75rem 1rem',
-  };
-
   // Determine which fields to show based on transaction type
   const showRehabCategory = ['rehab_labor', 'rehab_material', 'rehab_service', 'refund'].includes(txType);
   const showInstaller = txType === 'rehab_labor';
@@ -782,23 +759,23 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
 
   return (
     <div className="card">
-      <h2 style={{ marginTop: 0 }}>New Flip Transaction</h2>
+      <h2 className="flip-tx__title">New Flip Transaction</h2>
 
       {error && (
-        <p style={{ color: '#c00', background: '#fee', padding: '0.5rem', borderRadius: 4 }}>
+        <p className="flip-tx__error">
           {error}
         </p>
       )}
       {success && (
-        <p style={{ color: '#060', background: '#efe', padding: '0.5rem', borderRadius: 4 }}>
+        <p className="flip-tx__success">
           {success}
         </p>
       )}
 
       <form onSubmit={handleSubmit}>
         {/* Deal Selection */}
-        <div style={gridStyle}>
-          <label style={labelStyle}>
+        <div className="flip-tx__grid">
+          <label className="flip-tx__label">
             Deal
             <select value={dealId} onChange={(e) => setDealId(e.target.value)}>
               <option value="">Select deal...</option>
@@ -810,7 +787,7 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
             </select>
           </label>
 
-          <label style={labelStyle}>
+          <label className="flip-tx__label">
             Transaction Type
             <select value={txType} onChange={(e) => setTxType(e.target.value as FlipTxType)}>
               {Object.entries(TX_TYPE_LABELS).map(([key, label]) => (
@@ -824,15 +801,7 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
 
         {/* Deal info summary */}
         {selectedDeal && (
-          <div
-            style={{
-              background: '#f5f5f5',
-              padding: '0.5rem',
-              borderRadius: 4,
-              marginTop: '0.5rem',
-              fontSize: 13,
-            }}
-          >
+          <div className="flip-tx__deal-info">
             <strong>{selectedDeal.nickname}</strong>
             {selectedDeal.purchase_price && (
               <span> | Purchase: {formatCurrency(selectedDeal.purchase_price)}</span>
@@ -842,15 +811,15 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
           </div>
         )}
 
-        <div style={sectionStyle}>Transaction Details</div>
+        <div className="flip-tx__section">Transaction Details</div>
 
-        <div style={gridStyle}>
-          <label style={labelStyle}>
+        <div className="flip-tx__grid">
+          <label className="flip-tx__label">
             Date
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
 
-          <label style={labelStyle}>
+          <label className="flip-tx__label">
             Pay From / Deposit To
             <select value={cashAccountId} onChange={(e) => setCashAccountId(e.target.value)}>
               <option value="">Select account...</option>
@@ -867,9 +836,9 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
         {/* Acquisition Fields */}
         {showAcquisitionFields && (
           <>
-            <div style={sectionStyle}>Acquisition Details</div>
-            <div style={gridStyle}>
-              <label style={labelStyle}>
+            <div className="flip-tx__section">Acquisition Details</div>
+            <div className="flip-tx__grid">
+              <label className="flip-tx__label">
                 Purchase Price (to asset account)
                 <input
                   type="number"
@@ -880,7 +849,7 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
                 />
               </label>
 
-              <label style={labelStyle}>
+              <label className="flip-tx__label">
                 Loan Amount (credited from lender)
                 <input
                   type="number"
@@ -891,7 +860,7 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
                 />
               </label>
 
-              <label style={labelStyle}>
+              <label className="flip-tx__label">
                 Closing Costs
                 <input
                   type="number"
@@ -905,19 +874,11 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
 
             {/* Acquisition summary */}
             {(purchaseAmount || loanAmount || closingCostsAmount) && (
-              <div
-                style={{
-                  background: '#e3f2fd',
-                  padding: '0.75rem',
-                  borderRadius: 4,
-                  marginTop: '0.5rem',
-                  fontSize: 13,
-                }}
-              >
+              <div className="flip-tx__summary">
                 <div>Purchase: {formatCurrency(parseNumber(purchaseAmount) ?? 0)}</div>
                 <div>+ Closing: {formatCurrency(parseNumber(closingCostsAmount) ?? 0)}</div>
                 <div>- Loan: {formatCurrency(parseNumber(loanAmount) ?? 0)}</div>
-                <div style={{ borderTop: '1px solid #90caf9', marginTop: '0.25rem', paddingTop: '0.25rem', fontWeight: 600 }}>
+                <div className="flip-tx__summary-total">
                   = Cash to Close:{' '}
                   {formatCurrency(
                     (parseNumber(purchaseAmount) ?? 0) +
@@ -933,9 +894,9 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
         {/* Sale Fields */}
         {showSaleFields && (
           <>
-            <div style={sectionStyle}>Sale Details</div>
-            <div style={gridStyle}>
-              <label style={labelStyle}>
+            <div className="flip-tx__section">Sale Details</div>
+            <div className="flip-tx__grid">
+              <label className="flip-tx__label">
                 Sale Price
                 <input
                   type="number"
@@ -946,7 +907,7 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
                 />
               </label>
 
-              <label style={labelStyle}>
+              <label className="flip-tx__label">
                 Selling Costs (commissions, closing)
                 <input
                   type="number"
@@ -962,8 +923,8 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
 
         {/* Amount field for non-acquisition/sale types */}
         {showAmount && (
-          <div style={{ ...gridStyle, marginTop: '0.5rem' }}>
-            <label style={labelStyle}>
+          <div className="flip-tx__grid flip-tx__grid--mt">
+            <label className="flip-tx__label">
               Amount
               <input
                 type="number"
@@ -979,8 +940,8 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
 
         {/* Rehab category */}
         {showRehabCategory && (
-          <div style={{ marginTop: '0.5rem' }}>
-            <label style={labelStyle}>
+          <div className="flip-tx__field">
+            <label className="flip-tx__label">
               Rehab Category
               <select value={rehabCategoryId} onChange={(e) => setRehabCategoryId(e.target.value)}>
                 <option value="">Select category...</option>
@@ -1004,8 +965,8 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
 
         {/* Installer / Vendor */}
         {showInstaller && (
-          <div style={{ marginTop: '0.5rem' }}>
-            <label style={labelStyle}>
+          <div className="flip-tx__field">
+            <label className="flip-tx__label">
               Installer
               <select value={installerId} onChange={(e) => setInstallerId(e.target.value)}>
                 <option value="">Select installer...</option>
@@ -1020,8 +981,8 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
         )}
 
         {showVendor && (
-          <div style={{ marginTop: '0.5rem' }}>
-            <label style={labelStyle}>
+          <div className="flip-tx__field">
+            <label className="flip-tx__label">
               Vendor
               <select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
                 <option value="">Select vendor...</option>
@@ -1036,8 +997,8 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
         )}
 
         {/* Description */}
-        <div style={{ marginTop: '0.5rem' }}>
-          <label style={labelStyle}>
+        <div className="flip-tx__field">
+          <label className="flip-tx__label">
             Description
             <input
               type="text"
@@ -1049,8 +1010,8 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
         </div>
 
         {/* Cleared checkbox */}
-        <div style={{ marginTop: '0.75rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 14 }}>
+        <div className="flip-tx__field--lg">
+          <label className="flip-tx__checkbox-label">
             <input
               type="checkbox"
               checked={isCleared}
@@ -1061,11 +1022,11 @@ export function NewFlipTransaction({ dealId: initialDealId, onTransactionSaved }
         </div>
 
         {/* Submit */}
-        <div style={{ marginTop: '1rem' }}>
+        <div className="flip-tx__field--xl">
           <button
             type="submit"
             disabled={saving || !dealId}
-            style={{ padding: '0.6rem 1.5rem', fontWeight: 500 }}
+            className="flip-tx__submit-btn"
           >
             {saving ? 'Saving...' : 'Save Transaction'}
           </button>

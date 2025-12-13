@@ -9,15 +9,8 @@ export function ExpenseCategoriesView() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '0.75rem',
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Expenses by Category</h2>
+      <div className="page-header">
+        <h2 className="page-header__title">Expenses by Category</h2>
       </div>
 
       {/* Browser-style tab strip */}
@@ -39,11 +32,11 @@ export function ExpenseCategoriesView() {
       </div>
 
       {/* Content */}
-      <div style={{ marginTop: '0.75rem' }}>
+      <div className="page-content">
         {tab === 'summary' ? (
           <CategoriesSummaryView />
         ) : (
-          <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <div className="page-content--wide">
             <ExpenseByCategory />
           </div>
         )}

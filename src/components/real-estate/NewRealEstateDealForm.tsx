@@ -397,71 +397,24 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Styles
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  const labelStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem',
-    fontSize: 14,
-  };
-
-  const sectionStyle: React.CSSProperties = {
-    gridColumn: '1 / span 2',
-    fontWeight: 600,
-    fontSize: 14,
-    color: '#555',
-    borderBottom: '1px solid #ddd',
-    paddingBottom: '0.25rem',
-    marginTop: '0.75rem',
-  };
-
-  const summaryCardStyle: React.CSSProperties = {
-    gridColumn: '1 / span 2',
-    background: '#f8f9fa',
-    border: '1px solid #dee2e6',
-    borderRadius: 8,
-    padding: '1rem',
-    marginTop: '0.5rem',
-  };
-
-  const summaryRowStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: 13,
-    padding: '0.25rem 0',
-  };
-
   // ═══════════════════════════════════════════════════════════════════════════
   // Render
   // ═══════════════════════════════════════════════════════════════════════════
 
   return (
-    <div className="card">
-      <h2 style={{ marginTop: 0 }}>New Real Estate Deal</h2>
+    <div className="deal-form">
+      <h2>New Real Estate Deal</h2>
 
       {error && (
-        <p style={{ color: '#c00', background: '#fee', padding: '0.5rem', borderRadius: 4 }}>
-          {error}
-        </p>
+        <div className="alert alert--danger mb-2">{error}</div>
       )}
       {success && (
-        <p style={{ color: '#060', background: '#efe', padding: '0.5rem', borderRadius: 4 }}>
-          {success}
-        </p>
+        <div className="alert alert--success mb-2">{success}</div>
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '0.75rem 1rem',
-        }}
-      >
+      <form onSubmit={handleSubmit} className="deal-edit__form-grid">
         {/* ═════════════════════ CORE INFO ═════════════════════ */}
-        <label style={labelStyle}>
+        <label className="deal-edit__label">
           Deal type
           <select value={type} onChange={(e) => setType(e.target.value as DealType)}>
             <option value="flip">Flip</option>
@@ -471,7 +424,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </select>
         </label>
 
-        <label style={labelStyle}>
+        <label className="deal-edit__label">
           Status
           <select value={status} onChange={(e) => setStatus(e.target.value as DealStatus)}>
             <option value="active">Active (Underwriting)</option>
@@ -485,7 +438,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           </select>
         </label>
 
-        <label style={labelStyle}>
+        <label className="deal-edit__label">
           Nickname
           <input
             type="text"
@@ -495,7 +448,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           />
         </label>
 
-        <label style={labelStyle}>
+        <label className="deal-edit__label">
           Address
           <input
             type="text"
@@ -506,9 +459,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         </label>
 
         {/* ═════════════════════ DATES ═════════════════════ */}
-        <div style={sectionStyle}>Dates</div>
+        <div className="deal-edit__section">Dates</div>
 
-        <label style={labelStyle}>
+        <label className="deal-edit__label">
           {type === 'personal' ? 'Purchase date' : 'Start date (underwriting)'}
           <input
             type="date"
@@ -517,7 +470,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
           />
         </label>
 
-        <label style={labelStyle}>
+        <label className="deal-edit__label">
           Close date {type === 'personal' ? '' : '(acquisition)'}
           <input
             type="date"
@@ -527,7 +480,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         </label>
 
         {type === 'flip' && (
-          <label style={labelStyle}>
+          <label className="deal-edit__label">
             Sell date (if sold)
             <input
               type="date"
@@ -538,11 +491,11 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         )}
 
         {/* ═════════════════════ ACQUISITION COSTS ═════════════════════ */}
-        <div style={sectionStyle}>
+        <div className="deal-edit__section">
           {type === 'personal' ? 'Property Value' : 'Acquisition'}
         </div>
 
-        <label style={labelStyle}>
+        <label className="deal-edit__label">
           Purchase price {type === 'personal' ? '' : '(to seller)'}
           <input
             type="number"
@@ -554,7 +507,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         </label>
 
         {type === 'flip' && (
-          <label style={labelStyle}>
+          <label className="deal-edit__label">
             Assignment fee paid (to wholesaler)
             <input
               type="number"
@@ -563,13 +516,13 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               onChange={(e) => setAssignmentFeePaid(e.target.value)}
               placeholder="e.g. 16000"
             />
-            <span style={{ fontSize: 11, color: '#888' }}>
+            <span className="deal-edit__hint">
               If buying from wholesaler, enter their fee here
             </span>
           </label>
         )}
 
-        <label style={labelStyle}>
+        <label className="deal-edit__label">
           {type === 'personal' ? 'Current Market Value' : 'ARV (After Repair Value)'}
           <input
             type="number"
@@ -579,7 +532,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
             placeholder={type === 'personal' ? 'e.g. 450000' : 'e.g. 350000'}
           />
           {type === 'personal' && (
-            <span style={{ fontSize: 11, color: '#888' }}>
+            <span className="deal-edit__hint">
               Used for equity calculation on dashboard
             </span>
           )}
@@ -587,7 +540,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
 
         {(type === 'flip' || type === 'rental') && (
           <>
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Rehab budget
               <input
                 type="number"
@@ -598,7 +551,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Closing costs estimate
               <input
                 type="number"
@@ -609,7 +562,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Holding costs estimate (monthly x months)
               <input
                 type="number"
@@ -623,17 +576,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         )}
 
         {/* ═════════════════════ FINANCING ═════════════════════ */}
-        <div style={sectionStyle}>Financing</div>
+        <div className="deal-edit__section">Financing</div>
 
-        <label
-          style={{
-            ...labelStyle,
-            gridColumn: '1 / span 2',
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
+        <label className="deal-form__checkbox deal-edit__label--full">
           <input
             type="checkbox"
             checked={isFinanced}
@@ -644,7 +589,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
 
         {isFinanced && (
           <>
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Loan type
               <select value={loanType} onChange={(e) => setLoanType(e.target.value as LoanType)}>
                 {type === 'personal' ? (
@@ -665,7 +610,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               </select>
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Lender name
               <input
                 type="text"
@@ -675,7 +620,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               {type === 'personal' ? 'Current loan balance' : 'Total loan amount'}
               <input
                 type="number"
@@ -685,14 +630,14 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
                 placeholder="e.g. 216423"
               />
               {type === 'personal' && (
-                <span style={{ fontSize: 11, color: '#888' }}>
+                <span className="deal-edit__hint">
                   Enter current balance owed
                 </span>
               )}
             </label>
 
             {(loanType === 'hard_money' || loanType === 'private') && type !== 'personal' && (
-              <label style={labelStyle}>
+              <label className="deal-edit__label">
                 Rehab holdback (in escrow)
                 <input
                   type="number"
@@ -701,13 +646,13 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
                   onChange={(e) => setRehabHoldback(e.target.value)}
                   placeholder="e.g. 88200"
                 />
-                <span style={{ fontSize: 11, color: '#888' }}>
+                <span className="deal-edit__hint">
                   Amount held by lender for rehab draws
                 </span>
               </label>
             )}
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Interest rate (%)
               <input
                 type="number"
@@ -720,7 +665,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Loan term (months)
               <input
                 type="number"
@@ -732,7 +677,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               First payment date
               <input
                 type="date"
@@ -741,7 +686,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Payment frequency
               <select
                 value={paymentFrequency}
@@ -752,21 +697,14 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
                 <option value="biweekly">Bi-weekly (26/year)</option>
               </select>
               {paymentFrequency === 'biweekly' && (
-                <span style={{ fontSize: 11, color: '#888' }}>
+                <span className="deal-edit__hint">
                   Every 14 days – pays off faster
                 </span>
               )}
             </label>
 
             {type !== 'personal' && (
-              <label
-                style={{
-                  ...labelStyle,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
+              <label className="deal-form__checkbox">
                 <input
                   type="checkbox"
                   checked={isInterestOnly}
@@ -778,21 +716,21 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
 
             {/* Loan summary for non-personal */}
             {loanAmountNum > 0 && type !== 'personal' && (
-              <div style={{ ...summaryCardStyle, background: '#e3f2fd', borderColor: '#90caf9' }}>
-                <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1565c0' }}>
+              <div className="deal-summary-card deal-summary-card--loan">
+                <div className="deal-summary-card__title deal-summary-card__title--loan">
                   Loan Breakdown
                 </div>
-                <div style={summaryRowStyle}>
+                <div className="deal-summary-row">
                   <span>Total Loan Amount:</span>
                   <span>{formatCurrency(loanAmountNum)}</span>
                 </div>
                 {rehabHoldbackNum > 0 && (
                   <>
-                    <div style={summaryRowStyle}>
+                    <div className="deal-summary-row">
                       <span>Less: Rehab Holdback:</span>
                       <span>({formatCurrency(rehabHoldbackNum)})</span>
                     </div>
-                    <div style={{ ...summaryRowStyle, fontWeight: 600, borderTop: '1px solid #90caf9', paddingTop: '0.5rem' }}>
+                    <div className="deal-summary-row deal-summary-row--total">
                       <span>Loan to Closing Table:</span>
                       <span>{formatCurrency(loanToClosingTable)}</span>
                     </div>
@@ -806,9 +744,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         {/* ═════════════════════ RENTAL OPERATIONS ═════════════════════ */}
         {type === 'rental' && (
           <>
-            <div style={sectionStyle}>Rental Operations</div>
+            <div className="deal-edit__section">Rental Operations</div>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Monthly rent (target/actual)
               <input
                 type="number"
@@ -818,7 +756,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Monthly mortgage payment
               <input
                 type="number"
@@ -828,7 +766,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Monthly taxes
               <input
                 type="number"
@@ -838,7 +776,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Monthly insurance
               <input
                 type="number"
@@ -848,7 +786,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Monthly HOA (optional)
               <input
                 type="number"
@@ -863,12 +801,12 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         {/* ═════════════════════ PERSONAL RESIDENCE MONTHLY COSTS ═════════════════════ */}
         {type === 'personal' && (
           <>
-            <div style={sectionStyle}>Monthly Costs (Optional)</div>
-            <p style={{ gridColumn: '1 / span 2', fontSize: 12, color: '#666', margin: '0 0 0.5rem 0' }}>
+            <div className="deal-edit__section">Monthly Costs (Optional)</div>
+            <p className="deal-form__hint">
               These are for reference only. Track actual payments in the ledger using personal expense accounts.
             </p>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Monthly mortgage payment
               <input
                 type="number"
@@ -878,7 +816,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Monthly taxes
               <input
                 type="number"
@@ -888,7 +826,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Monthly insurance
               <input
                 type="number"
@@ -898,7 +836,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Monthly HOA (optional)
               <input
                 type="number"
@@ -913,9 +851,9 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         {/* ═════════════════════ WHOLESALE (when YOU are wholesaling) ═════════════════════ */}
         {type === 'wholesale' && (
           <>
-            <div style={sectionStyle}>Assignment Fee (Your Fee)</div>
+            <div className="deal-edit__section">Assignment Fee (Your Fee)</div>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Expected assignment fee
               <input
                 type="number"
@@ -925,7 +863,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
               />
             </label>
 
-            <label style={labelStyle}>
+            <label className="deal-edit__label">
               Actual assignment fee
               <input
                 type="number"
@@ -939,77 +877,66 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
 
         {/* ═════════════════════ DEAL SUMMARY (Flip) ═════════════════════ */}
         {type === 'flip' && (purchasePriceNum > 0 || arvNum > 0) && (
-          <div style={{
-            ...summaryCardStyle,
-            background: estimatedProfit >= 0 ? '#e8f5e9' : '#ffebee',
-            borderColor: estimatedProfit >= 0 ? '#a5d6a7' : '#ef9a9a',
-          }}>
-            <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: estimatedProfit >= 0 ? '#2e7d32' : '#c62828' }}>
+          <div className={`deal-summary-card ${estimatedProfit >= 0 ? 'deal-summary-card--profit' : 'deal-summary-card--loss'}`}>
+            <div className={`deal-summary-card__title ${estimatedProfit >= 0 ? 'deal-summary-card__title--profit' : 'deal-summary-card__title--loss'}`}>
               Deal Analysis (Estimated)
             </div>
             
-            <div style={summaryRowStyle}>
+            <div className="deal-summary-row">
               <span>Purchase Price:</span>
               <span>{formatCurrency(purchasePriceNum)}</span>
             </div>
             {assignmentFeeNum > 0 && (
-              <div style={summaryRowStyle}>
+              <div className="deal-summary-row">
                 <span>+ Assignment Fee:</span>
                 <span>{formatCurrency(assignmentFeeNum)}</span>
               </div>
             )}
-            <div style={{ ...summaryRowStyle, fontWeight: 500 }}>
+            <div className="deal-summary-row deal-summary-row--subtotal">
               <span>= Total Acquisition:</span>
               <span>{formatCurrency(totalAcquisitionCost)}</span>
             </div>
             
-            <div style={{ borderTop: '1px solid #ccc', margin: '0.5rem 0' }} />
+            <div className="deal-summary-divider" />
             
-            <div style={summaryRowStyle}>
+            <div className="deal-summary-row">
               <span>+ Rehab Budget:</span>
               <span>{formatCurrency(rehabBudgetNum)}</span>
             </div>
-            <div style={summaryRowStyle}>
+            <div className="deal-summary-row">
               <span>+ Closing Costs:</span>
               <span>{formatCurrency(closingCostsNum)}</span>
             </div>
-            <div style={summaryRowStyle}>
+            <div className="deal-summary-row">
               <span>+ Holding Costs:</span>
               <span>{formatCurrency(holdingCostsNum)}</span>
             </div>
-            <div style={{ ...summaryRowStyle, fontWeight: 600 }}>
+            <div className="deal-summary-row deal-summary-row--bold">
               <span>= Est. Cost Basis:</span>
               <span>{formatCurrency(estimatedCostBasis)}</span>
             </div>
             
-            <div style={{ borderTop: '1px solid #ccc', margin: '0.5rem 0' }} />
+            <div className="deal-summary-divider" />
             
-            <div style={summaryRowStyle}>
+            <div className="deal-summary-row">
               <span>ARV:</span>
               <span>{formatCurrency(arvNum)}</span>
             </div>
-            <div style={summaryRowStyle}>
+            <div className="deal-summary-row">
               <span>- Cost Basis:</span>
               <span>({formatCurrency(estimatedCostBasis)})</span>
             </div>
-            <div style={summaryRowStyle}>
+            <div className="deal-summary-row">
               <span>- Selling Costs (~8%):</span>
               <span>({formatCurrency(estimatedSellingCosts)})</span>
             </div>
-            <div style={{ 
-              ...summaryRowStyle, 
-              fontWeight: 700, 
-              fontSize: 15,
-              color: estimatedProfit >= 0 ? '#2e7d32' : '#c62828',
-              borderTop: '1px solid #ccc',
-              paddingTop: '0.5rem',
-            }}>
+            <div className={`deal-summary-row deal-summary-row--total ${estimatedProfit >= 0 ? 'profit-positive' : 'profit-negative'}`}>
               <span>= Est. Profit:</span>
               <span>{formatCurrency(estimatedProfit)} ({estimatedMargin.toFixed(1)}%)</span>
             </div>
 
             {isFinanced && estimatedCashToClose > 0 && (
-              <div style={{ ...summaryRowStyle, marginTop: '0.5rem', color: '#555' }}>
+              <div className="deal-summary-row deal-summary-row--cash-close">
                 <span>Est. Cash to Close:</span>
                 <span>{formatCurrency(estimatedCashToClose)}</span>
               </div>
@@ -1019,36 +946,25 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
 
         {/* ═════════════════════ PERSONAL PROPERTY EQUITY SUMMARY ═════════════════════ */}
         {type === 'personal' && (arvNum > 0 || loanAmountNum > 0) && (
-          <div style={{
-            ...summaryCardStyle,
-            background: '#e8f5e9',
-            borderColor: '#a5d6a7',
-          }}>
-            <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#2e7d32' }}>
+          <div className="deal-summary-card deal-summary-card--profit">
+            <div className="deal-summary-card__title deal-summary-card__title--profit">
               Equity Summary
             </div>
             
-            <div style={summaryRowStyle}>
+            <div className="deal-summary-row">
               <span>Market Value:</span>
               <span>{formatCurrency(arvNum)}</span>
             </div>
-            <div style={summaryRowStyle}>
+            <div className="deal-summary-row">
               <span>Loan Balance:</span>
               <span>({formatCurrency(loanAmountNum)})</span>
             </div>
-            <div style={{ 
-              ...summaryRowStyle, 
-              fontWeight: 700, 
-              fontSize: 15,
-              color: personalEquity >= 0 ? '#2e7d32' : '#c62828',
-              borderTop: '1px solid #a5d6a7',
-              paddingTop: '0.5rem',
-            }}>
+            <div className={`deal-summary-row deal-summary-row--total ${personalEquity >= 0 ? 'profit-positive' : 'profit-negative'}`}>
               <span>= Equity:</span>
               <span>{formatCurrency(personalEquity)}</span>
             </div>
 
-            <p style={{ fontSize: 11, color: '#666', margin: '0.75rem 0 0 0' }}>
+            <p className="deal-summary-note">
               This will appear in the Real Estate card on the dashboard.
               Expenses will not be included in rental tax calculations.
             </p>
@@ -1056,7 +972,7 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         )}
 
         {/* ═════════════════════ NOTES ═════════════════════ */}
-        <label style={{ ...labelStyle, gridColumn: '1 / span 2' }}>
+        <label className="deal-edit__label deal-edit__label--full">
           Notes
           <textarea
             rows={3}
@@ -1067,14 +983,8 @@ export function NewRealEstateDealForm({ onCreated }: Props) {
         </label>
 
         {/* ═════════════════════ SUBMIT ═════════════════════ */}
-        <div
-          style={{
-            gridColumn: '1 / span 2',
-            textAlign: 'right',
-            marginTop: '0.5rem',
-          }}
-        >
-          <button type="submit" disabled={saving} style={{ padding: '0.5rem 1.5rem' }}>
+        <div className="deal-form__actions">
+          <button type="submit" disabled={saving} className="btn">
             {saving ? 'Saving...' : 'Save Deal'}
           </button>
         </div>

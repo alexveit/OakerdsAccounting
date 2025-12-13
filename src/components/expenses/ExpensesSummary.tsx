@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatCurrency } from '../../utils/format';
 import { getDayOfYearForYear } from '../../utils/date';
-import { isMarketingExpenseCode, isRentalExpenseCode, isFlipExpenseCode } from '../../utils/accounts';
+import { isMarketingExpenseCode, isRentalExpenseCode, isFlipExpenseCode, isPersonalREExpenseCode } from '../../utils/accounts';
 
 type RawLine = {
   id: number;
@@ -19,7 +19,7 @@ type RawLine = {
   transactions: { date: string } | null;
 };
 
-type GroupKey = 'job' | 'marketing' | 'rental' | 'flip' | 'overhead' | 'other';
+type GroupKey = 'job' | 'marketing' | 'rental' | 'flip' | 'overhead' | 'personalRE' | 'other';
 
 type CategoryTotals = {
   accountId: number;
@@ -96,6 +96,7 @@ export function CategoriesSummaryView() {
     rental: CategoryTotals[];
     flip: CategoryTotals[];
     overhead: CategoryTotals[];
+    personalRE: CategoryTotals[];
     other: CategoryTotals[];
   }>(() => {
     const maps: Record<GroupKey, Map<number, CategoryTotals>> = {
@@ -104,6 +105,7 @@ export function CategoriesSummaryView() {
       rental: new Map(),
       flip: new Map(),
       overhead: new Map(),
+      personalRE: new Map(),
       other: new Map(),
     };
 
@@ -127,7 +129,9 @@ export function CategoriesSummaryView() {
 
       let group: GroupKey | null = null;
 
-      if (isPersonal) {
+      if (isPersonalREExpenseCode(code)) {
+        group = 'personalRE';
+      } else if (isPersonal) {
         group = 'other';
       } else if (isBusiness && isFlipExpenseCode(code)) {
         group = 'flip';
@@ -185,32 +189,12 @@ export function CategoriesSummaryView() {
       rental: finalizeGroup(maps.rental),
       flip: finalizeGroup(maps.flip),
       overhead: finalizeGroup(maps.overhead),
+      personalRE: finalizeGroup(maps.personalRE),
       other: finalizeGroup(maps.other),
     };
   }, [lines]);
 
   const currency = (value: number) => formatCurrency(value, 2);
-
-  const thStyle: React.CSSProperties = {
-    textAlign: 'right',
-    padding: '4px 6px',
-    borderBottom: '1px solid #ccc',
-    background: '#f5f5f5',
-  };
-
-  const tdStyle: React.CSSProperties = {
-    textAlign: 'right',
-    padding: '4px 6px',
-    borderBottom: '1px solid #eee',
-  };
-
-  const rowHeaderStyle: React.CSSProperties = {
-    textAlign: 'left',
-    padding: '4px 6px',
-    borderBottom: '1px solid #eee',
-    fontWeight: 500,
-    background: '#f9f9f9',
-  };
 
   function renderGroupTable(title: string, categories: CategoryTotals[]) {
     const dayOfYear = getDayOfYearForYear(year);
@@ -218,9 +202,9 @@ export function CategoriesSummaryView() {
 
     if (categories.length === 0) {
       return (
-        <div className="card" style={{ marginBottom: '1.25rem' }}>
-          <h3 style={{ marginTop: 0 }}>{title}</h3>
-          <p style={{ fontSize: 13, color: '#777' }}>
+        <div className="card expenses-summary__card">
+          <h3 className="expenses-summary__card-title">{title}</h3>
+          <p className="expenses-summary__empty">
             No expenses in this group for the selected year.
           </p>
         </div>
@@ -267,31 +251,22 @@ export function CategoriesSummaryView() {
     };
 
     return (
-      <div className="card" style={{ marginBottom: '1.25rem' }}>
+      <div className="card expenses-summary__card">
         {/* Header with group total */}
-        <h3
-          style={{
-            marginTop: 0,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: '1.2em',
-            fontWeight: 600,
-          }}
-        >
+        <h3 className="expenses-summary__card-header">
           <span>{title}</span>
-          <span style={{ color: '#555', fontWeight: 600, fontSize: '1.2em' }}>
+          <span className="expenses-summary__card-total">
             {currency(groupTotal)}
           </span>
         </h3>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
+        <div className="expenses-summary__scroll">
+          <table className="table expenses-summary-table">
             <thead>
               <tr>
-                <th style={{ ...thStyle, textAlign: 'left' }}>Month</th>
+                <th className="left">Month</th>
                 {categories.map((c) => (
-                  <th key={c.accountId} style={thStyle}>
+                  <th key={c.accountId}>
                     {c.accountName}
                   </th>
                 ))}
@@ -301,9 +276,9 @@ export function CategoriesSummaryView() {
               {/* Month rows */}
               {monthRows.map((row) => (
                 <tr key={row.label}>
-                  <td style={rowHeaderStyle}>{row.label}</td>
+                  <td className="row-header">{row.label}</td>
                   {row.values.map((v, idx) => (
-                    <td key={idx} style={tdStyle}>
+                    <td key={idx}>
                       {currency(v)}
                     </td>
                   ))}
@@ -311,31 +286,28 @@ export function CategoriesSummaryView() {
               ))}
 
               {/* Monthly average row */}
-              <tr>
-                <td style={{ ...rowHeaderStyle, fontWeight: 700, background: '#f0f4ff' }}>
+              <tr className="avg-row">
+                <td className="row-header">
                   Avg
                 </td>
                 {monthlyAvg.map((v, idx) => (
-                  <td key={idx} style={{ ...tdStyle, fontWeight: 600, background: '#f0f4ff' }}>
+                  <td key={idx}>
                     {currency(v)}
                   </td>
                 ))}
               </tr>
 
               {/* Spacer between months and quarters */}
-              <tr>
-                <td
-                  colSpan={categories.length + 1}
-                  style={{ padding: '6px 0', borderBottom: '1px solid #ddd', background: '#fafafa' }}
-                />
+              <tr className="spacer-row">
+                <td colSpan={categories.length + 1} />
               </tr>
 
               {/* Quarter rows */}
               {quarterRows.map((row) => (
                 <tr key={row.label}>
-                  <td style={rowHeaderStyle}>{row.label}</td>
+                  <td className="row-header">{row.label}</td>
                   {row.values.map((v, idx) => (
-                    <td key={idx} style={tdStyle}>
+                    <td key={idx}>
                       {currency(v)}
                     </td>
                   ))}
@@ -343,24 +315,24 @@ export function CategoriesSummaryView() {
               ))}
 
               {/* Quarterly average row */}
-              <tr>
-                <td style={{ ...rowHeaderStyle, fontWeight: 700, background: '#f0f4ff' }}>
+              <tr className="avg-row">
+                <td className="row-header">
                   Avg
                 </td>
                 {quarterlyAvg.map((v, idx) => (
-                  <td key={idx} style={{ ...tdStyle, fontWeight: 600, background: '#f0f4ff' }}>
+                  <td key={idx}>
                     {currency(v)}
                   </td>
                 ))}
               </tr>
 
               {/* Total row */}
-              <tr>
-                <td style={{ ...rowHeaderStyle, fontWeight: 700, borderTop: '1px solid #ddd' }}>
+              <tr className="total-row">
+                <td className="row-header">
                   Total
                 </td>
                 {totalRow.values.map((v, idx) => (
-                  <td key={idx} style={{ ...tdStyle, fontWeight: 700, borderTop: '1px solid #ddd' }}>
+                  <td key={idx}>
                     {currency(v)}
                   </td>
                 ))}
@@ -373,26 +345,24 @@ export function CategoriesSummaryView() {
   }
 
   if (loading) return <p>Loading category summary...</p>;
-  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  if (error) return <p className="text-error">Error: {error}</p>;
+
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
   return (
     <div>
-      <div
-        style={{
-          marginBottom: '0.75rem',
-          display: 'flex',
-          gap: '0.5rem',
-          alignItems: 'center',
-        }}
-      >
-        
-        <span style={{ fontSize: 14, color: '#555' }}>Year:</span>
-        <input
-          type="number"
+      <div className="expenses-summary__controls">
+        <span className="expenses-summary__label">Year:</span>
+        <select
           value={year}
-          onChange={(e) => setYear(Number(e.target.value) || new Date().getFullYear())}
-          style={{ width: 80, padding: '2px 4px' }}
-        />
+          onChange={(e) => setYear(Number(e.target.value))}
+          className="expenses-summary__year-select"
+        >
+          {yearOptions.map((y) => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
       </div>
 
       {renderGroupTable('Job Expenses', grouped.job)}
@@ -400,7 +370,8 @@ export function CategoriesSummaryView() {
       {renderGroupTable('Overhead Expenses', grouped.overhead)}
       {renderGroupTable('Rental Expenses', grouped.rental)}
       {renderGroupTable('Flip Expenses', grouped.flip)}
-      {renderGroupTable('Other / Personal Expenses', grouped.other)}
+      {renderGroupTable('Personal RE Expenses', grouped.personalRE)}
+      {renderGroupTable('Other Personal Expenses', grouped.other)}
     </div>
   );
 }

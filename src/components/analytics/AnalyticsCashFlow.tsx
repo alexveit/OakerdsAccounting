@@ -178,28 +178,15 @@ export function AnalyticsCashFlow() {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: '10px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-          }}
-        >
-          <p style={{ margin: '0 0 8px 0', fontWeight: 600 }}>{label}</p>
-          <p style={{ margin: '4px 0', color: '#0a7a3c' }}>
+        <div className="chart-tooltip">
+          <p className="chart-tooltip__title">{label}</p>
+          <p className="chart-tooltip__row chart-tooltip__row--open">
             <strong>Income:</strong> {formatCurrency(data.income, 2)}
           </p>
-          <p style={{ margin: '4px 0', color: '#b00020' }}>
+          <p className="chart-tooltip__row chart-tooltip__row--close">
             <strong>Expenses:</strong> {formatCurrency(data.expenses, 2)}
           </p>
-          <p
-            style={{
-              margin: '4px 0',
-              color: data.net >= 0 ? '#0a7a3c' : '#b00020',
-              fontWeight: 600,
-            }}
-          >
+          <p className={`chart-tooltip__row font-semibold ${data.net >= 0 ? 'text-success' : 'text-danger'}`}>
             <strong>Net:</strong> {formatCurrency(data.net, 2)}
           </p>
         </div>
@@ -229,63 +216,38 @@ export function AnalyticsCashFlow() {
   return (
     <>
       {/* Summary Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1rem',
-        }}
-      >
-        <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 0.5rem 0', color: '#555', fontSize: '14px' }}>
-            {labels.income}
-          </p>
-          <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600, color: '#0a7a3c' }}>
+      <div className="summary-grid">
+        <div className="card summary-card">
+          <p className="summary-card__label">{labels.income}</p>
+          <p className="summary-card__value summary-card__value--positive">
             {formatCurrency(cashFlowSummary.totalIncome, 0)}
           </p>
         </div>
-        <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 0.5rem 0', color: '#555', fontSize: '14px' }}>
-            {labels.expenses}
-          </p>
-          <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600, color: '#b00020' }}>
+        <div className="card summary-card">
+          <p className="summary-card__label">{labels.expenses}</p>
+          <p className="summary-card__value summary-card__value--negative">
             {formatCurrency(cashFlowSummary.totalExpenses, 0)}
           </p>
         </div>
-        <div className="card" style={{ padding: '1rem', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 0.5rem 0', color: '#555', fontSize: '14px' }}>
-            {labels.net}
-          </p>
-          <p
-            style={{
-              margin: 0,
-              fontSize: '1.5rem',
-              fontWeight: 600,
-              color: cashFlowSummary.totalNet >= 0 ? '#0a7a3c' : '#b00020',
-            }}
-          >
+        <div className="card summary-card">
+          <p className="summary-card__label">{labels.net}</p>
+          <p className={`summary-card__value ${cashFlowSummary.totalNet >= 0 ? 'summary-card__value--positive' : 'summary-card__value--negative'}`}>
             {formatCurrency(Math.abs(cashFlowSummary.totalNet), 0)}
           </p>
         </div>
       </div>
 
       {/* Controls */}
-      <div className="card" style={{ marginBottom: '1rem', padding: '1rem' }}>
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <label htmlFor="cashflow-scope" style={{ fontWeight: 600 }}>
+      <div className="card mb-2 p-2">
+        <div className="filter-controls">
+          <div className="filter-control">
+            <label htmlFor="cashflow-scope" className="filter-control__label">
               Scope:
             </label>
             <select
               id="cashflow-scope"
               value={scope}
               onChange={(e) => setScope(e.target.value as 'business' | 'rentals' | 'flips' | 'all')}
-              style={{
-                padding: '0.5rem',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-              }}
             >
               <option value="business">Business (Schedule C)</option>
               <option value="rentals">Rentals (Schedule E)</option>
@@ -293,19 +255,14 @@ export function AnalyticsCashFlow() {
               <option value="all">All (incl. Personal)</option>
             </select>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <label htmlFor="cashflow-range" style={{ fontWeight: 600 }}>
+          <div className="filter-control">
+            <label htmlFor="cashflow-range" className="filter-control__label">
               Time Range:
             </label>
             <select
               id="cashflow-range"
               value={cashFlowRange}
               onChange={(e) => setCashFlowRange(e.target.value as 'ytd' | '12m' | 'all')}
-              style={{
-                padding: '0.5rem',
-                borderRadius: '4px',
-                border: '1px solid #ccc',
-              }}
             >
               <option value="ytd">Year to Date</option>
               <option value="12m">Last 12 Months</option>
@@ -316,13 +273,13 @@ export function AnalyticsCashFlow() {
       </div>
 
       {/* Chart */}
-      <div className="card" style={{ padding: '1rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>
+      <div className="card chart-card">
+        <h3 className="chart-card__title">
           Monthly Income vs Expenses ({labels.chart})
         </h3>
 
         {cashFlowData.length === 0 ? (
-          <p style={{ color: '#555' }}>No cash flow data available for the selected period.</p>
+          <p className="text-muted">No cash flow data available for the selected period.</p>
         ) : (
           <ResponsiveContainer width="100%" height={400}>
             <ComposedChart data={cashFlowData} margin={{ top: 20, right: 20, bottom: 60, left: 60 }}>
@@ -353,11 +310,11 @@ export function AnalyticsCashFlow() {
           </ResponsiveContainer>
         )}
 
-        <div style={{ marginTop: '1rem', fontSize: '14px', color: '#555' }}>
-          <p style={{ marginBottom: '0.5rem' }}>
+        <div className="chart-notes">
+          <p className="chart-legend__title">
             <strong>How to read this chart:</strong>
           </p>
-          <ul style={{ marginTop: '0.5rem', paddingLeft: '1.5rem', marginBottom: 0 }}>
+          <ul className="chart-legend__list">
             <li>
               <strong>Green bars:</strong> {labels.income} for the month
             </li>
@@ -369,7 +326,7 @@ export function AnalyticsCashFlow() {
             </li>
             <li>When the blue line is above zero, you're cash flow positive for that month</li>
           </ul>
-          <p style={{ marginTop: '0.5rem', fontStyle: 'italic', fontSize: '13px' }}>
+          <p className="chart-notes__hint">
             {scope === 'business' && 'Shows flooring business only: job income, direct job costs, marketing, and overhead.'}
             {scope === 'rentals' && 'Shows rental properties only: transactions linked to rental deals (cleared only).'}
             {scope === 'flips' && 'Shows flip projects only: capitalized rehab costs (no income until sale).'}

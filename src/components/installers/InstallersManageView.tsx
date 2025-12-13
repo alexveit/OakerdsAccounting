@@ -223,55 +223,23 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
 
   const isEditing = selectedId !== null || isCreating;
 
-  const labelStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem',
-    fontSize: 13,
-  };
-
-  const gridStyle: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '0.75rem 1rem',
-  };
-
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '1.5rem', alignItems: 'start' }}>
+    <div className="list-detail-layout">
       {/* Left: Installer List */}
-      <div
-        style={{
-          border: '1px solid #e0e0e0',
-          borderRadius: 8,
-          background: '#fff',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            padding: '0.75rem 1rem',
-            borderBottom: '1px solid #e0e0e0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <span style={{ fontWeight: 600, fontSize: 14 }}>Installers</span>
+      <div className="list-panel">
+        <div className="list-panel__header">
+          <span className="list-panel__title">Installers</span>
           <button
             type="button"
             onClick={startCreate}
-            style={{
-              padding: '0.25rem 0.5rem',
-              fontSize: 12,
-              cursor: 'pointer',
-            }}
+            className="btn btn-sm"
           >
             + New
           </button>
         </div>
 
-        <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid #f0f0f0' }}>
-          <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <div className="list-panel__filter">
+          <label className="filter-label--sm">
             <input
               type="checkbox"
               checked={showInactive}
@@ -282,11 +250,11 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
         </div>
 
         {loadingList ? (
-          <div style={{ padding: '1rem', fontSize: 13, color: '#666' }}>Loading…</div>
+          <div className="list-panel__empty">Loading…</div>
         ) : filteredInstallers.length === 0 ? (
-          <div style={{ padding: '1rem', fontSize: 13, color: '#666' }}>No installers found.</div>
+          <div className="list-panel__empty">No installers found.</div>
         ) : (
-          <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+          <div className="list-panel__content">
             {filteredInstallers.map((installer) => {
               const name = `${installer.first_name} ${installer.last_name || ''}`.trim();
               const isSelected = selectedId === installer.id;
@@ -298,32 +266,14 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
                     setIsCreating(false);
                     setSelectedId(installer.id);
                   }}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    cursor: 'pointer',
-                    background: isSelected ? '#e8f0fe' : 'transparent',
-                    borderLeft: isSelected ? '3px solid #1a73e8' : '3px solid transparent',
-                    fontSize: 13,
-                  }}
+                  className={`list-item ${isSelected ? 'list-item--selected' : ''}`}
                 >
-                  <div style={{ fontWeight: 500 }}>{name}</div>
+                  <div className="list-item__name">{name}</div>
                   {installer.company_name && (
-                    <div style={{ fontSize: 11, color: '#666' }}>{installer.company_name}</div>
+                    <div className="list-item__subtitle">{installer.company_name}</div>
                   )}
                   {!installer.is_active && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: '#b00020',
-                        background: '#fee',
-                        padding: '1px 4px',
-                        borderRadius: 3,
-                        marginTop: 2,
-                        display: 'inline-block',
-                      }}
-                    >
-                      Inactive
-                    </span>
+                    <span className="status-badge status-badge--inactive">Inactive</span>
                   )}
                 </div>
               );
@@ -333,78 +283,32 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
       </div>
 
       {/* Right: Edit Form */}
-      <div
-        style={{
-          border: '1px solid #e0e0e0',
-          borderRadius: 8,
-          background: '#fff',
-          padding: '1rem 1.25rem',
-        }}
-      >
+      <div className="detail-panel">
         {!isEditing ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
+          <div className="detail-panel__empty">
             Select an installer from the list or click "+ New" to create one.
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '1rem',
-              }}
-            >
-              <h3 style={{ margin: 0 }}>
+            <div className="detail-panel__header">
+              <h3 className="detail-panel__title">
                 {isCreating ? 'New Installer' : 'Edit Installer'}
               </h3>
               <button
                 type="button"
                 onClick={cancelEdit}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#666',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                }}
+                className="btn-link"
               >
                 Cancel
               </button>
             </div>
 
             {/* Messages */}
-            {error && (
-              <div
-                style={{
-                  background: '#fee',
-                  color: '#900',
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: 4,
-                  marginBottom: '1rem',
-                  fontSize: 13,
-                }}
-              >
-                {error}
-              </div>
-            )}
-            {success && (
-              <div
-                style={{
-                  background: '#efe',
-                  color: '#060',
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: 4,
-                  marginBottom: '1rem',
-                  fontSize: 13,
-                }}
-              >
-                {success}
-              </div>
-            )}
+            {error && <div className="alert alert--error">{error}</div>}
+            {success && <div className="alert alert--success">{success}</div>}
 
-            <div style={gridStyle}>
-              <label style={labelStyle}>
+            <div className="form-grid">
+              <label className="form-label">
                 First Name *
                 <input
                   type="text"
@@ -414,7 +318,7 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
                 />
               </label>
 
-              <label style={labelStyle}>
+              <label className="form-label">
                 Last Name
                 <input
                   type="text"
@@ -423,7 +327,7 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
                 />
               </label>
 
-              <label style={{ ...labelStyle, gridColumn: '1 / -1' }}>
+              <label className="form-label form-grid--full">
                 Company Name
                 <input
                   type="text"
@@ -432,7 +336,7 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
                 />
               </label>
 
-              <label style={labelStyle}>
+              <label className="form-label">
                 Phone
                 <input
                   type="tel"
@@ -441,7 +345,7 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
                 />
               </label>
 
-              <label style={labelStyle}>
+              <label className="form-label">
                 Email
                 <input
                   type="email"
@@ -450,7 +354,7 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
                 />
               </label>
 
-              <label style={{ ...labelStyle, gridColumn: '1 / -1' }}>
+              <label className="form-label form-grid--full">
                 Address
                 <textarea
                   rows={2}
@@ -459,7 +363,7 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
                 />
               </label>
 
-              <label style={labelStyle}>
+              <label className="form-label">
                 Tax ID (SSN / EIN)
                 <input
                   type="text"
@@ -469,15 +373,7 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
                 />
               </label>
 
-              <label
-                style={{
-                  ...labelStyle,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  marginTop: '1.25rem',
-                }}
-              >
+              <label className="form-label form-label--inline">
                 <input
                   type="checkbox"
                   checked={isActive}
@@ -487,16 +383,7 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
               </label>
             </div>
 
-            <div
-              style={{
-                marginTop: '1.25rem',
-                paddingTop: '1rem',
-                borderTop: '1px solid #e0e0e0',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '0.5rem',
-              }}
-            >
+            <div className="detail-panel__footer">
               <button type="submit" disabled={saving}>
                 {saving ? 'Saving…' : isCreating ? 'Create Installer' : 'Save Changes'}
               </button>
@@ -504,13 +391,7 @@ export function InstallerManageView({ initialSelectedId, onSelectionUsed }: Inst
 
             {/* Metadata */}
             {selectedId !== null && (
-              <div
-                style={{
-                  marginTop: '1rem',
-                  fontSize: 11,
-                  color: '#999',
-                }}
-              >
+              <div className="detail-panel__meta">
                 ID: {selectedId}
               </div>
             )}

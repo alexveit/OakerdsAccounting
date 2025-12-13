@@ -494,154 +494,22 @@ export function FloorCalculator() {
   }
 
   // -------------------------------------------------------------------------
-  // STYLES
-  // -------------------------------------------------------------------------
-
-  const containerStyle: React.CSSProperties = {
-    padding: 24,
-    maxWidth: 1400,
-  };
-
-  const headerStyle: React.CSSProperties = {
-    fontSize: 24,
-    fontWeight: 600,
-    marginBottom: 24,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 24,
-  };
-
-  const toggleContainerStyle: React.CSSProperties = {
-    display: 'flex',
-    gap: 0,
-    borderRadius: 6,
-    overflow: 'hidden',
-    border: '1px solid #ccc',
-  };
-
-  const toggleButtonStyle = (active: boolean): React.CSSProperties => ({
-    padding: '8px 16px',
-    border: 'none',
-    background: active ? '#2563eb' : '#f3f4f6',
-    color: active ? 'white' : '#666',
-    cursor: 'pointer',
-    fontWeight: 500,
-    fontSize: 14,
-  });
-
-  const rowStyle: React.CSSProperties = {
-    display: 'flex',
-    gap: 24,
-    flexWrap: 'wrap',
-  };
-
-  const columnStyle: React.CSSProperties = {
-    flex: '1 1 300px',
-    minWidth: 280,
-  };
-
-  const sectionStyle: React.CSSProperties = {
-    background: '#f8f9fa',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-  };
-
-  const sectionTitleStyle: React.CSSProperties = {
-    fontWeight: 600,
-    marginBottom: 12,
-    fontSize: 14,
-    textTransform: 'uppercase',
-    color: '#666',
-  };
-
-  const inputRowStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-    flexWrap: 'wrap',
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: 50,
-    padding: '8px 10px',
-    border: '1px solid #ccc',
-    borderRadius: 4,
-    textAlign: 'center',
-  };
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: 14,
-    color: '#666',
-    minWidth: 20,
-  };
-
-  const buttonStyle: React.CSSProperties = {
-    padding: '10px 20px',
-    background: '#2563eb',
-    color: 'white',
-    border: 'none',
-    borderRadius: 4,
-    cursor: 'pointer',
-    fontWeight: 500,
-  };
-
-  const secondaryButtonStyle: React.CSSProperties = {
-    ...buttonStyle,
-    background: '#6b7280',
-  };
-
-  const deleteButtonStyle: React.CSSProperties = {
-    padding: '4px 8px',
-    background: '#dc2626',
-    color: 'white',
-    border: 'none',
-    borderRadius: 4,
-    cursor: 'pointer',
-    fontSize: 12,
-  };
-
-  const listItemStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '4px 8px',
-    background: 'white',
-    borderRadius: 4,
-    marginBottom: 2,
-    fontSize: 14,
-  };
-
-  const resultBoxStyle: React.CSSProperties = {
-    padding: 12,
-    borderRadius: 4,
-    textAlign: 'center',
-    fontWeight: 600,
-  };
-
-  const canvasContainerStyle: React.CSSProperties = {
-    background: '#fff',
-    display: 'inline-block',
-  };
-
-  // -------------------------------------------------------------------------
   // RENDER
   // -------------------------------------------------------------------------
 
   return (
-    <div style={containerStyle}>
-      <div style={headerStyle}>
+    <div className="calc-container">
+      <div className="calc-header">
         <span>Floor Calculator</span>
-        <div style={toggleContainerStyle}>
+        <div className="calc-toggle">
           <button
-            style={toggleButtonStyle(mode === 'carpet')}
+            className={`calc-toggle__btn ${mode === 'carpet' ? 'calc-toggle__btn--active' : ''}`}
             onClick={() => setMode('carpet')}
           >
             Carpet
           </button>
           <button
-            style={toggleButtonStyle(mode === 'hardwood')}
+            className={`calc-toggle__btn ${mode === 'hardwood' ? 'calc-toggle__btn--active' : ''}`}
             onClick={() => setMode('hardwood')}
           >
             Hardwood
@@ -649,23 +517,23 @@ export function FloorCalculator() {
         </div>
       </div>
 
-      <div style={rowStyle}>
+      <div className="calc-row">
         {/* LEFT COLUMN - Inputs */}
-        <div style={columnStyle}>
+        <div className="calc-column">
           {/* Top row: Add Measurement + Hardwood Results */}
-          <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+          <div className="flex gap-4 items-start">
             {/* Measurement Input */}
-            <div style={{ ...sectionStyle, flex: '1 1 auto' }}>
-              <div style={sectionTitleStyle}>Add Measurement</div>
-              <div style={inputRowStyle}>
-                <span style={labelStyle}>W:</span>
+            <div className="calc-section flex-1">
+              <div className="calc-section__title">Add Measurement</div>
+              <div className="calc-input-row">
+                <span className="calc-label">W:</span>
                 <input
                   ref={widthFeetRef}
                   type="number"
                   placeholder="ft"
                   value={widthFeet}
                   onChange={(e) => setWidthFeet(e.target.value)}
-                  style={inputStyle}
+                  className="calc-input"
                 />
                 <span>'</span>
                 <input
@@ -673,16 +541,16 @@ export function FloorCalculator() {
                   placeholder="in"
                   value={widthInches}
                   onChange={(e) => setWidthInches(e.target.value)}
-                  style={inputStyle}
+                  className="calc-input"
                 />
                 <span>"</span>
-                <span style={{ ...labelStyle, marginLeft: 12 }}>L:</span>
+                <span className="calc-label calc-label--spaced">L:</span>
                 <input
                   type="number"
                   placeholder="ft"
                   value={lengthFeet}
                   onChange={(e) => setLengthFeet(e.target.value)}
-                  style={inputStyle}
+                  className="calc-input"
                 />
                 <span>'</span>
                 <input
@@ -690,19 +558,19 @@ export function FloorCalculator() {
                   placeholder="in"
                   value={lengthInches}
                   onChange={(e) => setLengthInches(e.target.value)}
-                  style={inputStyle}
+                  className="calc-input"
                 />
                 <span>"</span>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button style={buttonStyle} onClick={handleAdd}>
+              <div className="flex gap-2">
+                <button className="calc-btn" onClick={handleAdd}>
                   Add
                 </button>
-                <button style={secondaryButtonStyle} onClick={handleClear}>
+                <button className="calc-btn calc-btn--secondary" onClick={handleClear}>
                   Clear All
                 </button>
                 <button 
-                  style={secondaryButtonStyle} 
+                  className="calc-btn calc-btn--secondary" 
                   onClick={() => setShowBulkEntry(!showBulkEntry)}
                 >
                   {showBulkEntry ? 'Hide Bulk' : 'Bulk Entry'}
@@ -711,91 +579,67 @@ export function FloorCalculator() {
               
               {/* Bulk Entry Section */}
               {showBulkEntry && (
-                <div style={{ marginTop: 12, padding: 12, background: '#f3f4f6', borderRadius: 6 }}>
-                  <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                <div className="calc-section mt-2">
+                  <div className="calc-hint mb-2">
                     Paste measurements (comma or newline separated):<br/>
-                    <code style={{ fontSize: 11 }}>LR 11.6x13.6, BR 10.3*12, Hall 5'6"x8'0"</code>
+                    <code className="text-xs">LR 11.6x13.6, BR 10.3*12, Hall 5'6"x8'0"</code>
                   </div>
                   <textarea
                     value={bulkText}
                     onChange={(e) => {
                       setBulkText(e.target.value);
-                      setBulkPreview(null); // Clear preview on edit
+                      setBulkPreview(null);
                     }}
                     placeholder="11.6x13.6, 10.3x12&#10;8.6x9.3"
                     rows={4}
-                    style={{
-                      width: '100%',
-                      padding: 8,
-                      fontSize: 14,
-                      fontFamily: 'monospace',
-                      border: '1px solid #d1d5db',
-                      borderRadius: 4,
-                      resize: 'vertical',
-                    }}
+                    className="calc-bulk-textarea"
                   />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    <button style={buttonStyle} onClick={handleBulkPreview}>
+                  <div className="flex gap-2 mt-2">
+                    <button className="calc-btn" onClick={handleBulkPreview}>
                       Preview
                     </button>
                     {bulkPreview && bulkPreview.valid.length > 0 && (
-                      <button style={{ ...buttonStyle, background: '#22c55e' }} onClick={handleBulkAdd}>
+                      <button className="calc-btn calc-btn--success" onClick={handleBulkAdd}>
                         Add {bulkPreview.validCount} Measurement{bulkPreview.validCount !== 1 ? 's' : ''}
                       </button>
                     )}
-                    <button style={secondaryButtonStyle} onClick={handleBulkClear}>
+                    <button className="calc-btn calc-btn--secondary" onClick={handleBulkClear}>
                       Clear
                     </button>
                   </div>
                   
                   {/* Preview Results */}
                   {bulkPreview && (
-                    <div style={{ marginTop: 12, fontSize: 13 }}>
+                    <div className="mt-2 text-sm">
                       {/* Summary */}
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: 16, 
-                        padding: 8, 
-                        background: '#fff', 
-                        borderRadius: 4,
-                        marginBottom: 8 
-                      }}>
-                        <span style={{ color: '#22c55e' }}>✓ {bulkPreview.validCount} valid</span>
+                      <div className="calc-bulk-preview flex gap-3 mb-2">
+                        <span className="text-success">✓ {bulkPreview.validCount} valid</span>
                         {bulkPreview.errorCount > 0 && (
-                          <span style={{ color: '#ef4444' }}>âœ— {bulkPreview.errorCount} errors</span>
+                          <span className="text-danger">✗ {bulkPreview.errorCount} errors</span>
                         )}
                         {bulkPreview.warningCount > 0 && (
-                          <span style={{ color: '#f59e0b' }}>âš  {bulkPreview.warningCount} warnings</span>
+                          <span className="text-warning">⚠ {bulkPreview.warningCount} warnings</span>
                         )}
                       </div>
                       
                       {/* Entry list */}
-                      <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                        {bulkPreview.entries.map((entry, i) => (
-                          <div 
-                            key={i} 
-                            style={{ 
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              padding: '4px 8px',
-                              background: entry.error ? '#fef2f2' : entry.warning ? '#fffbeb' : '#f0fdf4',
-                              borderRadius: 4,
-                              marginBottom: 2,
-                              fontSize: 12,
-                            }}
-                          >
-                            <span style={{ fontFamily: 'monospace', color: '#666' }}>{entry.raw}</span>
-                            {entry.error ? (
-                              <span style={{ color: '#ef4444' }}>âœ— {entry.error}</span>
-                            ) : entry.measurement ? (
-                              <span style={{ color: entry.warning ? '#f59e0b' : '#22c55e' }}>
-                                ←’ {formatDimensions(entry.measurement)}
-                                {entry.warning && <span style={{ marginLeft: 4 }}>âš </span>}
-                              </span>
-                            ) : null}
-                          </div>
-                        ))}
+                      <div className="scroll-container">
+                        {bulkPreview.entries.map((entry, i) => {
+                          const bgClass = entry.error ? 'bg-danger-subtle' : entry.warning ? 'bg-warning-subtle' : 'bg-success-subtle';
+                          return (
+                            <div key={i} className={`calc-list-item text-xs ${bgClass}`}>
+                              <span className="font-mono text-muted">{entry.raw}</span>
+                              {entry.error ? (
+                                <span className="text-danger">✗ {entry.error}</span>
+                              ) : entry.measurement ? (
+                                <span className={entry.warning ? 'text-warning' : 'text-success'}>
+                                  → {formatDimensions(entry.measurement)}
+                                  {entry.warning && <span className="ml-1">⚠</span>}
+                                </span>
+                              ) : null}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -805,24 +649,24 @@ export function FloorCalculator() {
 
             {/* Hardwood Results - inline 2x2 grid */}
             {mode === 'hardwood' && hardwoodResult && (
-              <div style={sectionStyle}>
-                <div style={sectionTitleStyle}>Results</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <div style={{ ...resultBoxStyle, background: '#93c5fd' }}>
-                    <div style={{ fontSize: 11 }}>Room Area</div>
-                    <div style={{ fontSize: 16, fontWeight: 600 }}>{hardwoodResult.totalSqFt.toFixed(2)} sf</div>
+              <div className="calc-section">
+                <div className="calc-section__title">Results</div>
+                <div className="grid-2x2 gap-2">
+                  <div className="calc-result-box calc-result-box--blue">
+                    <div className="calc-result-box__label">Room Area</div>
+                    <div className="calc-result-box__value">{hardwoodResult.totalSqFt.toFixed(2)} sf</div>
                   </div>
-                  <div style={{ ...resultBoxStyle, background: '#fca5a5' }}>
-                    <div style={{ fontSize: 11 }}>Waste ({wastePercent}%)</div>
-                    <div style={{ fontSize: 16, fontWeight: 600 }}>{hardwoodResult.wasteSqFt.toFixed(2)} sf</div>
+                  <div className="calc-result-box calc-result-box--red">
+                    <div className="calc-result-box__label">Waste ({wastePercent}%)</div>
+                    <div className="calc-result-box__value">{hardwoodResult.wasteSqFt.toFixed(2)} sf</div>
                   </div>
-                  <div style={{ ...resultBoxStyle, background: '#86efac' }}>
-                    <div style={{ fontSize: 11 }}>Total Needed</div>
-                    <div style={{ fontSize: 16, fontWeight: 600 }}>{hardwoodResult.totalNeeded.toFixed(2)} sf</div>
+                  <div className="calc-result-box calc-result-box--green">
+                    <div className="calc-result-box__label">Total Needed</div>
+                    <div className="calc-result-box__value">{hardwoodResult.totalNeeded.toFixed(2)} sf</div>
                   </div>
-                  <div style={{ ...resultBoxStyle, background: '#fef08a' }}>
-                    <div style={{ fontSize: 11 }}>Boxes ({boxSqFt} sf/box)</div>
-                    <div style={{ fontSize: 20, fontWeight: 600 }}>{hardwoodResult.boxesNeeded}</div>
+                  <div className="calc-result-box calc-result-box--yellow">
+                    <div className="calc-result-box__label">Boxes ({boxSqFt} sf/box)</div>
+                    <div className="calc-result-box__value text-lg">{hardwoodResult.boxesNeeded}</div>
                   </div>
                 </div>
               </div>
@@ -830,22 +674,22 @@ export function FloorCalculator() {
           </div>
 
           {/* Options */}
-          <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>Options</div>
+          <div className="calc-section">
+            <div className="calc-section__title">Options</div>
             {mode === 'carpet' ? (
               <>
-                <div style={inputRowStyle}>
-                  <span style={labelStyle}>Steps:</span>
+                <div className="calc-input-row">
+                  <span className="calc-label">Steps:</span>
                   <input
                     type="number"
                     placeholder="0"
                     value={stepCount}
                     onChange={(e) => setStepCount(e.target.value)}
-                    style={{ ...inputStyle, width: 80 }}
+                    className="calc-input calc-input--wide"
                   />
-                  <span style={{ fontSize: 12, color: '#666' }}>(4' x 2' each)</span>
+                  <span className="calc-hint">(4' x 2' each)</span>
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <label className="calc-checkbox-label">
                   <input
                     type="checkbox"
                     checked={addSlippage}
@@ -855,41 +699,41 @@ export function FloorCalculator() {
                 </label>
               </>
             ) : (
-              <div style={{ display: 'flex', gap: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 14, color: '#666' }}>Waste:</span>
+              <div className="calc-options-row">
+                <div className="calc-option-group">
+                  <span className="calc-label">Waste:</span>
                   <input
                     type="number"
                     value={wastePercent}
                     onChange={(e) => setWastePercent(e.target.value)}
-                    style={{ ...inputStyle, width: 50 }}
+                    className="calc-input"
                   />
-                  <span style={{ fontSize: 12, color: '#666' }}>%</span>
+                  <span className="calc-hint">%</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 14, color: '#666' }}>Box:</span>
+                <div className="calc-option-group">
+                  <span className="calc-label">Box:</span>
                   <input
                     type="number"
                     value={boxSqFt}
                     onChange={(e) => setBoxSqFt(e.target.value)}
-                    style={{ ...inputStyle, width: 50 }}
+                    className="calc-input"
                   />
-                  <span style={{ fontSize: 12, color: '#666' }}>sf</span>
+                  <span className="calc-hint">sf</span>
                 </div>
               </div>
             )}
           </div>
 
           {/* Measurements List */}
-          <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>Measurements ({measurements.length})</div>
+          <div className="calc-section">
+            <div className="calc-section__title">Measurements ({measurements.length})</div>
             {measurements.length === 0 ? (
-              <div style={{ color: '#999', fontStyle: 'italic' }}>No measurements added</div>
+              <div className="calc-empty">No measurements added</div>
             ) : (
               measurements.map((m) => (
-                <div key={m.id} style={listItemStyle}>
+                <div key={m.id} className="calc-list-item">
                   <span>{formatDimensions(m)}</span>
-                  <button style={deleteButtonStyle} onClick={() => handleDelete(m.id)}>
+                  <button className="calc-btn--delete" onClick={() => handleDelete(m.id)}>
                     -
                   </button>
                 </div>
@@ -899,14 +743,7 @@ export function FloorCalculator() {
 
           {/* Calculate Button */}
           <button
-            style={{ 
-              ...buttonStyle, 
-              width: '100%', 
-              padding: 16, 
-              fontSize: 16,
-              opacity: isCalculating ? 0.7 : 1,
-              cursor: isCalculating ? 'wait' : 'pointer',
-            }}
+            className={`calc-btn calc-btn--full ${isCalculating ? 'calc-btn--disabled' : ''}`}
             onClick={handleCalculate}
             disabled={isCalculating}
           >
@@ -915,34 +752,34 @@ export function FloorCalculator() {
         </div>
 
         {/* MIDDLE COLUMN - Results */}
-        <div style={columnStyle}>
+        <div className="calc-column">
           {mode === 'carpet' && result && (
             <>
               {/* Results Summary */}
-              <div style={sectionStyle}>
-                <div style={sectionTitleStyle}>Results</div>
-                <div style={{ display: 'flex', gap: 16 }}>
+              <div className="calc-section">
+                <div className="calc-section__title">Results</div>
+                <div className="flex gap-3">
                   {/* Standards Column */}
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ fontSize: 12 }}>Standard</strong>
+                  <div className="flex-1">
+                    <strong className="text-xs">Standard</strong>
                     {result.standard.length === 0 ? (
-                      <div style={{ color: '#999', fontSize: 12 }}>-</div>
+                      <div className="text-muted text-xs">-</div>
                     ) : (
                       result.standard.map((m, i) => (
-                        <div key={i} style={{ fontSize: 13 }}>
+                        <div key={i} className="text-sm">
                           {ROLL_WIDTH_FEET}' x {formatFeetInches(m.lengthTotal)}
                         </div>
                       ))
                     )}
                   </div>
                   {/* Needs Column */}
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ fontSize: 12 }}>Needs</strong>
+                  <div className="flex-1">
+                    <strong className="text-xs">Needs</strong>
                     {result.needs.length === 0 ? (
-                      <div style={{ color: '#999', fontSize: 12 }}>-</div>
+                      <div className="text-muted text-xs">-</div>
                     ) : (
                       result.needs.map((m, i) => (
-                        <div key={i} style={{ fontSize: 13 }}>
+                        <div key={i} className="text-sm">
                           {formatDimensions(m)}
                         </div>
                       ))
@@ -952,50 +789,43 @@ export function FloorCalculator() {
               </div>
 
               {/* Totals */}
-              <div style={sectionStyle}>
-                <div style={sectionTitleStyle}>Totals</div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <div style={{ flex: 1, ...resultBoxStyle, background: '#fef08a' }}>
-                    <div style={{ fontSize: 11 }}>Standard</div>
+              <div className="calc-section">
+                <div className="calc-section__title">Totals</div>
+                <div className="flex gap-2 mb-2">
+                  <div className="flex-1 calc-result-box calc-result-box--yellow">
+                    <div className="calc-result-box__label">Standard</div>
                     {ROLL_WIDTH_FEET}' x {formatFeetInches(result.standardLength)}
                   </div>
-                  <div style={{ flex: 1, ...resultBoxStyle, background: '#93c5fd' }}>
-                    <div style={{ fontSize: 11 }}>Needs</div>
+                  <div className="flex-1 calc-result-box calc-result-box--blue">
+                    <div className="calc-result-box__label">Needs</div>
                     {ROLL_WIDTH_FEET}' x {formatFeetInches(result.needsLength)}
                   </div>
                 </div>
-                <div style={{ ...resultBoxStyle, background: '#86efac', marginBottom: 8 }}>
-                  <div style={{ fontSize: 11 }}>Total</div>
+                <div className="calc-result-box calc-result-box--green mb-2">
+                  <div className="calc-result-box__label">Total</div>
                   {ROLL_WIDTH_FEET}' x {formatFeetInches(result.totalLength)}
-                  <div style={{ fontSize: 14, marginTop: 4 }}>
+                  <div className="calc-result-box__sub">
                     {result.totalSqFt.toFixed(2)} sf | {result.totalSqYd.toFixed(2)} sy
                   </div>
                 </div>
               </div>
 
               {/* Usage */}
-              <div style={sectionStyle}>
-                <div style={sectionTitleStyle}>Usage</div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <div style={{ flex: 1, ...resultBoxStyle, background: '#86efac' }}>
-                    <div style={{ fontSize: 12 }}>Actual</div>
+              <div className="calc-section">
+                <div className="calc-section__title">Usage</div>
+                <div className="flex gap-2 mb-2">
+                  <div className="flex-1 calc-result-box calc-result-box--green">
+                    <div className="calc-result-box__label">Actual</div>
                     {result.usedSqFt.toFixed(2)} sf
                   </div>
-                  <div style={{ flex: 1, ...resultBoxStyle, background: '#fca5a5' }}>
-                    <div style={{ fontSize: 12 }}>Waste ({result.wastePercent.toFixed(1)}%)</div>
+                  <div className="flex-1 calc-result-box calc-result-box--red">
+                    <div className="calc-result-box__label">Waste ({result.wastePercent.toFixed(1)}%)</div>
                     {result.wasteSqFt.toFixed(2)} sf
                   </div>
                 </div>
                 {result.isFlipped && (
-                  <div style={{ 
-                    background: '#fef3c7', 
-                    border: '1px solid #f59e0b', 
-                    borderRadius: 6, 
-                    padding: '8px 12px',
-                    fontSize: 13,
-                    color: '#92400e',
-                  }}>
-                    âš ï¸ <strong>Rotated 90°</strong> "” Measurements were flipped (W←”L) to reduce waste. Cut carpet accordingly.
+                  <div className="calc-warning">
+                    ⚠️ <strong>Rotated 90°</strong> — Measurements were flipped (W↔L) to reduce waste. Cut carpet accordingly.
                   </div>
                 )}
               </div>
@@ -1005,16 +835,16 @@ export function FloorCalculator() {
 
         {/* RIGHT COLUMN - Diagram (carpet only) */}
         {mode === 'carpet' && (
-          <div style={{ flex: '2 1 400px', minWidth: 320 }}>
+          <div className="calc-column--wide">
             {result && result.needs.length > 0 && (
-              <div style={sectionStyle}>
-                <div style={sectionTitleStyle}>
+              <div className="calc-section">
+                <div className="calc-section__title">
                   Diagram (drag pieces to optimize)
                 </div>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                <div className="calc-hint mb-2">
                   Blue = carpet pieces | Red = waste | Grid = 1 foot squares
                 </div>
-                <div style={canvasContainerStyle}>
+                <div className="calc-canvas-container">
                   <canvas
                     ref={canvasRef}
                     onMouseDown={handleMouseDown}

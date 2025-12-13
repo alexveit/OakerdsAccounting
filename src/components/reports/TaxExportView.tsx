@@ -673,19 +673,8 @@ export function TaxExportView() {
 
   const currency = (val: number) => formatCurrency(val, 2);
 
-  const btnStyle: React.CSSProperties = {
-    padding: '0.75rem 1.5rem',
-    borderRadius: 8,
-    border: '2px solid #111',
-    background: '#111',
-    color: '#fff',
-    cursor: 'pointer',
-    fontSize: 16,
-    fontWeight: 600,
-  };
-
-  if (loading) return <p>Loading tax data…</p>;
-  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  if (loading) return <p>Loading tax data...</p>;
+  if (error) return <p className="text-danger">Error: {error}</p>;
 
   const schedCIncomeTotal = scheduleCIncome.reduce((s, r) => s + r.total, 0);
   const schedCExpenseTotal = scheduleCExpenses.reduce((s, r) => s + r.total, 0);
@@ -697,114 +686,76 @@ export function TaxExportView() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <h2 style={{ margin: 0 }}>Tax Season Exports</h2>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: 14 }}>Tax Year:</span>
+      <div className="tax-header">
+        <div className="tax-header__left">
+          <h2>Tax Season Exports</h2>
+          <label className="tax-year-label">
+            <span>Tax Year:</span>
             <input
               type="number"
               value={year}
               onChange={(e) => setYear(Number(e.target.value) || currentYear)}
-              style={{ width: 80, padding: '4px 6px' }}
             />
           </label>
         </div>
 
-        <button type="button" onClick={handleDownloadAll} style={btnStyle}>
-          📥 Download Complete Tax Report
+        <button type="button" onClick={handleDownloadAll} className="btn-primary">
+          Download Complete Tax Report
         </button>
       </div>
 
-      <div style={{ display: 'grid', gap: '1.5rem' }}>
+      <div className="tax-grid">
         {/* Schedule C */}
-        <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
-            Schedule C (Profit or Loss from Business)
-          </h3>
+        <div className="card tax-section">
+          <h3>Schedule C (Profit or Loss from Business)</h3>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h4 style={{ fontSize: 15, marginBottom: '0.5rem' }}>
-              Business Income - {currency(schedCIncomeTotal)}
-            </h4>
+          <div className="tax-subsection">
+            <h4>Business Income - {currency(schedCIncomeTotal)}</h4>
             {scheduleCIncome.length === 0 && (
-              <p style={{ fontSize: 13, color: '#777' }}>No business income for {year}.</p>
+              <p className="tax-empty">No business income for {year}.</p>
             )}
             {scheduleCIncome.length > 0 && <ReportTable rows={scheduleCIncome} />}
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
-            <h4 style={{ fontSize: 15, marginBottom: '0.5rem' }}>
-              Business Expenses - {currency(schedCExpenseTotal)}
-            </h4>
+          <div className="tax-subsection--last">
+            <h4>Business Expenses - {currency(schedCExpenseTotal)}</h4>
             {scheduleCExpenses.length === 0 && (
-              <p style={{ fontSize: 13, color: '#777' }}>No business expenses for {year}.</p>
+              <p className="tax-empty">No business expenses for {year}.</p>
             )}
             {scheduleCExpenses.length > 0 && <ReportTable rows={scheduleCExpenses} />}
           </div>
 
-          <div
-            style={{
-              borderTop: '2px solid #ccc',
-              paddingTop: '0.75rem',
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
+          <div className="tax-net-row">
             <span>Schedule C Net Profit/Loss:</span>
-            <span style={{ color: schedCNet >= 0 ? '#0a7a3c' : '#b00020' }}>
+            <span className={schedCNet >= 0 ? 'profit-positive' : 'profit-negative'}>
               {currency(schedCNet)}
             </span>
           </div>
         </div>
 
         {/* Schedule E */}
-        <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
-            Schedule E (Supplemental Income - Rental Property)
-          </h3>
+        <div className="card tax-section">
+          <h3>Schedule E (Supplemental Income - Rental Property)</h3>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h4 style={{ fontSize: 15, marginBottom: '0.5rem' }}>
-              Rental Income - {currency(schedEIncomeTotal)}
-            </h4>
+          <div className="tax-subsection">
+            <h4>Rental Income - {currency(schedEIncomeTotal)}</h4>
             {scheduleEIncome.length === 0 && (
-              <p style={{ fontSize: 13, color: '#777' }}>No rental income for {year}.</p>
+              <p className="tax-empty">No rental income for {year}.</p>
             )}
             {scheduleEIncome.length > 0 && <ReportTable rows={scheduleEIncome} />}
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
-            <h4 style={{ fontSize: 15, marginBottom: '0.5rem' }}>
-              Rental Expenses - {currency(schedEExpenseTotal)}
-            </h4>
+          <div className="tax-subsection--last">
+            <h4>Rental Expenses - {currency(schedEExpenseTotal)}</h4>
             {scheduleEExpenses.length === 0 && (
-              <p style={{ fontSize: 13, color: '#777' }}>No rental expenses for {year}.</p>
+              <p className="tax-empty">No rental expenses for {year}.</p>
             )}
             {scheduleEExpenses.length > 0 && <ReportTable rows={scheduleEExpenses} />}
           </div>
 
-          <div
-            style={{
-              borderTop: '2px solid #ccc',
-              paddingTop: '0.75rem',
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
+          <div className="tax-net-row">
             <span>Schedule E Net Profit/Loss:</span>
-            <span style={{ color: schedENet >= 0 ? '#0a7a3c' : '#b00020' }}>
+            <span className={schedENet >= 0 ? 'profit-positive' : 'profit-negative'}>
               {currency(schedENet)}
             </span>
           </div>
@@ -812,15 +763,13 @@ export function TaxExportView() {
 
         {/* Flip Expenses - Not Sold */}
         {flipExpenses.length > 0 && (
-          <div className="card" style={{ background: '#fffbeb', border: '1px solid #f59e0b' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#92400e' }}>
-              Flip Property Expenses (Not Yet Sold)
-            </h3>
-            <p style={{ fontSize: 13, color: '#92400e', marginBottom: '1rem' }}>
-              These costs are <strong>not deductible</strong> until the property is sold. 
+          <div className="card tax-section tax-card--flip">
+            <h3>Flip Property Expenses (Not Yet Sold)</h3>
+            <p className="tax-note">
+              These costs are <strong>not deductible</strong> until the property is sold.
               They will be used to calculate cost basis and reduce capital gains at sale.
             </p>
-            <p style={{ fontSize: 14, color: '#92400e', marginBottom: '0.5rem', fontWeight: 600 }}>
+            <p className="tax-total">
               Total Flip Costs: {currency(flipExpenses.reduce((s, r) => s + r.total, 0))}
             </p>
             <ReportTable rows={flipExpenses} />
@@ -828,45 +777,41 @@ export function TaxExportView() {
         )}
 
         {/* Personal Expenses */}
-        <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
-            Personal Expenses (Potential Itemized Deductions)
-          </h3>
+        <div className="card tax-section">
+          <h3>Personal Expenses (Potential Itemized Deductions)</h3>
           {personalExpenses.length === 0 && (
-            <p style={{ fontSize: 13, color: '#777' }}>
+            <p className="tax-empty">
               No personal expenses recorded for {year}.
             </p>
           )}
           {personalExpenses.length > 0 && (
             <>
-              <p style={{ fontSize: 13, color: '#555', marginBottom: '0.5rem' }}>
+              <p className="tax-note">
                 Total: {currency(personalExpenses.reduce((s, r) => s + r.total, 0))}
               </p>
               <ReportTable rows={personalExpenses} />
             </>
           )}
         </div>
+      </div>
 
-        {/* 1099-NEC Contractors */}
-        <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>
-            1099-NEC Contractor Payments ($600+ threshold)
-          </h3>
-          {contractors.length === 0 && (
-            <p style={{ fontSize: 13, color: '#777' }}>
-              No contractors paid $600 or more in {year}.
+      {/* 1099-NEC Contractors */}
+      <div className="card tax-section">
+        <h3>1099-NEC Contractor Payments ($600+ threshold)</h3>
+        {contractors.length === 0 && (
+          <p className="tax-empty">
+            No contractors paid $600 or more in {year}.
+          </p>
+        )}
+        {contractors.length > 0 && (
+          <>
+            <p className="tax-note">
+              {contractors.length} contractor{contractors.length === 1 ? '' : 's'} requiring 1099-NEC forms.
+              Total paid: {currency(contractors.reduce((s, c) => s + c.totalPaid, 0))}
             </p>
-          )}
-          {contractors.length > 0 && (
-            <>
-              <p style={{ fontSize: 13, color: '#555', marginBottom: '0.5rem' }}>
-                {contractors.length} contractor{contractors.length === 1 ? '' : 's'} requiring 1099-NEC forms.
-                Total paid: {currency(contractors.reduce((s, c) => s + c.totalPaid, 0))}
-              </p>
-              <ContractorTable contractors={contractors} />
-            </>
-          )}
-        </div>
+            <ContractorTable contractors={contractors} />
+          </>
+        )}
       </div>
     </div>
   );
@@ -875,30 +820,19 @@ export function TaxExportView() {
 function ReportTable({ rows }: { rows: ScheduleCRow[] }) {
   const currency = (value: number) => formatCurrency(value, 2);
 
-  const thStyle: React.CSSProperties = {
-    textAlign: 'left',
-    borderBottom: '1px solid #ccc',
-    padding: '4px 6px',
-  };
-
-  const tdStyle: React.CSSProperties = {
-    padding: '4px 6px',
-    borderBottom: '1px solid #eee',
-  };
-
   return (
-    <table className="table">
+    <table className="table tax-table">
       <thead>
         <tr>
-          <th style={thStyle}>Account</th>
-          <th style={{ ...thStyle, textAlign: 'right' }}>Total</th>
+          <th>Account</th>
+          <th className="right">Total</th>
         </tr>
       </thead>
       <tbody>
         {rows.map((row, idx) => (
           <tr key={idx}>
-            <td style={tdStyle}>{row.accountName}</td>
-            <td style={{ ...tdStyle, textAlign: 'right' }}>{currency(row.total)}</td>
+            <td>{row.accountName}</td>
+            <td className="right">{currency(row.total)}</td>
           </tr>
         ))}
       </tbody>
@@ -909,27 +843,15 @@ function ReportTable({ rows }: { rows: ScheduleCRow[] }) {
 function ContractorTable({ contractors }: { contractors: ContractorPayment[] }) {
   const currency = (value: number) => formatCurrency(value, 2);
 
-  const thStyle: React.CSSProperties = {
-    textAlign: 'left',
-    borderBottom: '1px solid #ccc',
-    padding: '4px 6px',
-    whiteSpace: 'nowrap',
-  };
-
-  const tdStyle: React.CSSProperties = {
-    padding: '4px 6px',
-    borderBottom: '1px solid #eee',
-  };
-
   return (
-    <table className="table">
+    <table className="table tax-table">
       <thead>
         <tr>
-          <th style={thStyle}>Name</th>
-          <th style={thStyle}>Company</th>
-          <th style={thStyle}>Tax ID</th>
-          <th style={thStyle}>Address</th>
-          <th style={{ ...thStyle, textAlign: 'right' }}>Total Paid</th>
+          <th>Name</th>
+          <th>Company</th>
+          <th>Tax ID</th>
+          <th>Address</th>
+          <th className="right">Total Paid</th>
         </tr>
       </thead>
       <tbody>
@@ -937,11 +859,11 @@ function ContractorTable({ contractors }: { contractors: ContractorPayment[] }) 
           const name = `${c.firstName} ${c.lastName}`.trim();
           return (
             <tr key={c.installerId}>
-              <td style={tdStyle}>{name}</td>
-              <td style={tdStyle}>{c.companyName ?? ''}</td>
-              <td style={tdStyle}>{c.taxId ?? ''}</td>
-              <td style={tdStyle}>{c.address ?? ''}</td>
-              <td style={{ ...tdStyle, textAlign: 'right' }}>{currency(c.totalPaid)}</td>
+              <td>{name}</td>
+              <td>{c.companyName ?? ''}</td>
+              <td>{c.taxId ?? ''}</td>
+              <td>{c.address ?? ''}</td>
+              <td className="right">{currency(c.totalPaid)}</td>
             </tr>
           );
         })}

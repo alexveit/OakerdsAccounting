@@ -412,33 +412,6 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Styles
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  const sectionStyle: React.CSSProperties = {
-    gridColumn: '1 / -1',
-    fontWeight: 600,
-    fontSize: 14,
-    borderBottom: '1px solid #ddd',
-    paddingBottom: '0.25rem',
-    marginTop: '1rem',
-    marginBottom: '0.25rem',
-    color: '#333',
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem',
-    fontSize: 13,
-  };
-
-  const gridStyle: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '0.75rem 1rem',
-  };
-
   // ─────────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────────
@@ -461,25 +434,16 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
   }
 
   return (
-    <div>
+    <div className="deal-edit">
       {/* Mode toggle buttons */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+      <div className="deal-edit__toggle">
         <button
           type="button"
           onClick={() => {
             setIsCreating(false);
             setSelectedDealId(null);
           }}
-          style={{
-            padding: '0.5rem 1rem',
-            fontSize: 14,
-            fontWeight: isCreating ? 400 : 600,
-            backgroundColor: isCreating ? '#f5f5f5' : '#1976d2',
-            color: isCreating ? '#333' : '#fff',
-            border: 'none',
-            borderRadius: 4,
-            cursor: 'pointer',
-          }}
+          className={`deal-edit__toggle-btn ${isCreating ? 'deal-edit__toggle-btn--inactive' : 'deal-edit__toggle-btn--active'}`}
         >
           Edit Existing
         </button>
@@ -491,16 +455,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
             setError(null);
             setSuccess(null);
           }}
-          style={{
-            padding: '0.5rem 1rem',
-            fontSize: 14,
-            fontWeight: isCreating ? 600 : 400,
-            backgroundColor: isCreating ? '#1976d2' : '#f5f5f5',
-            color: isCreating ? '#fff' : '#333',
-            border: 'none',
-            borderRadius: 4,
-            cursor: 'pointer',
-          }}
+          className={`deal-edit__toggle-btn ${isCreating ? 'deal-edit__toggle-btn--active' : 'deal-edit__toggle-btn--inactive'}`}
         >
           + Create New
         </button>
@@ -508,7 +463,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
 
       {/* Create New Deal Form */}
       {isCreating && (
-        <div className="card" style={{ padding: '1rem' }}>
+        <div className="card">
           <NewRealEstateDealForm onCreated={handleDealCreated} />
         </div>
       )}
@@ -517,9 +472,9 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
       {!isCreating && (
         <>
           {/* Deal Selector */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ ...labelStyle, maxWidth: 400 }}>
-              <span style={{ fontWeight: 500 }}>Select a deal to edit:</span>
+          <div className="deal-edit__selector">
+            <label className="deal-edit__selector-label">
+              <span>Select a deal to edit:</span>
               <select
                 value={selectedDealId ?? ''}
                 onChange={(e) => {
@@ -529,7 +484,6 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                   setSuccess(null);
                   setShowArchiveConfirm(false);
                 }}
-                style={{ padding: '0.5rem', fontSize: 14 }}
               >
                 <option value="">-- Choose a deal --</option>
                 {deals.map((d) => (
@@ -540,7 +494,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
               </select>
             </label>
             {loadingDeals && (
-              <div style={{ fontSize: 13, color: '#666', marginTop: '0.5rem' }}>
+              <div className="deal-edit__loading">
                 Loading deals...
               </div>
             )}
@@ -548,23 +502,15 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
 
           {/* No deal selected */}
           {!selectedDealId && !loadingDeals && (
-            <div
-              style={{
-                padding: '2rem',
-                textAlign: 'center',
-                color: '#666',
-                background: '#f9f9f9',
-                borderRadius: 8,
-              }}
-            >
+            <div className="deal-edit__empty">
           Select a deal above to view and edit its details.
         </div>
       )}
 
       {/* Loading deal */}
       {selectedDealId && loadingDeal && (
-        <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
-          Loading deal details…
+        <div className="deal-edit__empty">
+          Loading deal details...
         </div>
       )}
 
@@ -573,217 +519,205 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
         <form onSubmit={handleSubmit}>
           {/* Messages */}
           {error && (
-            <div
-              style={{
-                background: '#fee',
-                color: '#900',
-                padding: '0.75rem 1rem',
-                borderRadius: 6,
-                marginBottom: '1rem',
-                fontSize: 14,
-              }}
-            >
+            <div className="alert alert--danger mb-2">
               {error}
             </div>
           )}
           {success && (
-            <div
-              style={{
-                background: '#efe',
-                color: '#060',
-                padding: '0.75rem 1rem',
-                borderRadius: 6,
-                marginBottom: '1rem',
-                fontSize: 14,
-              }}
-            >
+            <div className="alert alert--success mb-2">
               {success}
             </div>
           )}
 
-          <div style={gridStyle}>
-            {/* ─────────────── CORE INFO ─────────────── */}
-            <div style={sectionStyle}>Core Info</div>
-
-            <label style={labelStyle}>
-              Nickname *
-              <input
-                type="text"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                required
-              />
-            </label>
-
-            <label style={labelStyle}>
-              Type
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value as DealType)}
-              >
-                <option value="rental">Rental</option>
-                <option value="flip">Flip</option>
-                <option value="wholesale">Wholesale</option>
-                <option value="personal">Personal Residence</option>
-              </select>
-            </label>
-
-            <label style={{ ...labelStyle, gridColumn: '1 / -1' }}>
-              Address *
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                required
-              />
-            </label>
-
-            <label style={labelStyle}>
-              Status
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as DealStatus)}
-              >
-                <option value="active">Active</option>
-                <option value="in_contract">In Contract</option>
-                <option value="rehab">Rehab</option>
-                <option value="stabilized">Stabilized</option>
-                {type !== 'personal' && <option value="sold">Sold</option>}
-                <option value="failed">Failed / Archived</option>
-              </select>
-            </label>
-
-            {type !== 'personal' && (
-              <label style={labelStyle}>
-                Linked Job
-                <select
-                  value={jobId ?? ''}
-                  onChange={(e) =>
-                    setJobId(e.target.value ? Number(e.target.value) : null)
-                  }
-                >
-                  <option value="">— None —</option>
-                  {jobs.map((j) => (
-                    <option key={j.id} value={j.id}>
-                      {j.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-
-            {/* ─────────────── DATES ─────────────── */}
-            <div style={sectionStyle}>Dates</div>
-
-            <label style={labelStyle}>
-              {type === 'personal' ? 'Purchase Date' : 'Start Date'}
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </label>
-
-            <label style={labelStyle}>
-              Close Date
-              <input
-                type="date"
-                value={closeDate}
-                onChange={(e) => setCloseDate(e.target.value)}
-              />
-            </label>
-
-            {type !== 'personal' && (
-              <label style={labelStyle}>
-                Sell Date
+          {/* ─────────────── CORE INFO ─────────────── */}
+          <div className="card deal-edit__section-card">
+            <h4>Core Info</h4>
+            <div className="deal-edit__form-grid">
+              <label className="deal-edit__label">
+                Nickname *
                 <input
-                  type="date"
-                  value={sellDate}
-                  onChange={(e) => setSellDate(e.target.value)}
+                  type="text"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  required
                 />
               </label>
-            )}
 
-            {/* ─────────────── ECONOMICS ─────────────── */}
-            <div style={sectionStyle}>
-              {type === 'personal' ? 'Property Value' : 'Economics'}
-            </div>
+              <label className="deal-edit__label">
+                Type
+                <select
+                  value={type}
+                  onChange={(e) => setType(e.target.value as DealType)}
+                >
+                  <option value="rental">Rental</option>
+                  <option value="flip">Flip</option>
+                  <option value="wholesale">Wholesale</option>
+                  <option value="personal">Personal Residence</option>
+                </select>
+              </label>
 
-            <label style={labelStyle}>
-              Purchase Price
-              <input
-                type="number"
-                step="0.01"
-                value={purchasePrice}
-                onChange={(e) => setPurchasePrice(e.target.value)}
-              />
-            </label>
+              <label className="deal-edit__label deal-edit__label--full">
+                Address *
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  required
+                />
+              </label>
 
-            <label style={labelStyle}>
-              {type === 'personal' ? 'Current Market Value' : 'ARV'}
-              <input
-                type="number"
-                step="0.01"
-                value={arv}
-                onChange={(e) => setArv(e.target.value)}
-              />
-              {type === 'personal' && (
-                <span style={{ fontSize: 11, color: '#888' }}>
-                  Used for equity calculation
-                </span>
+              <label className="deal-edit__label">
+                Status
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as DealStatus)}
+                >
+                  <option value="active">Active</option>
+                  <option value="in_contract">In Contract</option>
+                  <option value="rehab">Rehab</option>
+                  <option value="stabilized">Stabilized</option>
+                  {type !== 'personal' && <option value="sold">Sold</option>}
+                  <option value="failed">Failed / Archived</option>
+                </select>
+              </label>
+
+              {type !== 'personal' && (
+                <label className="deal-edit__label">
+                  Linked Job
+                  <select
+                    value={jobId ?? ''}
+                    onChange={(e) =>
+                      setJobId(e.target.value ? Number(e.target.value) : null)
+                    }
+                  >
+                    <option value="">— None —</option>
+                    {jobs.map((j) => (
+                      <option key={j.id} value={j.id}>
+                        {j.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
-            </label>
+            </div>
+          </div>
 
-            {type !== 'personal' && (
-              <>
-                <label style={labelStyle}>
-                  Rehab Budget
+          {/* ─────────────── DATES ─────────────── */}
+          <div className="card deal-edit__section-card">
+            <h4>Dates</h4>
+            <div className="deal-edit__form-grid">
+              <label className="deal-edit__label">
+                {type === 'personal' ? 'Purchase Date' : 'Start Date'}
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </label>
+
+              <label className="deal-edit__label">
+                Close Date
+                <input
+                  type="date"
+                  value={closeDate}
+                  onChange={(e) => setCloseDate(e.target.value)}
+                />
+              </label>
+
+              {type !== 'personal' && (
+                <label className="deal-edit__label">
+                  Sell Date
                   <input
-                    type="number"
-                    step="0.01"
-                    value={rehabBudget}
-                    onChange={(e) => setRehabBudget(e.target.value)}
+                    type="date"
+                    value={sellDate}
+                    onChange={(e) => setSellDate(e.target.value)}
                   />
                 </label>
+              )}
+            </div>
+          </div>
 
-                <label style={labelStyle}>
-                  Rehab Spent
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={rehabSpent}
-                    onChange={(e) => setRehabSpent(e.target.value)}
-                  />
-                </label>
+          {/* ─────────────── ECONOMICS ─────────────── */}
+          <div className="card deal-edit__section-card">
+            <h4>{type === 'personal' ? 'Property Value' : 'Economics'}</h4>
+            <div className="deal-edit__form-grid">
+              <label className="deal-edit__label">
+                Purchase Price
+                <input
+                  type="number"
+                  step="0.01"
+                  value={purchasePrice}
+                  onChange={(e) => setPurchasePrice(e.target.value)}
+                />
+              </label>
 
-                <label style={labelStyle}>
-                  Closing Costs Estimate
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={closingCostsEstimate}
-                    onChange={(e) => setClosingCostsEstimate(e.target.value)}
-                  />
-                </label>
+              <label className="deal-edit__label">
+                {type === 'personal' ? 'Current Market Value' : 'ARV'}
+                <input
+                  type="number"
+                  step="0.01"
+                  value={arv}
+                  onChange={(e) => setArv(e.target.value)}
+                />
+                {type === 'personal' && (
+                  <span className="deal-edit__hint">
+                    Used for equity calculation
+                  </span>
+                )}
+              </label>
 
-                <label style={labelStyle}>
-                  Sale Price
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={salePrice}
-                    onChange={(e) => setSalePrice(e.target.value)}
-                  />
-                </label>
-              </>
-            )}
+              {type !== 'personal' && (
+                <>
+                  <label className="deal-edit__label">
+                    Rehab Budget
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={rehabBudget}
+                      onChange={(e) => setRehabBudget(e.target.value)}
+                    />
+                  </label>
 
-            {/* ─────────────── WHOLESALE / ASSIGNMENT ─────────────── */}
-            {type === 'wholesale' && (
-              <>
-                <div style={sectionStyle}>Assignment Fees (Wholesale)</div>
+                  <label className="deal-edit__label">
+                    Rehab Spent
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={rehabSpent}
+                      onChange={(e) => setRehabSpent(e.target.value)}
+                    />
+                  </label>
 
-                <label style={labelStyle}>
+                  <label className="deal-edit__label">
+                    Closing Costs Estimate
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={closingCostsEstimate}
+                      onChange={(e) => setClosingCostsEstimate(e.target.value)}
+                    />
+                  </label>
+
+                  <label className="deal-edit__label">
+                    Sale Price
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={salePrice}
+                      onChange={(e) => setSalePrice(e.target.value)}
+                    />
+                  </label>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* ─────────────── WHOLESALE / ASSIGNMENT ─────────────── */}
+          {type === 'wholesale' && (
+            <div className="card deal-edit__section-card">
+              <h4>Assignment Fees</h4>
+              <div className="deal-edit__form-grid">
+                <label className="deal-edit__label">
                   Expected Assignment Fee
                   <input
                     type="number"
@@ -793,7 +727,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                   />
                 </label>
 
-                <label style={labelStyle}>
+                <label className="deal-edit__label">
                   Actual Assignment Fee
                   <input
                     type="number"
@@ -802,111 +736,111 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                     onChange={(e) => setActualAssignmentFee(e.target.value)}
                   />
                 </label>
-              </>
-            )}
-
-            {/* ─────────────── FINANCING ─────────────── */}
-            <div style={sectionStyle}>
-              {type === 'personal' ? 'Mortgage' : 'Financing'}
+              </div>
             </div>
+          )}
 
-            <label style={labelStyle}>
-              {type === 'personal' ? 'Current Loan Balance' : 'Original Loan Amount'}
-              <input
-                type="number"
-                step="0.01"
-                value={originalLoanAmount}
-                onChange={(e) => setOriginalLoanAmount(e.target.value)}
-              />
-            </label>
+          {/* ─────────────── FINANCING ─────────────── */}
+          <div className="card deal-edit__section-card">
+            <h4>{type === 'personal' ? 'Mortgage' : 'Financing'}</h4>
+            <div className="deal-edit__form-grid">
+              <label className="deal-edit__label">
+                {type === 'personal' ? 'Current Loan Balance' : 'Original Loan Amount'}
+                <input
+                  type="number"
+                  step="0.01"
+                  value={originalLoanAmount}
+                  onChange={(e) => setOriginalLoanAmount(e.target.value)}
+                />
+              </label>
 
-            <label style={labelStyle}>
-              Interest Rate (%)
-              <input
-                type="number"
-                step="0.125"
-                min="0"
-                max="30"
-                value={interestRate}
-                onChange={(e) => setInterestRate(e.target.value)}
-              />
-            </label>
+              <label className="deal-edit__label">
+                Interest Rate (%)
+                <input
+                  type="number"
+                  step="0.125"
+                  min="0"
+                  max="30"
+                  value={interestRate}
+                  onChange={(e) => setInterestRate(e.target.value)}
+                />
+              </label>
 
-            <label style={labelStyle}>
-              Loan Term (months)
-              <input
-                type="number"
-                step="1"
-                min="1"
-                value={loanTermMonths}
-                onChange={(e) => setLoanTermMonths(e.target.value)}
-              />
-            </label>
+              <label className="deal-edit__label">
+                Loan Term (months)
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  value={loanTermMonths}
+                  onChange={(e) => setLoanTermMonths(e.target.value)}
+                />
+              </label>
 
-            <label style={labelStyle}>
-              First Payment Date
-              <input
-                type="date"
-                value={firstPaymentDate}
-                onChange={(e) => setFirstPaymentDate(e.target.value)}
-              />
-            </label>
+              <label className="deal-edit__label">
+                First Payment Date
+                <input
+                  type="date"
+                  value={firstPaymentDate}
+                  onChange={(e) => setFirstPaymentDate(e.target.value)}
+                />
+              </label>
 
-            <label style={labelStyle}>
-              Payment Frequency
-              <select
-                value={paymentFrequency}
-                onChange={(e) => setPaymentFrequency(e.target.value as PaymentFrequency)}
-              >
-                <option value="monthly">Monthly (12/year)</option>
-                <option value="semimonthly">Semi-monthly (24/year)</option>
-                <option value="biweekly">Bi-weekly (26/year)</option>
-              </select>
-            </label>
+              <label className="deal-edit__label">
+                Payment Frequency
+                <select
+                  value={paymentFrequency}
+                  onChange={(e) => setPaymentFrequency(e.target.value as PaymentFrequency)}
+                >
+                  <option value="monthly">Monthly (12/year)</option>
+                  <option value="semimonthly">Semi-monthly (24/year)</option>
+                  <option value="biweekly">Bi-weekly (26/year)</option>
+                </select>
+              </label>
 
-            <label style={labelStyle}>
-              Asset Account
-              <select
-                value={assetAccountId ?? ''}
-                onChange={(e) =>
-                  setAssetAccountId(e.target.value ? Number(e.target.value) : null)
-                }
-              >
-                <option value="">— None —</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.code} — {a.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label className="deal-edit__label">
+                Asset Account
+                <select
+                  value={assetAccountId ?? ''}
+                  onChange={(e) =>
+                    setAssetAccountId(e.target.value ? Number(e.target.value) : null)
+                  }
+                >
+                  <option value="">— None —</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.code} — {a.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label style={labelStyle}>
-              Loan Account
-              <select
-                value={loanAccountId ?? ''}
-                onChange={(e) =>
-                  setLoanAccountId(e.target.value ? Number(e.target.value) : null)
-                }
-              >
-                <option value="">— None —</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.code} — {a.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label className="deal-edit__label">
+                Loan Account
+                <select
+                  value={loanAccountId ?? ''}
+                  onChange={(e) =>
+                    setLoanAccountId(e.target.value ? Number(e.target.value) : null)
+                  }
+                >
+                  <option value="">— None —</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.code} — {a.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
 
-            {/* ─────────────── RENTAL/PERSONAL OPERATIONS ─────────────── */}
-            {(type === 'rental' || type === 'personal') && (
-              <>
-                <div style={sectionStyle}>
-                  {type === 'personal' ? 'Monthly Costs (Reference)' : 'Rental Operations'}
-                </div>
-
+          {/* ─────────────── RENTAL/PERSONAL OPERATIONS ─────────────── */}
+          {(type === 'rental' || type === 'personal') && (
+            <div className="card deal-edit__section-card">
+              <h4>{type === 'personal' ? 'Monthly Costs (Reference)' : 'Rental Operations'}</h4>
+              <div className="deal-edit__form-grid">
                 {type === 'rental' && (
-                  <label style={labelStyle}>
+                  <label className="deal-edit__label">
                     Monthly Rent
                     <input
                       type="number"
@@ -917,7 +851,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                   </label>
                 )}
 
-                <label style={labelStyle}>
+                <label className="deal-edit__label">
                   Monthly Mortgage Payment
                   <input
                     type="number"
@@ -927,7 +861,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                   />
                 </label>
 
-                <label style={labelStyle}>
+                <label className="deal-edit__label">
                   Monthly Taxes
                   <input
                     type="number"
@@ -937,7 +871,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                   />
                 </label>
 
-                <label style={labelStyle}>
+                <label className="deal-edit__label">
                   Monthly Insurance
                   <input
                     type="number"
@@ -947,7 +881,7 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                   />
                 </label>
 
-                <label style={labelStyle}>
+                <label className="deal-edit__label">
                   Monthly HOA
                   <input
                     type="number"
@@ -956,13 +890,14 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                     onChange={(e) => setRentalMonthlyHoa(e.target.value)}
                   />
                 </label>
-              </>
-            )}
+              </div>
+            </div>
+          )}
 
-            {/* ─────────────── NOTES ─────────────── */}
-            <div style={sectionStyle}>Notes</div>
-
-            <label style={{ ...labelStyle, gridColumn: '1 / -1' }}>
+          {/* ─────────────── NOTES ─────────────── */}
+          <div className="card deal-edit__section-card">
+            <h4>Notes</h4>
+            <label className="deal-edit__label">
               <textarea
                 rows={4}
                 value={notes}
@@ -970,116 +905,63 @@ export function DealsManageView({ initialSelectedId, onSelectionUsed }: DealsMan
                 placeholder="Any additional notes about this deal…"
               />
             </label>
+          </div>
 
-            {/* ─────────────── ACTIONS ─────────────── */}
-            <div
-              style={{
-                gridColumn: '1 / -1',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: '1rem',
-                paddingTop: '1rem',
-                borderTop: '1px solid #ddd',
-              }}
-            >
-              {/* Archive / Danger Zone */}
-              <div>
-                {status !== 'failed' && !showArchiveConfirm && (
+          {/* ─────────────── ACTIONS ─────────────── */}
+          <div className="deal-edit__actions">
+            {/* Archive / Danger Zone */}
+            <div>
+              {status !== 'failed' && !showArchiveConfirm && (
+                <button
+                  type="button"
+                  onClick={() => setShowArchiveConfirm(true)}
+                  className="btn-danger-outline"
+                >
+                  Archive Deal
+                </button>
+              )}
+              {showArchiveConfirm && (
+                <div className="deal-edit__archive-confirm">
+                  <span>Are you sure?</span>
                   <button
                     type="button"
-                    onClick={() => setShowArchiveConfirm(true)}
-                    style={{
-                      background: '#fff',
-                      color: '#b00020',
-                      border: '1px solid #b00020',
-                      padding: '0.5rem 1rem',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                    }}
+                    onClick={handleArchive}
+                    disabled={saving}
+                    className="btn-danger"
                   >
-                    Archive Deal
+                    Yes, Archive
                   </button>
-                )}
-                {showArchiveConfirm && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                    }}
+                  <button
+                    type="button"
+                    onClick={() => setShowArchiveConfirm(false)}
+                    className="btn-cancel"
                   >
-                    <span style={{ fontSize: 13, color: '#b00020' }}>
-                      Are you sure?
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleArchive}
-                      disabled={saving}
-                      style={{
-                        background: '#b00020',
-                        color: '#fff',
-                        border: 'none',
-                        padding: '0.4rem 0.75rem',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        fontSize: 13,
-                      }}
-                    >
-                      Yes, Archive
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowArchiveConfirm(false)}
-                      style={{
-                        background: '#eee',
-                        color: '#333',
-                        border: 'none',
-                        padding: '0.4rem 0.75rem',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        fontSize: 13,
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-                {status === 'failed' && (
-                  <span style={{ fontSize: 13, color: '#666' }}>
-                    This deal is archived.
-                  </span>
-                )}
-              </div>
-
-              {/* Save */}
-              <button
-                type="submit"
-                disabled={saving}
-                style={{
-                  padding: '0.5rem 1.5rem',
-                  fontSize: 14,
-                }}
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
+                    Cancel
+                  </button>
+                </div>
+              )}
+              {status === 'failed' && (
+                <span className="deal-edit__archived-note">
+                  This deal is archived.
+                </span>
+              )}
             </div>
+
+            {/* Save */}
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
           </div>
         </form>
       )}
 
       {/* Metadata footer */}
       {selectedDeal && !loadingDeal && (
-        <div
-          style={{
-            marginTop: '1.5rem',
-            paddingTop: '1rem',
-            borderTop: '1px solid #eee',
-            fontSize: 12,
-            color: '#888',
-          }}
-        >
+        <div className="deal-edit__footer">
           Deal ID: {selectedDealId}
         </div>
       )}

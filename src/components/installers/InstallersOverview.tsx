@@ -88,7 +88,7 @@ export function InstallersOverview({ onInstallerSelect }: InstallersOverviewProp
   }, [year]);
 
   if (loading) return <p>Loading installers...</p>;
-  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  if (error) return <p className="text-danger">Error: {error}</p>;
   if (installers.length === 0) return <p>No installers found.</p>;
 
   // Filter and sort
@@ -124,42 +124,32 @@ export function InstallersOverview({ onInstallerSelect }: InstallersOverviewProp
   return (
     <div className="card">
       {/* Controls row */}
-      <div
-        style={{
-          marginBottom: '1rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1.5rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ fontSize: 13 }}>Year:</label>
+      <div className="filter-row mb-2">
+        <label className="filter-label">
+          Year:
           <select
             value={year}
             onChange={(e) => setYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            style={{ padding: '0.25rem 0.5rem', fontSize: 13, width: 'auto' }}
           >
             <option value="all">All Time</option>
             {yearOptions.map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-        </div>
+        </label>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ fontSize: 13 }}>Sort by:</label>
+        <label className="filter-label">
+          Sort by:
           <select
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value as 'name' | 'paidDesc')}
-            style={{ padding: '0.25rem 0.5rem', fontSize: 13, width: 'auto' }}
           >
             <option value="name">Name (A to Z)</option>
             <option value="paidDesc">Paid (High to Low)</option>
           </select>
-        </div>
+        </label>
 
-        <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <label className="filter-label--sm">
           <input
             type="checkbox"
             checked={showInactive}
@@ -187,10 +177,7 @@ export function InstallersOverview({ onInstallerSelect }: InstallersOverviewProp
             return (
               <tr 
                 key={i.id} 
-                style={{ 
-                  opacity: i.is_active ? 1 : 0.5,
-                  cursor: onInstallerSelect ? 'pointer' : 'default',
-                }}
+                className={`${!i.is_active ? 'opacity-50' : ''} ${onInstallerSelect ? 'cursor-pointer' : ''}`}
                 onClick={() => onInstallerSelect?.(i.id)}
                 title={onInstallerSelect ? 'Click to edit' : undefined}
               >

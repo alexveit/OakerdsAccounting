@@ -31,6 +31,8 @@ const REPLACEMENTS = [
   { garbled: 'âœ•', replace: '✕' },
   { garbled: 'â—‹', replace: '○' },
   { garbled: 'â—', replace: '●' },
+  { garbled: '●Â', replace: '●' },
+
   
   // Emojis (4-byte UTF-8 sequences)
   { garbled: 'ðŸ"Š', replace: '📊' }, // Dashboard
@@ -102,11 +104,14 @@ const REPLACEMENTS = [
   { garbled: 'Â°', replace: '°' },
   { garbled: 'Â·', replace: '·' },
   { garbled: 'Ã—', replace: '×' },
+  { garbled: 'âœ—', replace: '×' },
   { garbled: 'Ã·', replace: '÷' },
 
   // New patterns discovered this session
   { garbled: 'â€"', replace: '–' },      // en-dash (different encoding)
   { garbled: 'âš ', replace: '⚠' },     // warning sign
+  { garbled: 'Ã¢Å¡Â', replace: '⚠' },     // warning sign 2
+  { garbled: 'âš ', replace: '⚠' },     // warning sign 3
   { garbled: 'â† ', replace: '← ' },    // left arrow
 ];
 

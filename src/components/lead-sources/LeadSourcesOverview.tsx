@@ -194,7 +194,7 @@ export function LeadSourcesOverview({ onLeadSourceSelect }: LeadSourcesOverviewP
   }, [year]);
 
   if (loading) return <p>Loading lead sources...</p>;
-  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  if (error) return <p className="text-danger">Error: {error}</p>;
   if (leadSources.length === 0) return <p>No lead sources found.</p>;
 
   // Filter and sort
@@ -254,47 +254,41 @@ export function LeadSourcesOverview({ onLeadSourceSelect }: LeadSourcesOverviewP
     return `${roi.toFixed(1)}x`;
   };
 
+  // Color helpers for dynamic values
+  const profitColorClass = (value: number) => value >= 0 ? 'text-success' : 'text-danger';
+  const roiColorClass = (roi: number | null) => roi !== null ? (roi >= 1 ? 'text-success' : 'text-danger') : '';
+
   return (
     <div className="card">
       {/* Controls row */}
-      <div
-        style={{
-          marginBottom: '1rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1.5rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ fontSize: 13 }}>Year:</label>
+      <div className="filter-row mb-2">
+        <label className="filter-label">
+          Year:
           <select
             value={year}
             onChange={(e) => setYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            style={{ padding: '0.25rem 0.5rem', fontSize: 13, width: 'auto' }}
           >
             <option value="all">All Time</option>
             {yearOptions.map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-        </div>
+        </label>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ fontSize: 13 }}>Sort by:</label>
+        <label className="filter-label">
+          Sort by:
           <select
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value as 'name' | 'profitDesc' | 'roiDesc' | 'jobsDesc')}
-            style={{ padding: '0.25rem 0.5rem', fontSize: 13, width: 'auto' }}
           >
             <option value="name">Name (A to Z)</option>
             <option value="profitDesc">Profit (High to Low)</option>
             <option value="roiDesc">ROI (High to Low)</option>
             <option value="jobsDesc">Jobs (High to Low)</option>
           </select>
-        </div>
+        </label>
 
-        <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <label className="filter-label--sm">
           <input
             type="checkbox"
             checked={showInactive}
@@ -323,37 +317,20 @@ export function LeadSourcesOverview({ onLeadSourceSelect }: LeadSourcesOverviewP
             return (
               <tr 
                 key={s.id} 
-                style={{ 
-                  opacity: s.is_active ? 1 : 0.5,
-                  cursor: onLeadSourceSelect ? 'pointer' : 'default',
-                }}
+                className={`${!s.is_active ? 'opacity-50' : ''} ${onLeadSourceSelect ? 'cursor-pointer' : ''}`}
                 onClick={() => onLeadSourceSelect?.(s.id)}
                 title={onLeadSourceSelect ? 'Click to edit' : undefined}
               >
                 <Td>{formatSourceName(s)}</Td>
                 <Td align="right">{sourceStats.jobCount}</Td>
                 <Td align="right">{formatCurrency(sourceStats.grossIncome, 0)}</Td>
-                <Td 
-                  align="right" 
-                  style={{ 
-                    fontWeight: 600,
-                    color: sourceStats.profit >= 0 ? '#0a7a3c' : '#b00020' 
-                  }}
-                >
+                <Td align="right" className={`font-semibold ${profitColorClass(sourceStats.profit)}`}>
                   {formatCurrency(sourceStats.profit, 0)}
                 </Td>
-                <Td align="right" style={{ color: sourceStats.marketingSpend > 0 ? '#b00020' : undefined }}>
+                <Td align="right" className={sourceStats.marketingSpend > 0 ? 'text-danger' : ''}>
                   {formatCurrency(sourceStats.marketingSpend, 0)}
                 </Td>
-                <Td 
-                  align="right"
-                  style={{
-                    fontWeight: 600,
-                    color: sourceStats.roi !== null 
-                      ? (sourceStats.roi >= 1 ? '#0a7a3c' : '#b00020')
-                      : undefined
-                  }}
-                >
+                <Td align="right" className={`font-semibold ${roiColorClass(sourceStats.roi)}`}>
                   {formatRoi(sourceStats.roi)}
                 </Td>
               </tr>
@@ -366,25 +343,11 @@ export function LeadSourcesOverview({ onLeadSourceSelect }: LeadSourcesOverviewP
             <Th>Total</Th>
             <Th align="right">{totalJobs}</Th>
             <Th align="right">{formatCurrency(totalGrossIncome, 0)}</Th>
-            <Th 
-              align="right" 
-              style={{ 
-                fontWeight: 700,
-                color: totalProfit >= 0 ? '#0a7a3c' : '#b00020' 
-              }}
-            >
+            <Th align="right" className={`font-bold ${profitColorClass(totalProfit)}`}>
               {formatCurrency(totalProfit, 0)}
             </Th>
-            <Th align="right" style={{ color: '#b00020' }}>{formatCurrency(totalMarketingSpend, 0)}</Th>
-            <Th 
-              align="right"
-              style={{
-                fontWeight: 700,
-                color: totalRoi !== null 
-                  ? (totalRoi >= 1 ? '#0a7a3c' : '#b00020')
-                  : undefined
-              }}
-            >
+            <Th align="right" className="text-danger">{formatCurrency(totalMarketingSpend, 0)}</Th>
+            <Th align="right" className={`font-bold ${roiColorClass(totalRoi)}`}>
               {formatRoi(totalRoi)}
             </Th>
           </tr>
@@ -397,20 +360,20 @@ export function LeadSourcesOverview({ onLeadSourceSelect }: LeadSourcesOverviewP
 function Th({
   children,
   align = 'left',
-  style = {},
+  className = '',
 }: {
   children: React.ReactNode;
   align?: 'left' | 'right' | 'center';
-  style?: React.CSSProperties;
+  className?: string;
 }) {
   return (
     <th
+      className={className}
       style={{
         borderBottom: '1px solid #ccc',
         textAlign: align,
         padding: '4px 6px',
         whiteSpace: 'nowrap',
-        ...style,
       }}
     >
       {children}
@@ -421,21 +384,21 @@ function Th({
 function Td({
   children,
   align = 'left',
-  style = {},
+  className = '',
 }: {
   children: React.ReactNode;
   align?: 'left' | 'right' | 'center';
-  style?: React.CSSProperties;
+  className?: string;
 }) {
   return (
     <td
+      className={className}
       style={{
         padding: '3px 6px',
         textAlign: align,
         borderBottom: '1px solid #f2f2f2',
         verticalAlign: 'top',
         whiteSpace: 'nowrap',
-        ...style,
       }}
     >
       {children}

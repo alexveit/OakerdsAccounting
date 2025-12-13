@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { NewTransactionForm } from './NewTransactionForm';
 import { NewJobForm } from './NewJobForm';
-import { Transfers } from '../ledger/Transfers';
+import { Transfers } from './NewTransferForm';
 import { BalancesCard, type AccountBalance } from '../shared/BalancesCard';
 
 type EntryTab = 'transaction' | 'job' | 'transfer';
@@ -83,7 +83,7 @@ export function NewEntryView({
 
   return (
     <div>
-      <h2 style={{ margin: 0, marginBottom: '0.75rem' }}>New Entry</h2>
+      <h2 className="mt-0 mb-1h">New Entry</h2>
 
       {/* Tabs */}
       <div className="tab-strip">
@@ -111,17 +111,11 @@ export function NewEntryView({
       </div>
 
       {/* Content - centered */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          marginTop: '0.75rem',
-        }}
-      >
+      <div className="entry-content">
         {tab === 'transaction' && (
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+          <div className="entry-layout">
             {/* LEFT: New Transaction Form */}
-            <div className="card" style={{ padding: '1rem', maxWidth: 480 }}>
+            <div className="card entry-form-card">
               <NewTransactionForm
                 initialJobId={initialJobId ?? null}
                 onTransactionSaved={loadAccounts}
@@ -138,13 +132,7 @@ export function NewEntryView({
         )}
         
         {tab === 'transfer' && (
-          <div
-            className="card"
-            style={{
-              maxWidth: 900,
-              padding: '1rem',
-            }}
-          >
+          <div className="card entry-transfer-card">
             <Transfers
               onTransferSaved={loadAccounts}
               initialTransfer={initialTransfer}
@@ -154,13 +142,7 @@ export function NewEntryView({
         )}
 
         {tab === 'job' && (
-          <div
-            className="card"
-            style={{
-              maxWidth: 560,
-              padding: '1rem',
-            }}
-          >
+          <div className="card entry-job-card">
             <NewJobForm />
           </div>
         )}
