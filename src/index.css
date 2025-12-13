@@ -1,5 +1,34 @@
 /* =========================================================
-   Oakerds Accounting - Enhanced Theme & Base Styles
+   OAKERDS ACCOUNTING - STYLESHEET
+   =========================================================
+   
+   Last cleaned: December 2024
+   
+   STRUCTURE OVERVIEW
+   ------------------
+   This file contains all styles for the Oakerds Accounting app.
+   Sections are grouped roughly by:
+   
+   • Theme & Variables (:root)
+   • Reset & Base
+   • Layout (App, Sidebar, Main Content, Mobile Header)
+   • Core Components (Cards, Tabs, Tables, Forms, Buttons, etc.)
+   • Utility Classes
+   • View-Specific Styles (organized by feature)
+   • Responsive & Print
+   
+   NAMING CONVENTIONS
+   ------------------
+   • BEM-style: .component__element--modifier
+   • Flat classes: .btn-primary, .card, .badge
+   • View prefixes: .deal-edit__, .ledger__, .auth-*
+   
+   CSS VARIABLES
+   -------------
+   Colors:     --bg, --text-main, --accent-*, --border-*
+   Spacing:    --radius-*, --shadow-*
+   Layout:     --sidebar-width, --sidebar-collapsed-width
+   
    ========================================================= */
 
 :root {
@@ -805,8 +834,6 @@ button:disabled, .btn:disabled {
 .items-center { align-items: center; }
 .items-start { align-items: flex-start; }
 .justify-between { justify-content: space-between; }
-.gap-1 { gap: 0.5rem; }
-.gap-2 { gap: 1rem; }
 
 /* Grid utilities */
 .grid { display: grid; }
@@ -1305,13 +1332,6 @@ button:disabled, .btn:disabled {
 }
 
 /* Pill buttons */
-.btn-pill {
-  padding: 0.3rem 0.8rem;
-  border-radius: var(--radius-full);
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
 .btn-pill--danger {
   border: 1px solid var(--accent-negative);
   background: var(--accent-negative-bg);
@@ -1657,19 +1677,6 @@ button:disabled, .btn:disabled {
 /* =========================================================
    Modal
    ========================================================= */
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
 
 .modal-content {
   background: var(--bg-card);
@@ -2378,64 +2385,6 @@ button:disabled, .btn:disabled {
 .fw-500 { font-weight: 500; }
 
 /* =========================================================
-   Transfer Form
-   ========================================================= */
-
-.transfer-intro {
-  margin-top: 0;
-  margin-bottom: 0.75rem;
-  font-size: 0.8125rem;
-}
-
-.transfer-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 0.75rem;
-  row-gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.transfer-field {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.8125rem;
-}
-
-.transfer-field__label {
-  margin-bottom: 2px;
-}
-
-.transfer-field input,
-.transfer-field select {
-  padding: 4px 6px;
-}
-
-.transfer-field__hint {
-  font-size: 0.75rem;
-}
-
-.transfer-field__error {
-  font-size: 0.75rem;
-  color: var(--accent-negative);
-}
-
-.transfer-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-  margin-bottom: 0.75rem;
-}
-
-.transfer-message {
-  font-size: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.transfer-message--error { color: var(--accent-negative); }
-.transfer-message--success { color: var(--accent-positive); }
-
-/* =========================================================
    Profit Summary Table
    ========================================================= */
 
@@ -3040,17 +2989,6 @@ button:disabled, .btn:disabled {
   gap: 0.75rem 1rem;
 }
 
-.deal-edit__section {
-  grid-column: 1 / -1;
-  font-weight: 600;
-  font-size: 0.875rem;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 0.25rem;
-  margin-top: 1rem;
-  margin-bottom: 0.25rem;
-  color: #333;
-}
-
 .deal-edit__label {
   display: flex;
   flex-direction: column;
@@ -3107,16 +3045,6 @@ button:disabled, .btn:disabled {
   color: #b00020;
   border: 1px solid #b00020;
   padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8125rem;
-}
-
-.btn-danger {
-  background: #b00020;
-  color: #fff;
-  border: none;
-  padding: 0.4rem 0.75rem;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -3250,13 +3178,13 @@ button:disabled, .btn:disabled {
 }
 
 /* =========================================================
-   Modal (Generic)
+   Modal (BEM-style components)
    ========================================================= */
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4026,21 +3954,6 @@ button:disabled, .btn:disabled {
   margin-bottom: 6px;
 }
 
-/* =========================================================
-   Page Headers (shared)
-   ========================================================= */
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.page-header__title {
-  margin: 0;
-}
-
 .page-header__actions {
   display: flex;
   gap: 0.5rem;
@@ -4196,10 +4109,6 @@ button:disabled, .btn:disabled {
 /* Utility: text colors */
 .text-error {
   color: red;
-}
-
-.text-muted {
-  color: #777;
 }
 
 /* =========================================================
@@ -5079,16 +4988,6 @@ input.mfc-input--wide[type="number"] {
 /* =========================================================
    Button Variants
    ========================================================= */
-
-.btn-danger {
-  background: var(--accent-negative);
-  color: white;
-  border: none;
-}
-
-.btn-danger:hover {
-  background: #c9001a;
-}
 
 /* =========================================================
    Floor Calculator
